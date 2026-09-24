@@ -27,6 +27,15 @@
 5. `cli` is the composition root: it resolves configuration and constructs the
    selected adapters, task, policy, and algorithm.
 
+## Simulator integration
+
+`simulators/isaaclab` and `simulators/mjlab` wrap native vector environments
+behind `VectorEnvironment`. They pass observation/action tensors through
+unchanged and normalize reset/step result containers into `EnvReset` and
+`EnvStep`. They do not create tasks, own simulator app lifecycles, or transform
+sensor representations. The native backend remains responsible for vectorized
+auto-reset behavior; collectors must account for each task's setting.
+
 ## DAgger data flow
 
 The environment produces the student's deployable observation and task state.

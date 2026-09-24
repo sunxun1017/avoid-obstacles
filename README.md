@@ -55,8 +55,15 @@ pytest
 ruff check .
 ```
 
-No training command is exposed yet; the package currently establishes the
-project layout and architectural constraints.
+Code formatting, naming, comments, and docstring conventions are documented
+in [`CONTRIBUTING.md`](CONTRIBUTING.md). Python style is enforced by Ruff and
+EditorConfig (85-character line limit, four-space indentation).
+
+Isaac Lab and mjlab adapters are available under
+`embodied_learning.simulators`. They wrap native vector environments without
+importing either simulator at package import time. See
+[`src/embodied_learning/simulators/README.md`](src/embodied_learning/simulators/README.md)
+for setup and behavioral notes. No training command is exposed yet.
 
 ## License
 

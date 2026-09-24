@@ -1,4 +1,12 @@
 {
-    "local-comment.storage.commentsConfig": "comments.json",
-    "local-comment.storage.bookmarksConfig": "bookmarks.json"
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.rulers": [85],
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit"
+        }
+    }
 }
