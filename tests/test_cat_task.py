@@ -143,3 +143,51 @@ def test_observation_noise_is_bounded_and_critic_is_clean():
         assert (delta[:, begin:end] <= bound + 1e-6).all()
     torch.testing.assert_close(noisy["actor"][:, 52:], clean["actor"][:, 52:])
     torch.testing.assert_close(noisy["critic"], clean["critic"])
+
+
+def test_invalid_pose_terminates_without_querying_nan():
+    from types import SimpleNamespace
+
+    from embodied_learning.tasks.cat_reward import CatRewardInputs
+
+    class Bank:
+        source_profile = {"version": "cat_source_v1"}
+
+        def sample_source(self, p, scene, goal):
+            assert torch.isfinite(p).all(), "mapping query received invalid pose"
+            return SimpleNamespace(
+                guidance=torch.zeros_like(p),
+                sdf_gradient=torch.zeros_like(p),
+                sdf=torch.ones(p.shape[:2]),
+            )
+
+    state = CatTaskState(
+        SimpleNamespace(), Bank(), (0,), 1, "cpu", {"noise_level": 0.0}
+    )
+    c = CatJointController(
+        CAT_JOINT_NAMES, torch.full((29,), -2.0), torch.full((29,), 2.0), 1, "cpu"
+    )
+    x = np.load(Path(__file__).parent / "fixtures/cat_source_reference.npz")
+    inputs = CatRewardInputs(
+        **{
+            k[6:]: torch.from_numpy(x[k][:1]).clone()
+            for k in x.files
+            if k.startswith("input_")
+        }
+    )
+    payload = dict(
+        reward_inputs=inputs,
+        body_positions=torch.full((1, 11, 3), float("nan")),
+        root_position=torch.full((1, 3), float("nan")),
+        root_rotation=torch.eye(3)[None],
+        gyro=torch.zeros(1, 3),
+        gravity=torch.zeros(1, 3),
+        up_z=torch.ones(1),
+        self_contact=torch.zeros(1, dtype=torch.bool),
+        physical_collision=torch.zeros(1, dtype=torch.bool),
+        root_local_vel=torch.zeros(1, 3),
+        invalid=torch.ones(1, dtype=torch.bool),
+    )
+    state.refresh(payload, c, torch.tensor([1]), 1)
+    assert state.outcomes()["invalid"][0]
+    assert torch.isfinite(state.observations()["actor"]).all()

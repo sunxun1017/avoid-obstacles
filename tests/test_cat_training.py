@@ -174,3 +174,20 @@ def test_source_cli_configuration_defaults():
     assert config.runner_config()["critic"]["hidden_dims"] == [512, 256, 128]
     assert config.rollout_steps == 20 and config.epochs == 4
     assert all(s["voxel_size"] == 0.04 for s in settings["scenes"])
+
+
+def test_wrong_rsl_editable_path_has_actionable_diagnostic(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    from embodied_learning.cli.field_training import check_rsl_rl
+
+    monkeypatch.setitem(
+        sys.modules,
+        "rsl_rl",
+        SimpleNamespace(__file__="/example/amp/rsl_rl/__init__.py"),
+    )
+    monkeypatch.setitem(sys.modules, "rsl_rl.models", None)
+    with pytest.raises(RuntimeError, match="/example/amp/rsl_rl") as error:
+        check_rsl_rl()
+    assert ".venv-field" in str(error.value)

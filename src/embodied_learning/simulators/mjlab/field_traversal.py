@@ -261,7 +261,9 @@ def make_field_env(
     return FieldEnv(NativeFieldEnv())
 
 
-def validate_g1_clearance(manifest: SceneManifest) -> None:
+def validate_g1_clearance(
+    manifest: SceneManifest, *, joint_positions: dict[str, float] | None = None
+) -> None:
     """CPU narrow-phase checks at every declared start/goal in the default pose.
 
     Use native robot collision shapes, excluding support ground. This is an
@@ -294,7 +296,11 @@ def validate_g1_clearance(manifest: SceneManifest) -> None:
             data.qpos[3:7] = (1.0, 0.0, 0.0, 0.0)
             for j in range(1, model.njnt):
                 name = model.joint(j).name
-                for pattern, angle in cfg.init_state.joint_pos.items():
+                for pattern, angle in (
+                    cfg.init_state.joint_pos
+                    if joint_positions is None
+                    else joint_positions
+                ).items():
                     if re.fullmatch(pattern, name):
                         data.qpos[model.jnt_qposadr[j]] = angle
             mujoco.mj_forward(model, data)

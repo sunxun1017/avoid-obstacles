@@ -196,7 +196,11 @@ def read_cat_reward_inputs(env, state):
         self_contact=self_contact,
         physical_collision=physical,
         root_local_vel=(pelvis.transpose(-1, -2) @ root_vel[..., None]).squeeze(-1),
-        invalid=~torch.isfinite(q).all(-1) | ~torch.isfinite(v).all(-1),
+        invalid=(
+            ~torch.isfinite(q).all(-1)
+            | ~torch.isfinite(v).all(-1)
+            | ~torch.isfinite(data.root_link_vel_w).all(-1)
+        ),
     )
 
 
@@ -403,7 +407,11 @@ class CatEnv(RslRlVecEnvWrapper):
         for name, v in state.saved_terms.items():
             log["CatReward/" + name] = v.mean()
             log["CatWeighted/" + name] = (v * state.scales[name]).mean()
+        for name, v in state.saved_reward_diagnostics.items():
+            log["CatRewardDiagnostic/" + name] = v.float().mean()
         for name, v in state.last_metrics.items():
-            log["Cat/" + name] = v.float().mean()
+            finite = torch.isfinite(v)
+            safe = torch.where(finite, v.float(), 0.0)
+            log["Cat/" + name] = safe.sum() / finite.sum().clamp_min(1)
         log["Cat/clipped_reward"] = result[1].mean()
         return result

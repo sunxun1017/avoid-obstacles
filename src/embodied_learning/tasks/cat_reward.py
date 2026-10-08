@@ -93,7 +93,10 @@ def aggregate_cat_reward(
 
 
 def cat_reward_terms(
-    x: CatRewardInputs, *, parameters: CatRewardParameters
+    x: CatRewardInputs,
+    *,
+    parameters: CatRewardParameters,
+    diagnostics: dict[str, Tensor] | None = None,
 ) -> dict[str, Tensor]:
     b = x.root_vel.shape[0]
     expected = {
@@ -242,4 +245,8 @@ def cat_reward_terms(
             terms[name + "gf"] = torch.where(
                 crossed, 4.0, 5 * cosine * torch.sigmoid(40 * (tau - sdf))
             ).mean(-1)
+    if diagnostics is not None:
+        diagnostics["nonfinite_terms"] = torch.stack(
+            [~torch.isfinite(v) for v in terms.values()]
+        ).sum(0)
     return {k: torch.where(torch.isnan(v), 0.0, v) for k, v in terms.items()}

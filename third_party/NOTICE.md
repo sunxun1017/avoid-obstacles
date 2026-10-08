@@ -35,3 +35,11 @@ See `docs/field_training.md` for action/body/reward/backend differences.
 reward mathematics from the fixed Click-and-Traverse commit above (Apache-2.0).
 Modifications use explicit batched PyTorch inputs. Development oracle fixtures
 record source file hashes; JAX is not a runtime dependency.
+
+The source task also adapts command projection, gait phase, observation layout,
+step/reset semantics, joint constants, incremental targets and explicit torque PD
+from `env_cat.py`, `env_loco.py`, `constants.py` and `torque_step`. Source field
+construction and the literal sampler are separate from the paper-formula path.
+All these adaptations retain the fixed commit and Apache-2.0 provenance above.
+Simulation contacts/kinematics are supplied by mjlab; PPO uses RSL-RL public APIs.
+See `docs/cat_source_training.md` for source mapping and backend differences.

@@ -71,6 +71,25 @@ def preflight_teachers(
     return records
 
 
+def check_rsl_rl() -> None:
+    """Detect an incompatible editable RSL package before physics startup."""
+    import importlib
+    import sys
+
+    try:
+        module = importlib.import_module("rsl_rl.models")
+        if not hasattr(module, "MLPModel"):
+            raise ImportError("MLPModel is missing")
+    except ImportError as error:
+        package = sys.modules.get("rsl_rl")
+        path = getattr(package, "__file__", "not installed")
+        raise RuntimeError(
+            f"Incompatible RSL-RL import from {path}, Python={sys.executable}. "
+            "Use the project .venv-field and official rsl-rl-lib==5.4.2; "
+            "see docs/cat_source_training.md."
+        ) from error
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="G1 paper-field PPO and DAgger")
     commands = parser.add_subparsers(dest="stage", required=True)
@@ -151,7 +170,17 @@ def main(argv: list[str] | None = None) -> int:
             validate_g1_clearance,
         )
 
-        validate_g1_clearance(manifest)
+        source_joints = None
+        if profile:
+            from embodied_learning.robots.g1 import (
+                CAT_DEFAULT_JOINTS,
+                CAT_JOINT_NAMES,
+            )
+
+            source_joints = dict(
+                zip(CAT_JOINT_NAMES, CAT_DEFAULT_JOINTS, strict=True)
+            )
+        validate_g1_clearance(manifest, joint_positions=source_joints)
         prepared = prepare_fields(
             manifest, output / "fields", source_profile=source_profile
         )
@@ -174,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("A PPO specialist requires exactly one --scene.")
     import torch
 
+    check_rsl_rl()
     from embodied_learning.algorithms.dagger import (
         DaggerConfig,
         evaluate_student,

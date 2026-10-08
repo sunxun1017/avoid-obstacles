@@ -144,3 +144,18 @@ def test_source_has_explicit_contact_capacity():
     cfg = build_cat_cfg(num_envs=1, seed=42)
     # Autodetection undersizes one-env playback once arms/body hit the floor.
     assert cfg.sim.nconmax is not None and cfg.sim.nconmax >= 70
+
+
+def test_evaluation_ignores_unknown_terminal_distances():
+    class InvalidEnv(PlayEnv):
+        def step(self, actions):
+            obs, reward, done, extras = super().step(actions)
+            extras["cat_metrics"]["goal_distance"].fill_(float("nan"))
+            extras["cat_metrics"]["min_goal_distance"].fill_(float("inf"))
+            return obs, reward, done, extras
+
+    env = InvalidEnv()
+    policy = FieldStudent(PolicyContract.from_env(env, (16,)), "cpu")
+    result = evaluate_student(env, policy, steps=2)
+    assert result["mean_final_goal_distance"] is None
+    assert result["mean_min_goal_distance"] is None

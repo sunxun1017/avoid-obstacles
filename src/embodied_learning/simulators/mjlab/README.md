@@ -141,3 +141,7 @@ the setting can be omitted.
 
 Source for grid sizes and the unresolved projection description:
 [ADAPT, Section III-B and Figure 2](https://arxiv.org/abs/2603.16328v1).
+
+## G1Cat 公开源码任务
+
+独立的 `cat_source_v1` 配置使用源码奖励、指令、步态、162/250 观测和 12 维腿部增量动作。旧论文势场与 source 场缓存有不同契约。训练与播放见 [G1Cat 公开源码训练](../../../../docs/cat_source_training.md)。

@@ -49,3 +49,26 @@ def test_cat_field_masks_and_nan_handling():
     torch.testing.assert_close(
         aggregate_cat_reward(terms, {"a": 1}, dt=0.02), torch.tensor([0.0, 0.06])
     )
+
+
+def test_nonfinite_reward_diagnostics_before_source_nan_cleanup():
+    fixture = np.load(Path(__file__).parent / "fixtures/cat_source_reference.npz")
+    inputs = CatRewardInputs(
+        **{
+            k[6:]: torch.from_numpy(fixture[k]).clone()
+            for k in fixture.files
+            if k.startswith("input_")
+        }
+    )
+    inputs.torques[0, 0] = torch.nan
+    diagnostic = {}
+    result = cat_reward_terms(
+        inputs,
+        parameters=CatRewardParameters(
+            torch.from_numpy(fixture["soft_lower"]),
+            torch.from_numpy(fixture["soft_upper"]),
+        ),
+        diagnostics=diagnostic,
+    )
+    assert diagnostic["nonfinite_terms"][0] >= 1
+    assert result["joint_torque"][0] == 0

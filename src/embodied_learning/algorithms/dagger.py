@@ -224,6 +224,7 @@ def evaluate_student(
     reward_sum, episodes = 0.0, 0
     counts: dict[str, int] = {}
     final_distance, min_distance, stopped, metric_steps = 0.0, 0.0, 0, 0
+    final_count, min_count = 0, 0
     for _ in range(steps):
         obs, rewards, dones, extras = env.step(student.predict(obs))
         reward_sum += float(rewards.sum())
@@ -232,17 +233,19 @@ def evaluate_student(
             counts[key] = counts.get(key, 0) + int((flag & dones.bool()).sum())
         metrics = extras.get("cat_metrics", {})
         if metrics:
-            final_distance += float(metrics["goal_distance"][dones.bool()].sum())
-            min_distance += float(metrics["min_goal_distance"][dones.bool()].sum())
+            final = metrics["goal_distance"][dones.bool()]
+            minimum = metrics["min_goal_distance"][dones.bool()]
+            final_distance += float(final[torch.isfinite(final)].sum())
+            min_distance += float(minimum[torch.isfinite(minimum)].sum())
+            final_count += int(torch.isfinite(final).sum())
+            min_count += int(torch.isfinite(minimum).sum())
             stopped += int(metrics["stopped"].sum())
             metric_steps += env.num_envs
     return dict(
-        mean_final_goal_distance=final_distance / episodes
-        if episodes and metric_steps
+        mean_final_goal_distance=final_distance / final_count
+        if final_count
         else None,
-        mean_min_goal_distance=min_distance / episodes
-        if episodes and metric_steps
-        else None,
+        mean_min_goal_distance=min_distance / min_count if min_count else None,
         stopped_step_fraction=stopped / metric_steps if metric_steps else None,
         steps=steps,
         envs=env.num_envs,

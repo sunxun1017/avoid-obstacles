@@ -70,6 +70,7 @@ class CatTaskState:
         self.goal_distance = torch.zeros(num_envs, device=device)
         self.saved_outcomes = {}
         self.saved_terms = {}
+        self.saved_reward_diagnostics = {}
         self.last_metrics = {}
         self.scales = SOURCE_SCALES.copy()
         for names, coef in [
@@ -125,12 +126,28 @@ class CatTaskState:
         positions = payload["body_positions"]
         rotation = payload["root_rotation"]
         root = payload["root_position"]
+        invalid = (
+            payload["invalid"]
+            | ~torch.isfinite(positions).all((1, 2))
+            | ~torch.isfinite(root).all(1)
+            | ~torch.isfinite(rotation).all((1, 2))
+        )
+        # Nonfinite physics is a terminal state, not a valid mapping query.
+        # Finite placeholders protect indexing only; original kinematics and
+        # the explicit invalid flag still reach rewards/termination/observations.
+        query_positions = torch.where(invalid[:, None, None], 0.0, positions)
+        root = torch.where(invalid[:, None], 0.0, root)
+        rotation = torch.where(
+            invalid[:, None, None], torch.eye(3, device=root.device)[None], rotation
+        )
         if len(ids):
             self.last_positions[ids] = positions[ids]
             self.odom_position[ids] = root[ids]
             self.odom_rotation[ids] = rotation[ids]
         velocity = (positions - self.last_positions) / 0.02
-        sample = self.bank.sample_source(positions, self.scene_ids, self.goal_ids)
+        sample = self.bank.sample_source(
+            query_positions, self.scene_ids, self.goal_ids
+        )
         bf = sample.sdf_gradient / (
             sample.sdf_gradient.norm(dim=-1, keepdim=True) + 1e-6
         )
@@ -167,7 +184,7 @@ class CatTaskState:
         self.odom_rotation[update] = rotation[update]
         local = (
             rotation.transpose(-1, -2)[:, None]
-            @ (positions - root[:, None])[..., None]
+            @ (query_positions - root[:, None])[..., None]
         ).squeeze(-1)
         delayed = self.odom_position[:, None] + (
             self.odom_rotation[:, None] @ local[..., None]
@@ -204,27 +221,37 @@ class CatTaskState:
         x.last_last_actions = controller.last_last_actions
         x.body_velocities = velocity
         params = CatRewardParameters(controller.lower, controller.upper)
-        self.terms = cat_reward_terms(x, parameters=params)
+        diagnostics = {}
+        self.terms = cat_reward_terms(x, parameters=params, diagnostics=diagnostics)
         self._reward = aggregate_cat_reward(self.terms, self.scales, dt=0.02)
         flags = self.classify(
             up_z=payload["up_z"],
             head_z=positions[:, 0, 2],
             self_contact=payload["self_contact"],
             sdf=sample.sdf,
-            invalid=payload["invalid"],
+            invalid=invalid,
             steps=steps,
             threshold=self.options["term_collision_threshold"],
         )
         self.goal_distance = (root[:, :2] - self.goals[:, :2]).norm(dim=-1)
+        self.goal_distance = torch.where(invalid, torch.nan, self.goal_distance)
         self.record_goal(
             self.goal_distance,
             ~(flags["fall"] | flags["collision"] | flags["invalid"]),
         )
         self.min_goal_distance = torch.minimum(
-            self.min_goal_distance, self.goal_distance
+            self.min_goal_distance,
+            torch.where(
+                flags["fall"] | flags["collision"] | invalid,
+                torch.inf,
+                self.goal_distance,
+            ),
         )
         self._outcomes = flags
         if not same_step and not self.initial.all():
+            self.saved_reward_diagnostics = {
+                k: v.clone() for k, v in diagnostics.items()
+            }
             self.saved_terms = {k: v.clone() for k, v in self.terms.items()}
             self.saved_outcomes = {
                 **{k: v.clone() for k, v in flags.items()},
