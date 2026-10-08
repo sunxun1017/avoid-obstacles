@@ -13,6 +13,13 @@ authors = [{ name = "Embodied Learning Contributors" }]
 dependencies = []
 
 [project.optional-dependencies]
+mapping = ["torch>=2.0"]
+potential-fields = [
+  "numpy>=1.24",
+  "torch>=2.0",
+  "scipy>=1.10",
+  "scikit-fmm>=2025.6.23",
+]
 dev = [
   "pytest>=8.0",
   "ruff>=0.6",
