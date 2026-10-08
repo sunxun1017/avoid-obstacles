@@ -144,8 +144,12 @@ python -m embodied_learning.cli.field_training evaluate \
 
 开发期 `tools/generate_cat_reference.py` 直接抽取并执行固定提交的作者函数，生成奖励、指令、60+步停步过程、观测和场参考；fixture 记录文件 SHA256。运行时不依赖 JAX。原作者 Apache-2.0 许可保留在 `third_party/licenses/Click-and-Traverse-LICENSE`。
 
-本机 CUDA 完整回归 159 项通过，包含三个场景各两次 PPO 更新及恢复、DAgger 两轮及恢复、教师不变、162/250 观测对照、部分复位和终止奖励。正式 0.04 米网格 prepare、两次 PPO、单环境 Viser 500 步及 HTTP200 已验证。已有 HFIELD/CAPSULE MULTICCD 警告与基线相同。
+本机 CUDA 完整回归 166 项通过，包含三个场景各两次 PPO 更新及恢复、DAgger 两轮及恢复、教师不变、162/250 观测对照、部分复位和终止奖励。正式 0.04 米网格 prepare、两次 PPO、单环境 Viser 500 步及 HTTP200 已验证。已有 HFIELD/CAPSULE MULTICCD 警告与基线相同。
 
 这些证据只证明数值对照和训练/播放管线可运行，**不证明 G1 已经学会绕障或达到论文成功率**。模型接触几何、质量/惯量、后端积分/约束求解、PPO minibatch 和 DAgger 优化方式仍存在差异。
 
 非法位姿仅在场索引路径使用有限占位值，原始运动学仍用于奖励诊断，invalid 标志终止对应槽位；未知终止距离不计入平均值。prepare 的起点/目标检查使用 source 默认关节姿态。
+
+独立审阅修正了 actor 的当前 move flag、reset 的场归一化、恢复计数器导致的额外相位更新、IMU 位点速度、旧 PPO 配置默认值兼容，以及缓存/原生模型身份缺失。新契约包含已校验场文件的聚合哈希和编译后原生模型数值数组的哈希；跨环境数量播放不改变契约。搬运 checkpoint 时需同时搬运其 fields 缓存，重建出的不同文件哈希会被拒绝。
+
+目前尚未单独暴露出界诊断：source 查询仍按作者方式裁剪索引，返回 valid；它不意味着机器人仍在原网格覆盖范围内。没有迁移作者 reset 时的连续 XY/yaw/关节/根速度扰动，本设计使用枚举起点和目标，仅迁移指定的 PD/RFI、步态、push 与观测噪声随机化。

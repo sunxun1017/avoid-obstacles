@@ -49,6 +49,7 @@ class FieldBank:
     identity: str
     scene_names: tuple[str, ...]
     source_profile: dict | None = None
+    cache_identity: str | None = None
 
     @property
     def num_scenes(self) -> int:
@@ -237,4 +238,14 @@ def load_field_cache(
         scene_manifest.identity,
         tuple(s.id for s in scene_manifest.scenes),
         source_profile,
+        hashlib.sha256(
+            json.dumps(
+                {
+                    "identity": metadata["identity"],
+                    "source_profile": source_profile,
+                    "fields": sorted(records, key=lambda r: (r["scene"], r["goal"])),
+                },
+                sort_keys=True,
+            ).encode()
+        ).hexdigest(),
     )

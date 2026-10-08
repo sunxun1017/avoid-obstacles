@@ -156,6 +156,9 @@ def train_specialist(
     serial_config = json.loads(json.dumps(asdict(config)))
     if configuration_path.exists():
         old = json.loads(configuration_path.read_text())
+        old.setdefault("critic_hidden_dims", None)
+        old.setdefault("normalization", True)
+        old.setdefault("gamma", 0.99)
         comparable_old, comparable_new = old.copy(), serial_config.copy()
         for key in ("iterations", "save_interval"):
             comparable_old.pop(key)

@@ -156,7 +156,14 @@ class CatTaskState:
             sample.guidance[:, [0, 3, 4, 5, 6]],
             sample.sdf_gradient[:, [0, 3, 4, 5, 6]],
         )
-        initial_command = command.clone()
+        normalized_gf = sample.guidance / (
+            sample.guidance.norm(dim=-1, keepdim=True) + 1e-6
+        )
+        initial_command = compute_cat_command(
+            normalized_gf[:, 1],
+            normalized_gf[:, [0, 3, 4, 5, 6]],
+            bf[:, [0, 3, 4, 5, 6]],
+        )
         old_phase = self.gait.phase.clone()
         old_mask = self.gait.gait_mask.clone()
         old_last = self.gait.last_command.clone()
@@ -177,8 +184,7 @@ class CatTaskState:
             * (command[:, 0, None, None] > 0.5)
             / (sample.guidance.norm(dim=-1, keepdim=True) + 1e-6)
         )
-        gf[ids] = sample.guidance[ids]
-        bf[ids] = sample.sdf_gradient[ids]
+        gf[ids] = normalized_gf[ids]
         update = ((steps - 1) % 5 == 0) | self.initial
         self.odom_position[update] = root[update]
         self.odom_rotation[update] = rotation[update]
@@ -200,8 +206,10 @@ class CatTaskState:
             * (command[:, 0, None, None] > 0.5)
             / (delayed_sample.guidance.norm(dim=-1, keepdim=True) + 1e-6)
         )
-        delayed_gf[ids] = delayed_sample.guidance[ids]
-        delayed_bf[ids] = delayed_sample.sdf_gradient[ids]
+        delayed_gf[ids] = (
+            delayed_sample.guidance
+            / (delayed_sample.guidance.norm(dim=-1, keepdim=True) + 1e-6)
+        )[ids]
         delayed_command = compute_cat_command(
             delayed_gf[:, 1],
             delayed_gf[:, [0, 3, 4, 5, 6]],

@@ -178,6 +178,7 @@ def generate(source, output):
     obs_values["body_positions"][:, 0] = values["head_pos"]
     obs_values["body_positions"][:, 3:5] = values["foot_pos"]
     obs_values["body_positions"][:, 5:7] = values["hands_pos"]
+    obs_values["command_delayed"][:, 0] = 0.75
     actor_outputs = []
     critic_outputs = []
     author.action_joint_ids = jp.arange(12)
@@ -354,6 +355,58 @@ def generate(source, output):
     output_values.update(
         obs_actor=np.stack(actor_outputs), obs_critic=np.stack(critic_outputs)
     )
+    # Execute only the actual reset field/command assignments from upstream.
+    tree = ast.parse((source / "cat_ppo/envs/g1/env_cat.py").read_text())
+    source_cls = next(
+        n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "G1CatEnv"
+    )
+    reset = next(
+        n
+        for n in source_cls.body
+        if isinstance(n, ast.FunctionDef) and n.name == "reset"
+    )
+    nodes = []
+    for node in reset.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        targets = {
+            n.id
+            for target in node.targets
+            for n in ast.walk(target)
+            if isinstance(n, ast.Name)
+        }
+        if not targets.intersection(
+            {"all_gf", "all_bf", "headgf", "headbf", "command"}
+        ):
+            continue
+        if (
+            isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Attribute)
+            and node.value.func.attr == "sample_field"
+        ):
+            continue
+        nodes.append(node)
+    snippet = compile(
+        ast.Module(body=nodes, type_ignores=[]), "upstream_reset_fields", "exec"
+    )
+    resets = {key: [] for key in ("gf", "bf", "command")}
+    for i in range(b):
+        namespace = {
+            "self": author,
+            "jp": jp,
+            "EPS": 1e-6,
+            "all_gf": jp.array(values["gf"][i]),
+            "all_bf": jp.array(values["bf"][i]),
+            "all_df": jp.array(values["sdf"][i])[:, None],
+        }
+        exec(snippet, namespace)
+        for key, name in (
+            ("gf", "all_gf"),
+            ("bf", "all_bf"),
+            ("command", "command"),
+        ):
+            resets[key].append(np.asarray(namespace[name]))
+    output_values.update({"reset_" + k: np.stack(v) for k, v in resets.items()})
     output_values.update(soft_lower=lower, soft_upper=upper)
     output.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(output / "cat_source_reference.npz", **output_values)

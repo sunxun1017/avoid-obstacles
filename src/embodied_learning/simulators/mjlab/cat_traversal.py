@@ -3,8 +3,10 @@
 Robot model/contact geometry remain mjlab assets; source-name mappings are explicit.
 """
 
+import hashlib
 from dataclasses import replace
 
+import numpy as np
 import torch
 from mjlab.actuator import BuiltinMotorActuatorCfg
 from mjlab.entity import EntityCfg
@@ -37,6 +39,21 @@ from embodied_learning.simulators.mjlab.field_traversal import (
 )
 from embodied_learning.tasks.cat_reward import CatRewardInputs
 from embodied_learning.tasks.cat_traversal import CatTaskState
+
+
+def native_model_identity(model) -> str:
+    """Hash compiled numeric robot/scene assets, independent of data or device."""
+    digest = hashlib.sha256()
+    for name in sorted(dir(model)):
+        value = getattr(model, name)
+        if isinstance(value, np.ndarray):
+            digest.update(name.encode())
+            digest.update(str(value.dtype).encode())
+            digest.update(str(value.shape).encode())
+            digest.update(np.ascontiguousarray(value).tobytes())
+        elif name == "names" and isinstance(value, bytes):
+            digest.update(value)
+    return digest.hexdigest()
 
 
 def build_cat_cfg(
@@ -127,7 +144,7 @@ def read_cat_reward_inputs(env, state):
     torso_ang = (
         nav.transpose(-1, -2) @ native_body_vel[:, torso_id, 3:, None]
     ).squeeze(-1)
-    root_vel = data.root_link_vel_w[:, :3]
+    root_vel = data.site_vel_w[:, site[1], :3]
     gyro = (pelvis.transpose(-1, -2) @ data.root_link_vel_w[:, 3:, None]).squeeze(-1)
     gravity = (
         pelvis.transpose(-1, -2)
@@ -241,6 +258,8 @@ def _source_reset(env, env_ids):
 
 
 def make_cat_env(manifest, bank, *, scene_ids, num_envs, device, seed, options):
+    if bank.cache_identity is None:
+        raise ValueError("Source task requires a verified field-cache identity.")
     names = tuple(s.id for s in manifest.scenes)
     if not scene_ids or any(n not in names for n in scene_ids):
         raise ValueError("Unknown source scene.")
@@ -371,6 +390,8 @@ class CatEnv(RslRlVecEnvWrapper):
         state = self.cat_state
         self.schema = dict(
             task_profile="cat_source_v1",
+            field_cache_identity=state.bank.cache_identity,
+            robot_model_identity=native_model_identity(native.sim.mj_model),
             source_commit="866ba392f1c1e84b92ad75fa66550f26e8af8e48",
             scene_hash=state.manifest.identity,
             scene_names=[s.id for s in state.manifest.scenes],
@@ -393,7 +414,10 @@ class CatEnv(RslRlVecEnvWrapper):
     @training_step.setter
     def training_step(self, value):
         self.unwrapped.common_step_counter = value
-        self.cat_state._key = None
+        # This is learner bookkeeping, not an additional control step.
+        self.cat_state._last_common = value
+        if self.cat_state._key is not None:
+            self.cat_state._key = (value, self.cat_state.generation)
 
     def reset_slots(self, slots):
         self.unwrapped.reset(env_ids=slots)

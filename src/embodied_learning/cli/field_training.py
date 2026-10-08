@@ -359,7 +359,9 @@ def main(argv: list[str] | None = None) -> int:
                 c.kp_scale.fill_(1.0)
                 c.kd_scale.fill_(1.0)
                 c.rfi_scale.zero_()
+                env.cat_state._obs = None
                 env.cat_state._key = None
+                env.unwrapped.observation_manager.reset()
             if args.stage == "play":
                 from embodied_learning.cli.field_play import play_policy
 

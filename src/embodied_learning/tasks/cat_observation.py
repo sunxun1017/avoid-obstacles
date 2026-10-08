@@ -105,7 +105,7 @@ def build_cat_observations(
     def rotate(v):
         return (rotation[:, None] @ v[..., None]).squeeze(-1)
 
-    actor_command = command_delayed.clone()
+    actor_command = command.clone()
     actor_command[:, 1:] = (rotation @ command_delayed[:, 1:, None]).squeeze(-1)
     actor_command[:, -1] = 0.0
     actor = torch.cat(
