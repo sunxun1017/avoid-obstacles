@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import torch
@@ -85,4 +86,19 @@ def load_teacher(
     expected_contract.require(actual)
     model = _make_model(actual, device, stochastic=True)
     model.load_state_dict(saved["actor_state_dict"], strict=True)
-    return FrozenTeacher(model, actual, tuple(saved["training_scenes"]))
+    teacher = FrozenTeacher(model, actual, tuple(saved["training_scenes"]))
+    teacher.identity = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
+    return teacher
+
+
+def load_student(
+    checkpoint: Path, *, expected_contract: PolicyContract, device: str
+) -> FieldStudent:
+    """Load a trusted DAgger student strictly, for pure-student evaluation."""
+    saved = torch.load(checkpoint, map_location=device, weights_only=False)
+    actual = PolicyContract.from_dict(saved["field_contract"])
+    expected_contract.require(actual)
+    student = FieldStudent(actual, device)
+    student.load_state_dict(saved["student"], strict=True)
+    student.eval().requires_grad_(False)
+    return student
