@@ -346,3 +346,158 @@ def build_voxel_field(
         origin=tuple(origin),
         voxel_size=voxel_size,
     )
+
+
+def build_source_voxel_field(
+    occupied, *, goal, voxel_size, origin, max_speed=0.6, goal_radius=0.12
+):
+    """Literal pf_modular progressive field construction, Apache-2.0.
+
+    Retains filled geodesics and full-grid gradients from upstream 866ba392.
+    Empty obstacles use infinite SDF/zero BF, a documented empty-map extension.
+    """
+    import skfmm
+
+    occupied = np.asarray(occupied)
+    if occupied.dtype != np.bool_ or occupied.ndim != 3 or min(occupied.shape) < 3:
+        raise ValueError("Source occupancy must be bool XYZ of size >=3.")
+    _positive("voxel_size", voxel_size)
+    _positive("max_speed", max_speed)
+    _positive("goal_radius", goal_radius)
+    coordinates = np.stack(
+        np.meshgrid(
+            *(
+                np.arange(n) * voxel_size + origin[i]
+                for i, n in enumerate(occupied.shape)
+            ),
+            indexing="ij",
+        ),
+        -1,
+    )
+    delta = coordinates - np.asarray(goal)
+    seed = np.linalg.norm(delta, axis=-1) <= goal_radius
+    if (
+        not seed.any()
+        or occupied[
+            tuple(np.rint((np.asarray(goal) - origin) / voxel_size).astype(int))
+        ]
+    ):
+        raise ValueError("Source goal seed must exist in free space.")
+    phi = np.ma.MaskedArray(np.where(seed, -1.0, 1.0), mask=occupied)
+    distance = np.ma.asarray(skfmm.distance(phi, dx=voxel_size))
+    valid = ~np.ma.getmaskarray(distance)
+    maximum = distance[valid].max() if valid.any() else 0.0
+    t = distance.filled(maximum).astype(np.float32)
+    gradient = np.stack(np.gradient(t, voxel_size, edge_order=2), -1).astype(
+        np.float32
+    )
+    if occupied.any():
+        sdf = np.asarray(
+            skfmm.distance(np.where(occupied, -1.0, 1.0), dx=voxel_size),
+            dtype=np.float32,
+        )
+        bf = np.stack(np.gradient(sdf, voxel_size, edge_order=2), -1).astype(
+            np.float32
+        )
+    else:
+        sdf = np.full(occupied.shape, np.inf, dtype=np.float32)
+        bf = np.zeros((*occupied.shape, 3), np.float32)
+    bf_norm = np.linalg.norm(bf, axis=-1, keepdims=True)
+    bunit = np.zeros_like(bf)
+    mask = bf_norm[..., 0] > 1e-9
+    bunit[mask] = bf[mask] / bf_norm[mask]
+    g = -gradient
+    perp = g - (g * bunit).sum(-1, keepdims=True) * bunit
+    frac = np.clip(np.maximum(sdf, 0) / (5 * voxel_size + 1e-9), 0, 1)
+    weight = (1 - frac * frac * (3 - 2 * frac))[..., None]
+    mixed = (1 - weight) * g + weight * perp
+    mixed[occupied] = bunit[occupied]
+    magnitude = np.linalg.norm(mixed, axis=-1, keepdims=True)
+    unit = np.zeros_like(mixed)
+    nonzero = magnitude[..., 0] > 1e-9
+    unit[nonzero] = mixed[nonzero] / magnitude[nonzero]
+    xy = np.linalg.norm(delta[..., :2], axis=-1)
+    speed = np.where(xy > 0.3, max_speed, max_speed * (xy / 0.3) ** 3).astype(
+        np.float32
+    )
+    return VoxelPotentialField(
+        sdf=torch.from_numpy(sdf),
+        geodesic=torch.from_numpy(t),
+        sdf_gradient=torch.from_numpy(bf),
+        geodesic_gradient=torch.from_numpy(gradient),
+        guidance=torch.from_numpy(unit * speed[..., None]),
+        known=torch.ones_like(torch.from_numpy(occupied)),
+        reachable=torch.from_numpy(valid & ~occupied),
+        occupied=torch.from_numpy(occupied),
+        origin=tuple(origin),
+        voxel_size=voxel_size,
+    )
+
+
+def sample_source_field(
+    field: VoxelPotentialField, positions: Tensor
+) -> FieldSample:
+    """Source sample_field, including its corner/weight ordering and clamping.
+
+    Upstream uses XYZ corners with X fastest but flattened XYZ weights.
+    Preserve that permutation rather than silently fixing interpolation.
+    """
+    if (
+        positions.ndim != 3
+        or positions.shape[-1] != 3
+        or positions.device != field.sdf.device
+        or positions.dtype != field.sdf.dtype
+        or not torch.isfinite(positions).all()
+    ):
+        raise ValueError("Source queries must be finite [B,K,3] matching field.")
+    index = (positions - positions.new_tensor(field.origin)) / field.voxel_size
+    maximum = positions.new_tensor(field.sdf.shape) - 2
+    index = torch.minimum(index.clamp_min(0), maximum)
+    base = index.floor().long()
+    frac = index - base
+    offsets = torch.tensor(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [1, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [0, 1, 1],
+            [1, 1, 1],
+        ],
+        device=positions.device,
+    )
+    corners = base[..., None, :] + offsets
+    ix, iy, iz = corners.unbind(-1)
+    wx = torch.stack((1 - frac[..., 0], frac[..., 0]), -1)
+    wy = torch.stack((1 - frac[..., 1], frac[..., 1]), -1)
+    wz = torch.stack((1 - frac[..., 2], frac[..., 2]), -1)
+    w = (
+        wx[..., :, None, None] * wy[..., None, :, None] * wz[..., None, None, :]
+    ).flatten(-3)
+    if not field.known[ix, iy, iz].all():
+        raise ValueError("Source query contains unknown cells.")
+
+    def sample(grid):
+        values = grid[ix, iy, iz]
+        if grid.ndim == 4:
+            return (values * w[..., None]).sum(-2)
+        result = (torch.where(torch.isfinite(values), values, 0.0) * w).sum(-1)
+        return torch.where(
+            (torch.isposinf(values) & (w > 0)).any(-1), math.inf, result
+        )
+
+    valid = torch.ones(
+        positions.shape[:2], device=positions.device, dtype=torch.bool
+    )
+    return FieldSample(
+        sample(field.sdf),
+        sample(field.geodesic),
+        sample(field.sdf_gradient),
+        sample(field.geodesic_gradient),
+        sample(field.guidance),
+        valid,
+        valid,
+        valid,
+    )

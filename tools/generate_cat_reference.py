@@ -34,7 +34,13 @@ def load_methods(source):
             if isinstance(fn, ast.FunctionDef) and (
                 fn.name.startswith(("_reward_", "_cost_", "_re_"))
                 or fn.name
-                in ("_get_reward", "compute_cmd_from_rtf", "_update_phase")
+                in (
+                    "_get_reward",
+                    "compute_cmd_from_rtf",
+                    "_update_phase",
+                    "sample_field",
+                    "world_to_grid",
+                )
             ):
                 module = ast.Module(
                     body=[
@@ -213,6 +219,40 @@ def generate(source, output):
         gait_phase=np.stack(phases),
         gait_mask=np.stack(masks),
     )
+    import skfmm
+
+    path = source / "procedural_obstacle_generation/pf_modular.py"
+    hashes["pf_modular.py"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    ns = {"np": np, "skfmm": skfmm}
+    nodes = [
+        n
+        for n in ast.parse(path.read_text()).body
+        if isinstance(n, ast.FunctionDef)
+        and n.name in ("make_sdf", "grad3", "make_guidance_field_progressive")
+    ]
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), "exec"), ns)
+    occupied = np.zeros((9, 9, 9), bool)
+    occupied[3:5, 3:5, 2:6] = True
+    grid = np.meshgrid(*(np.arange(9) * 0.1 for _ in range(3)), indexing="ij")
+    goal = np.array([0.6, 0.6, 0.6])
+    cfg = NS(voxel=0.1, v_max=0.6, goal_seed_r=0.12)
+    sdf = ns["make_sdf"](occupied, 0.1)
+    bf = ns["grad3"](sdf, 0.1)
+    t, gf = ns["make_guidance_field_progressive"](cfg, grid, occupied, goal, bf, sdf)
+    output_values.update(
+        grid_occupied=occupied,
+        grid_goal=goal,
+        grid_sdf=sdf,
+        grid_geodesic=t,
+        grid_guidance=gf,
+    )
+    author.pf_origin = jp.zeros(3)
+    author.dx = 0.1
+    author.Nx = author.Ny = author.Nz = 9
+    queries = jp.array([[-4.0, 0.25, 0.33], [0.21, 0.35, 0.19]])
+    output_values["query_guidance"] = np.asarray(
+        author.sample_field(jp.array(gf), queries)
+    )[:, None, :]
     output_values.update(soft_lower=lower, soft_upper=upper)
     output.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(output / "cat_source_reference.npz", **output_values)

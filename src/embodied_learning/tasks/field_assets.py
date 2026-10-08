@@ -15,7 +15,9 @@ from embodied_learning.data.field_scenes import SceneManifest, voxelize_scene
 from embodied_learning.perception.voxel_field import (
     FieldSample,
     VoxelPotentialField,
+    build_source_voxel_field,
     build_voxel_field,
+    sample_source_field,
 )
 
 CACHE_VERSION = 1
@@ -46,6 +48,7 @@ class FieldBank:
     fields: tuple[tuple[VoxelPotentialField, ...], ...]
     identity: str
     scene_names: tuple[str, ...]
+    source_profile: dict | None = None
 
     @property
     def num_scenes(self) -> int:
@@ -57,8 +60,18 @@ class FieldBank:
         """Number of candidate goals for each scene."""
         return tuple(len(goals) for goals in self.fields)
 
-    def sample(
+    def sample_source(
         self, positions: Tensor, scene_ids: Tensor, goal_ids: Tensor
+    ) -> FieldSample:
+        return self.sample(positions, scene_ids, goal_ids, source=True)
+
+    def sample(
+        self,
+        positions: Tensor,
+        scene_ids: Tensor,
+        goal_ids: Tensor,
+        *,
+        source: bool = False,
     ) -> FieldSample:
         """Query scene-local [B,K,3] using independent per-slot scene/goal IDs."""
         if positions.ndim != 3 or positions.shape[-1] != 3:
@@ -84,7 +97,11 @@ class FieldBank:
                 )[0]
                 if selected.numel() == 0:
                     continue
-                sampled = field.sample(positions[selected])
+                sampled = (
+                    sample_source_field(field, positions[selected])
+                    if source
+                    else field.sample(positions[selected])
+                )
                 for item in fields(FieldSample):
                     value = getattr(sampled, item.name)
                     if item.name not in values:
@@ -103,23 +120,30 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare_fields(manifest: SceneManifest, output_dir: Path) -> FieldCacheManifest:
+def prepare_fields(
+    manifest: SceneManifest, output_dir: Path, *, source_profile: dict | None = None
+) -> FieldCacheManifest:
     """Build each scene/goal field once and save pickle-free arrays plus hashes.
 
     Existing compatible, intact caches are reused. Any incompatible cache
     raises instead of silently replacing training assets in place.
     """
+    if source_profile is not None and source_profile != {"version": "cat_source_v1"}:
+        raise ValueError("Unknown source profile.")
     output_dir = Path(output_dir)
     path = output_dir / "manifest.json"
     if path.exists():
-        load_field_cache(path, manifest, device="cpu")
+        load_field_cache(path, manifest, device="cpu", source_profile=source_profile)
         return FieldCacheManifest(path, manifest.identity)
     output_dir.mkdir(parents=True, exist_ok=True)
     entries = []
     for scene in manifest.scenes:
         occupied = voxelize_scene(scene)
         for goal_id, goal in enumerate(scene.goals):
-            field = build_voxel_field(
+            builder = (
+                build_source_voxel_field if source_profile else build_voxel_field
+            )
+            field = builder(
                 occupied,
                 goal=goal,
                 voxel_size=scene.voxel_size,
@@ -143,6 +167,7 @@ def prepare_fields(manifest: SceneManifest, output_dir: Path) -> FieldCacheManif
             )
     metadata = {
         "version": CACHE_VERSION,
+        "source_profile": source_profile,
         "identity": manifest.identity,
         "fields": entries,
     }
@@ -153,7 +178,11 @@ def prepare_fields(manifest: SceneManifest, output_dir: Path) -> FieldCacheManif
 
 
 def load_field_cache(
-    path: Path, scene_manifest: SceneManifest, *, device: str
+    path: Path,
+    scene_manifest: SceneManifest,
+    *,
+    device: str,
+    source_profile: dict | None = None,
 ) -> FieldBank:
     """Load all fields, rejecting identity, array, path or checksum mismatch."""
     path = Path(path)
@@ -163,6 +192,8 @@ def load_field_cache(
         or metadata.get("identity") != scene_manifest.identity
     ):
         raise ValueError("Field cache version/scene identity mismatch.")
+    if metadata.get("source_profile") != source_profile:
+        raise ValueError("Field cache source profile mismatch.")
     records = metadata.get("fields", [])
     lookup = {(r["scene"], r["goal"]): r for r in records}
     expected = {
@@ -205,4 +236,5 @@ def load_field_cache(
         tuple(bank),
         scene_manifest.identity,
         tuple(s.id for s in scene_manifest.scenes),
+        source_profile,
     )
