@@ -27,6 +27,10 @@ def load_methods(source):
         path = source / "cat_ppo/envs/g1" / name
         hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
         tree = ast.parse(path.read_text())
+        if name=='env_cat.py':
+            for function in tree.body:
+                if isinstance(function,ast.FunctionDef) and function.name in ('world_to_navi_vel','world_to_navi_pos'):
+                    exec(compile(ast.Module(body=[function],type_ignores=[]),str(path),'exec'),namespace)
         node = next(
             n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls
         )
@@ -38,7 +42,7 @@ def load_methods(source):
                     "_get_reward",
                     "compute_cmd_from_rtf",
                     "_update_phase",
-                    "sample_field",
+                    "_get_obs", "sample_field",
                     "world_to_grid",
                 )
             ):
@@ -127,6 +131,11 @@ def generate(source, output):
         ang_vel_yaw=[-0.5, 0.5],
         reward_config=NS(foot_height_stance=0),
     )
+    obs_values=dict(gyro=rand((b,3)),gravity=rand((b,3)),joint_pos=values['joint_pos'],joint_vel=values['joint_vel'],default_joints=np.zeros((b,29),np.float32),last_actions=values['last_actions'],targets=rand((b,29)),command=np.concatenate([values['move_flag'][:,None],values['cmd_vel']],axis=1),foot_height=values['foot_height'],phase=rand((b,2)),root_local_vel=values['root_vel'],gf=values['gf'],bf=values['bf'],sdf=values['sdf'],body_positions=rand((b,11,3)),body_velocities=values['body_velocities'],torso_rpy=values['torso_rpy'],gait_mask=values['gait_mask'],feet_contact=values['feet_contact'],kp_scale=np.ones((b,1),np.float32),kd_scale=np.ones((b,1),np.float32),rfi_scale=rand((b,29)),navigation_rotation=values['navigation_rotation'],gf_delayed=values['gf'],bf_delayed=values['bf'],sdf_delayed=values['sdf'],command_delayed=np.concatenate([values['move_flag'][:,None],values['cmd_vel']],axis=1))
+    obs_values['body_positions'][:,0]=values['head_pos'];obs_values['body_positions'][:,3:5]=values['foot_pos'];obs_values['body_positions'][:,5:7]=values['hands_pos']
+    actor_outputs=[];critic_outputs=[]
+    author.action_joint_ids=jp.arange(12);author._default_qpos=jp.zeros(29)
+    author._config.noise_config=NS(level=0.,scales=NS(gyro=.2,gravity=.05,joint_pos=.03,joint_vel=1.5))
     output_values = {f"input_{k}": v for k, v in values.items()}
     rewards = {}
     for i in range(b):
@@ -170,6 +179,22 @@ def generate(source, output):
                 info[label + "_vel"] = x["body_velocities"][jp.array(ids)]
         # Independent point velocities are included in the production input.
         info["head_vel"] = x["body_velocities"][jp.array([0])]
+        ox={k:jp.array(v[i]) for k,v in obs_values.items()}
+        author.get_gyro=lambda data,frame:ox['gyro']
+        author.get_local_linvel=lambda data,frame:ox['root_local_vel']
+        # Use an exact identity orientation with an independently supplied gravity vector below.
+        data.site_xmat=jp.stack([jp.eye(3),jp.eye(3)])
+        author._pelvis_imu_site_id=0
+        ox['gravity']=jp.array([0.,0.,-1.]);obs_values['gravity'][i]=np.array([0.,0.,-1.])
+        info.update(rng=jax.random.PRNGKey(i),phase=ox['phase'],motor_targets=ox['targets'],kp_scale=jp.array(1.),kd_scale=jp.array(1.),rfi_lim_scale=ox['rfi_scale'],command_delay=ox['command_delayed'],pelv_pos=ox['body_positions'][1],tors_pos=ox['body_positions'][2],knees_pos=ox['body_positions'][7:9],shlds_pos=ox['body_positions'][9:11])
+        for label,ids in [('head',[0]),('pelv',[1]),('tors',[2]),('feet',[3,4]),('hands',[5,6]),('knees',[7,8]),('shlds',[9,10])]:
+            for suffix,key in [('gf','gf'),('bf','bf'),('df','sdf')]:
+                val=ox[key][jp.array(ids)]
+                if suffix=='df':val=val[:,None]
+                info[label+suffix]=val
+                info[label+suffix+'_delay']=val
+        actor_obs=author._get_obs(data,info,ox['feet_contact'])
+        actor_outputs.append(np.asarray(actor_obs['state']));critic_outputs.append(np.asarray(actor_obs['privileged_state']))
         result = author._get_reward(
             data, x["actions"], info, jp.array(False), x["feet_contact"]
         )
@@ -253,6 +278,8 @@ def generate(source, output):
     output_values["query_guidance"] = np.asarray(
         author.sample_field(jp.array(gf), queries)
     )[:, None, :]
+    output_values.update({f'obs_{k}':v for k,v in obs_values.items()})
+    output_values.update(obs_actor=np.stack(actor_outputs),obs_critic=np.stack(critic_outputs))
     output_values.update(soft_lower=lower, soft_upper=upper)
     output.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(output / "cat_source_reference.npz", **output_values)

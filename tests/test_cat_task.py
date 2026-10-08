@@ -1,0 +1,145 @@
+from pathlib import Path
+
+import numpy as np
+import pytest
+import torch
+
+from embodied_learning.robots.g1 import CAT_JOINT_NAMES
+from embodied_learning.simulators.mjlab.cat_control import CatJointController
+from embodied_learning.tasks.cat_observation import build_cat_observations
+from embodied_learning.tasks.cat_traversal import CatTaskState
+
+
+def test_source_observation_fixture_162_250():
+    x = np.load(Path(__file__).parent / "fixtures/cat_source_reference.npz")
+    payload = {
+        k[4:]: torch.from_numpy(x[k])
+        for k in x.files
+        if k.startswith("obs_") and k not in ("obs_actor", "obs_critic")
+    }
+    obs = build_cat_observations(**payload, noise_level=0.0)
+    torch.testing.assert_close(
+        obs["actor"], torch.from_numpy(x["obs_actor"]), rtol=1e-5, atol=1e-6
+    )
+    torch.testing.assert_close(
+        obs["critic"], torch.from_numpy(x["obs_critic"]), rtol=1e-5, atol=1e-6
+    )
+    assert obs["actor"].shape == (16, 162) and obs["critic"].shape == (16, 250)
+
+
+def test_reward_history_matches_author_step_sequence():
+    c = CatJointController(
+        CAT_JOINT_NAMES, torch.full((29,), -2.0), torch.full((29,), 2.0), 1, "cpu"
+    )
+    c.process_action(torch.ones(1, 12))
+    c.process_action(torch.ones(1, 12) * 2)
+    torch.testing.assert_close(c.last_actions, torch.full((1, 12), 2.0))
+    torch.testing.assert_close(c.last_last_actions, torch.ones(1, 12))
+
+
+def test_source_collision_grace_49_50():
+    args = dict(
+        up_z=torch.ones(2),
+        head_z=torch.ones(2),
+        self_contact=torch.tensor([True, True]),
+        sdf=torch.ones(2, 11),
+        invalid=torch.zeros(2, dtype=torch.bool),
+        steps=torch.tensor([49, 50]),
+        threshold=0.04,
+    )
+    out = CatTaskState.classify(**args)
+    assert out["collision"].tolist() == [False, True]
+
+
+def test_ever_reached_goal_latched_until_episode_end():
+    state = CatTaskState.__new__(CatTaskState)
+    state.ever_goal = torch.zeros(2, dtype=torch.bool)
+    state.record_goal(torch.tensor([0.05, 1.0]), torch.tensor([True, True]))
+    state.record_goal(torch.tensor([1.0, 1.0]), torch.tensor([True, True]))
+    assert state.ever_goal.tolist() == [True, False]
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="Native G1 requires CUDA")
+def test_reads_do_not_advance_state(tmp_path):
+    from embodied_learning.data.field_scenes import load_scene_manifest
+    from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
+    from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
+
+    manifest = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    profile = {"version": "cat_source_v1"}
+    cache = prepare_fields(manifest, tmp_path, source_profile=profile)
+    bank = load_field_cache(
+        cache.path, manifest, device="cuda:0", source_profile=profile
+    )
+    env = make_cat_env(
+        manifest,
+        bank,
+        scene_ids=("wall_detour",),
+        num_envs=4,
+        device="cuda:0",
+        seed=42,
+        options={
+            "noise_level": 0.0,
+            "random_pd": False,
+            "random_rfi": False,
+            "push": False,
+        },
+    )
+    try:
+        before = env.cat_state.gait.phase.clone()
+        first = env.get_observations()
+        second = env.get_observations()
+        torch.testing.assert_close(first["actor"], second["actor"])
+        torch.testing.assert_close(env.cat_state.gait.phase, before)
+        for _ in range(20):
+            obs, reward, done, extras = env.step(torch.zeros(4, 12, device="cuda:0"))
+        assert obs["critic"].shape == (4, 250)
+        assert torch.isfinite(reward).all()
+        env.reset_slots(torch.tensor([0], device="cuda:0"))
+        assert env.cat_state.gait.stop_timestep[0] == 100
+        # Force one timeout: reward/outcomes must survive the native auto-reset.
+        env.episode_length_buf[0] = 999
+        phase = env.cat_state.gait.phase.clone()
+        obs, reward, done, extras = env.step(torch.zeros(4, 12, device="cuda:0"))
+        assert done[0] and extras["field_outcomes"]["timeout"][0]
+        assert env.episode_length_buf[0] == 0
+        from embodied_learning.tasks.cat_reward import aggregate_cat_reward
+
+        expected = aggregate_cat_reward(
+            env.cat_state.saved_terms, env.cat_state.scales, dt=0.02
+        )
+        torch.testing.assert_close(reward, expected)
+        expected_phase = (
+            torch.fmod(
+                phase[1:] + env.cat_state.gait.phase_dt[1:, None] + torch.pi,
+                2 * torch.pi,
+            )
+            - torch.pi
+        )
+        torch.testing.assert_close(env.cat_state.gait.phase[1:], expected_phase)
+        torch.testing.assert_close(
+            obs["actor"][1:], env.get_observations()["actor"][1:]
+        )
+    finally:
+        env.close()
+
+
+def test_observation_noise_is_bounded_and_critic_is_clean():
+    x = np.load(Path(__file__).parent / "fixtures/cat_source_reference.npz")
+    payload = {
+        k[4:]: torch.from_numpy(x[k])
+        for k in x.files
+        if k.startswith("obs_") and k not in ("obs_actor", "obs_critic")
+    }
+    clean = build_cat_observations(**payload, noise_level=0.0)
+    noisy = build_cat_observations(**payload, noise_level=1.0)
+    delta = (noisy["actor"] - clean["actor"]).abs()
+    for begin, end, bound in (
+        (0, 3, 0.2),
+        (3, 6, 0.05),
+        (6, 29, 0.03),
+        (29, 52, 1.5),
+    ):
+        assert (delta[:, begin:end] <= bound + 1e-6).all()
+    torch.testing.assert_close(noisy["actor"][:, 52:], clean["actor"][:, 52:])
+    torch.testing.assert_close(noisy["critic"], clean["critic"])
