@@ -44,6 +44,8 @@ def build_cat_cfg(
 ):
     cfg = unitree_g1_flat_env_cfg()
     cfg.scene.num_envs = num_envs
+    cfg.sim.nconmax = 128
+    cfg.sim.njmax = 512
     cfg.seed = seed
     cfg.sim.mujoco.timestep = 0.002
     cfg.decimation = 10

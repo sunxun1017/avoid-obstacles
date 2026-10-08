@@ -223,13 +223,27 @@ def evaluate_student(
     obs = env.get_observations()
     reward_sum, episodes = 0.0, 0
     counts: dict[str, int] = {}
+    final_distance, min_distance, stopped, metric_steps = 0.0, 0.0, 0, 0
     for _ in range(steps):
         obs, rewards, dones, extras = env.step(student.predict(obs))
         reward_sum += float(rewards.sum())
         episodes += int(dones.sum())
         for key, flag in extras.get("field_outcomes", {}).items():
             counts[key] = counts.get(key, 0) + int((flag & dones.bool()).sum())
+        metrics = extras.get("cat_metrics", {})
+        if metrics:
+            final_distance += float(metrics["goal_distance"][dones.bool()].sum())
+            min_distance += float(metrics["min_goal_distance"][dones.bool()].sum())
+            stopped += int(metrics["stopped"].sum())
+            metric_steps += env.num_envs
     return dict(
+        mean_final_goal_distance=final_distance / episodes
+        if episodes and metric_steps
+        else None,
+        mean_min_goal_distance=min_distance / episodes
+        if episodes and metric_steps
+        else None,
+        stopped_step_fraction=stopped / metric_steps if metric_steps else None,
         steps=steps,
         envs=env.num_envs,
         episodes=episodes,

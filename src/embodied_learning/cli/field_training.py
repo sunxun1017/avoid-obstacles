@@ -74,7 +74,7 @@ def preflight_teachers(
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="G1 paper-field PPO and DAgger")
     commands = parser.add_subparsers(dest="stage", required=True)
-    for stage in ("prepare", "ppo", "dagger", "evaluate"):
+    for stage in ("prepare", "ppo", "dagger", "evaluate", "play"):
         command = commands.add_parser(stage)
         command.add_argument(
             "--config", type=Path, default=Path("configs/experiments/g1_field.json")
@@ -85,7 +85,9 @@ def _parser() -> argparse.ArgumentParser:
         if stage == "prepare":
             continue
         command.add_argument("--scene", action="append", help="Repeat for subsets.")
-        command.add_argument("--num-envs", type=int, default=1024)
+        command.add_argument(
+            "--num-envs", type=int, default=1 if stage == "play" else 1024
+        )
         command.add_argument("--hidden-dims", nargs="+", type=int)
         if stage in ("ppo", "dagger"):
             command.add_argument(
@@ -105,9 +107,17 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--capacity", type=int, default=200000)
             command.add_argument("--beta-start", type=float, default=1.0)
             command.add_argument("--beta-rounds", type=int, default=20)
-        if stage == "evaluate":
+        if stage in ("evaluate", "play"):
             command.add_argument("--checkpoint", type=Path, required=True)
-            command.add_argument("--steps", type=int, default=1000)
+            command.add_argument(
+                "--steps", type=int, default=None if stage == "play" else 1000
+            )
+            command.add_argument("--no-perturbations", action="store_true")
+        if stage == "play":
+            command.add_argument(
+                "--viewer", choices=("native", "viser"), default="native"
+            )
+            command.add_argument("--port", type=int, default=8765)
     return parser
 
 
@@ -215,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
         )
     else:
-        if args.steps < 1:
+        if args.steps is not None and args.steps < 1:
             raise ValueError("steps must be positive.")
         records["evaluation"] = torch.load(
             args.checkpoint, map_location="cpu", weights_only=False
@@ -242,6 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         options=settings.get("task", {}),
     )
+    playback_owns_env = False
     try:
         if args.stage == "ppo":
             checkpoint = train_specialist(
@@ -301,12 +312,40 @@ def main(argv: list[str] | None = None) -> int:
             policy = loader(
                 args.checkpoint, expected_contract=expected, device=args.device
             )
+            overrides = {}
+            if args.no_perturbations:
+                if not profile:
+                    raise ValueError(
+                        "--no-perturbations is available for source task only."
+                    )
+                overrides = dict(
+                    noise_level=0.0, push=False, random_pd=False, random_rfi=False
+                )
+                env.cat_state.options = {**env.cat_state.options, **overrides}
+                c = env.unwrapped.cat_controller
+                action = env.unwrapped.action_manager.get_term("joint_pos")
+                action.cfg.random_pd = False
+                action.cfg.random_rfi = False
+                c.kp_scale.fill_(1.0)
+                c.kd_scale.fill_(1.0)
+                c.rfi_scale.zero_()
+                env.cat_state._key = None
+            if args.stage == "play":
+                from embodied_learning.cli.field_play import play_policy
+
+                playback_owns_env = True
+                play_policy(
+                    env, policy, viewer=args.viewer, port=args.port, steps=args.steps
+                )
+                return 0
             metrics = evaluate_student(env, policy, steps=args.steps)
+            metrics["evaluation_overrides"] = overrides
             metrics_path = output / "evaluation.json"
             metrics_path.write_text(json.dumps(metrics, indent=2) + "\n")
             print(json.dumps(metrics))
     finally:
-        env.close()
+        if not playback_owns_env:
+            env.close()
     return 0
 
 
