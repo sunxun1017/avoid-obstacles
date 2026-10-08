@@ -109,8 +109,9 @@ class FieldEnv(RslRlVecEnvWrapper):
             "scene_hash": self.field_state.manifest.identity,
             "scene_names": [s.id for s in self.field_state.manifest.scenes],
             "joint_names": list(native.scene["robot"].joint_names),
+            "action_names": native.action_manager.get_term("joint_pos").target_names,
             "action_scale": native.action_manager.get_term("joint_pos")
-            ._scale.flatten()
+            .scale[0].flatten()
             .tolist(),
             "action_offset": native.scene["robot"]
             .data.default_joint_pos[0]
