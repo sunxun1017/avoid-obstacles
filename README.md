@@ -63,7 +63,8 @@ Isaac Lab and mjlab adapters are available under
 `embodied_learning.simulators`. They wrap native vector environments without
 importing either simulator at package import time. See
 [`src/embodied_learning/simulators/README.md`](src/embodied_learning/simulators/README.md)
-for setup and behavioral notes. No training command is exposed yet.
+for setup and behavioral notes. G1 paper-field PPO specialists and online
+DAgger training are available; see [the server training guide](docs/field_training.md).
 
 ## License
 

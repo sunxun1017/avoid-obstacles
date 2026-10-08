@@ -129,3 +129,35 @@ def test_support_ground_not_collision(env):
     )
     _, _, _, extras = env.step(torch.zeros(2, 29, device=env.device))
     assert extras["field_outcomes"]["collision"][0]
+
+
+def test_configurable_reward_parameters():
+    from embodied_learning.tasks.field_traversal import RewardParameters
+
+    assert RewardParameters(vmf_weight=2.0).vmf_weight == 2.0
+    with pytest.raises(ValueError):
+        RewardParameters(collision_weight=-1.0)
+
+
+def test_g1_clearance_rejects_body_intersection():
+    from embodied_learning.data.field_scenes import (
+        FieldScene,
+        SceneBox,
+        SceneManifest,
+    )
+    from embodied_learning.simulators.mjlab.field_traversal import (
+        validate_g1_clearance,
+    )
+
+    scene = FieldScene(
+        "bad",
+        (-2.0, -2.0, -0.2),
+        (41, 41, 23),
+        0.1,
+        (SceneBox((0.25, 0.0, 1.0), (0.1, 0.1, 0.5)),),
+        ((0.0, 0.0, 0.8),),
+        ((1.5, 0.0, 0.8),),
+    )
+    # Root is outside the box, but the arm/body geometry overlaps it.
+    with pytest.raises(ValueError, match="clearance"):
+        validate_g1_clearance(SceneManifest((scene,)))

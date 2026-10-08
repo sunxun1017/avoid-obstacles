@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+from dataclasses import asdict, dataclass
+from typing import Any
 
 import torch
 from torch import Tensor
@@ -19,6 +21,48 @@ from embodied_learning.robots.g1 import G1_BODY_SCHEMA
 from embodied_learning.tasks.field_assets import FieldBank
 
 
+@dataclass(frozen=True)
+class RewardParameters:
+    """Explicit engineering shaping alongside the raw paper log-vMF reward."""
+
+    vmf_weight: float = 1.0
+    concentration_scale: float = 1.0
+    speed_weight: float = 1.0
+    alive_weight: float = 30.0
+    goal_weight: float = 50.0
+    collision_weight: float = 50.0
+    fall_weight: float = 50.0
+    invalid_weight: float = 50.0
+    tilt_weight: float = 0.05
+    energy_weight: float = 0.00001
+    joint_limit_weight: float = 1.0
+    action_rate_weight: float = 0.1
+
+    def __post_init__(self) -> None:
+        for name, value in asdict(self).items():
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"{name} must be finite and nonnegative.")
+
+
+def parse_task_options(
+    options: dict | None,
+) -> tuple[FieldParameters, RewardParameters, float]:
+    """Reject unknown options and parse field/reward scales before physics."""
+    options = options or {}
+    if set(options) - {"field", "rewards", "episode_length_s"}:
+        raise ValueError("Unknown field task option.")
+    field = FieldParameters(**options.get("field", {}))
+    rewards = RewardParameters(**options.get("rewards", {}))
+    duration = options.get("episode_length_s", 20.0)
+    if (
+        not isinstance(duration, (float, int))
+        or not math.isfinite(duration)
+        or duration <= 0
+    ):
+        raise ValueError("episode_length_s must be finite and positive.")
+    return field, rewards, float(duration)
+
+
 class FieldTaskState:
     """Per-slot scene/goal state; all field arrays remain on the task device."""
 
@@ -29,6 +73,7 @@ class FieldTaskState:
         allowed: tuple[int, ...],
         num_envs: int,
         device: str,
+        options: dict | None = None,
     ) -> None:
         if bank.identity != manifest.identity:
             raise ValueError("Scene and field identities differ.")
@@ -38,7 +83,12 @@ class FieldTaskState:
         )
         self.goal_ids = torch.zeros(num_envs, dtype=torch.long, device=device)
         self.goals = torch.zeros(num_envs, 3, device=device)
-        self.parameters = FieldParameters()
+        self.parameters, self.rewards, duration = parse_task_options(options)
+        self.settings = dict(
+            field=asdict(self.parameters),
+            rewards=asdict(self.rewards),
+            episode_length_s=duration,
+        )
         self.priority = torch.full((11,), 0.5, device=device)
         self.priority[1] = 1.0
         self.generation = 0
@@ -75,7 +125,7 @@ class FieldTaskState:
             timeout=elapsed >= limit,
         )
 
-    def current(self, env) -> BodyFieldObservation:
+    def current(self, env: Any) -> BodyFieldObservation:
         """Sample every ordered body site at the current physics state."""
         key = (env.common_step_counter, self.generation)
         if key != self._key:
@@ -95,7 +145,7 @@ class FieldTaskState:
             self._key = key
         return self._current
 
-    def observation(self, env) -> Tensor:
+    def observation(self, env: Any) -> Tensor:
         """Yaw-local guidance/velocity and bounded metric obstacle distances."""
         field = self.current(env)
         quat = env.scene["robot"].data.root_link_quat_w
@@ -104,7 +154,7 @@ class FieldTaskState:
         distance = field.sdf.nan_to_num(posinf=10.0).clamp(-1.0, 10.0)
         return torch.cat((guidance.flatten(1), velocity.flatten(1), distance), 1)
 
-    def outcomes(self, env) -> dict[str, Tensor]:
+    def outcomes(self, env: Any) -> dict[str, Tensor]:
         """Obstacle-only contact flags; the support plane is excluded."""
         field = self.current(env)
         contact = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
@@ -114,8 +164,9 @@ class FieldTaskState:
         root = robot.data.root_link_pos_w - env.scene.env_origins
         q = robot.data.root_link_quat_w
         upright = 1 - 2 * (q[:, 1].square() + q[:, 2].square())
+        self.goal_distance = (root[:, :2] - self.goals[:, :2]).norm(dim=-1)
         flags = self.classify(
-            goal_distance=(root[:, :2] - self.goals[:, :2]).norm(dim=-1),
+            goal_distance=self.goal_distance,
             contact=contact,
             upright=upright,
             root_height=root[:, 2],
@@ -126,18 +177,30 @@ class FieldTaskState:
         self.step_outcomes = {k: v.clone() for k, v in flags.items()}
         return flags
 
-    def reward(self, env) -> Tensor:
+    def reward(self, env: Any) -> Tensor:
         """Paper log vMF direction objective plus explicit locomotion shaping."""
         field = self.current(env)
         direction = vmf_direction_reward(
             field.guidance,
             self.velocity,
-            concentration_scale=1.0,
+            concentration_scale=self.rewards.concentration_scale,
             valid_mask=field.valid_mask,
         )
         flags = self.outcomes(env)
-        # Remove the state-independent uniform-density baseline only.
-        direction += field.valid_mask.sum(1) * math.log(4 * math.pi)
+        params = self.rewards
         speed = (field.guidance[:, 1] * self.velocity[:, 1]).sum(-1)
-        safety = flags["collision"] | flags["fall"] | flags["invalid"]
-        return direction + speed + 50 * flags["goal"] - 50 * safety
+        robot = env.scene["robot"]
+        quat = robot.data.root_link_quat_w
+        upright = 1 - 2 * (quat[:, 1].square() + quat[:, 2].square())
+        energy = robot.data.qfrc_actuator.square().sum(-1)
+        return (
+            params.vmf_weight * direction
+            + params.speed_weight * speed
+            + params.alive_weight * field.valid_mask.all(1)
+            + params.goal_weight * flags["goal"]
+            - params.collision_weight * flags["collision"]
+            - params.fall_weight * flags["fall"]
+            - params.invalid_weight * flags["invalid"]
+            - params.tilt_weight * (1 - upright).square()
+            - params.energy_weight * energy
+        )

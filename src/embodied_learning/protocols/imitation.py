@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from typing import Any, Protocol
 
 from tensordict import TensorDict
-from torch import Tensor
+from torch import Tensor, nn
 
 
 @dataclass(frozen=True)
@@ -87,7 +88,8 @@ class StudentPolicy(ExpertPolicy, Protocol):
     """Trainable module with deterministic inference and explicit statistics."""
 
     def __call__(self, observations: TensorDict) -> Tensor: ...
-    def parameters(self): ...
+    def parameters(self) -> Iterator[nn.Parameter]: ...
+    def train(self, mode: bool = True) -> StudentPolicy: ...
     def state_dict(self) -> dict: ...
     def load_state_dict(self, state: dict) -> None: ...
     def update_normalization(self, observations: TensorDict) -> None: ...

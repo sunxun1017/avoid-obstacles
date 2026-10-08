@@ -23,3 +23,7 @@
 学习与运行说明见 [势场说明](../../../docs/potential_fields.md)。
 传感器建图见 [建图说明](../../../docs/sensor_mapping.md)，支持 Torch CPU/CUDA。
 势场构建在 CPU 上进行，身体查询支持 Torch CPU/CUDA；这些通用模块均不依赖仿真器。
+
+多身体点论文观测与稳定 vMF 奖励见 `field_observation.py`、`field_reward.py`。
+G1 的已知场景 PPO/DAgger 训练见 [训练指南](../../../docs/field_training.md)，
+不要求传感器建图；通用感知模块与策略、机器人和仿真器保持解耦。

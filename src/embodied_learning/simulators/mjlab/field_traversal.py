@@ -6,9 +6,12 @@ entities permit distinct scenes in batched worlds sharing one MuJoCo model.
 
 from __future__ import annotations
 
+import re
 from dataclasses import replace
+from typing import Any
 
 import mujoco
+import numpy as np
 import torch
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnv
@@ -23,24 +26,26 @@ from mjlab.tasks.velocity.config.g1.env_cfgs import unitree_g1_flat_env_cfg
 from embodied_learning.data.field_scenes import SceneManifest
 from embodied_learning.robots.g1 import G1_ADDED_SITES, G1_BODY_SCHEMA
 from embodied_learning.tasks.field_assets import FieldBank
-from embodied_learning.tasks.field_traversal import FieldTaskState
+from embodied_learning.tasks.field_traversal import (
+    FieldTaskState,
+)
 
 
-def _field_obs(env):
+def _field_obs(env: Any) -> torch.Tensor:
     # Native forward refreshes kinematics after reward/reset at the same step.
     env.field_state._key = None
     return env.field_state.observation(env)
 
 
-def _field_reward(env):
+def _field_reward(env: Any) -> torch.Tensor:
     return env.field_state.reward(env)
 
 
-def _termination(env, name: str):
+def _termination(env: Any, name: str) -> torch.Tensor:
     return env.field_state.outcomes(env)[name]
 
 
-def _reset_field(env, env_ids):
+def _reset_field(env: Any, env_ids: torch.Tensor | None) -> None:
     state = env.field_state
     if env_ids is None:
         env_ids = torch.arange(env.num_envs, device=env.device)
@@ -84,7 +89,7 @@ def _reset_field(env, env_ids):
     state.generation += 1
 
 
-def _box_spec(half_size):
+def _box_spec(half_size: tuple[float, float, float]) -> mujoco.MjSpec:
     spec = mujoco.MjSpec()
     body = spec.worldbody.add_body(name="box")
     body.add_geom(
@@ -111,12 +116,17 @@ class FieldEnv(RslRlVecEnvWrapper):
             "joint_names": list(native.scene["robot"].joint_names),
             "action_names": native.action_manager.get_term("joint_pos").target_names,
             "action_scale": native.action_manager.get_term("joint_pos")
-            .scale[0].flatten()
+            .scale[0]
+            .flatten()
             .tolist(),
             "action_offset": native.scene["robot"]
             .data.default_joint_pos[0]
             .tolist(),
             "action_clip": 5.0,
+            "task": self.field_state.settings,
+            "physics": dict(
+                timestep=native.physics_dt, decimation=native.cfg.decimation
+            ),
             "observation": "proprio+field_guidance+body_velocity+sdf_v1",
         }
 
@@ -126,9 +136,13 @@ class FieldEnv(RslRlVecEnvWrapper):
         self.unwrapped.sim.forward()
         self.field_state.generation += 1
 
-    def step(self, actions: torch.Tensor):
+    def step(self, actions: torch.Tensor) -> tuple:
         result = super().step(actions)
         result[3]["field_outcomes"] = self.field_state.step_outcomes
+        log = result[3].setdefault("log", {})
+        log["Field/goal_distance"] = self.field_state.goal_distance.mean()
+        for name, flag in self.field_state.step_outcomes.items():
+            log[f"Field/{name}"] = flag.float().mean()
         return result
 
 
@@ -140,15 +154,23 @@ def make_field_env(
     num_envs: int,
     device: str,
     seed: int,
+    options: dict | None = None,
 ) -> FieldEnv:
     """Build one real G1 per slot with reset-routed known scene geometry."""
     names = tuple(s.id for s in manifest.scenes)
     if num_envs < 1 or not scene_ids or any(n not in names for n in scene_ids):
         raise ValueError("Invalid environment count or scene selection.")
     state = FieldTaskState(
-        manifest, bank, tuple(names.index(n) for n in scene_ids), num_envs, device
+        manifest,
+        bank,
+        tuple(names.index(n) for n in scene_ids),
+        num_envs,
+        device,
+        options,
     )
+    validate_g1_clearance(manifest)
     cfg = unitree_g1_flat_env_cfg()
+    cfg.episode_length_s = state.settings["episode_length_s"]
     cfg.seed = seed
     cfg.scene.num_envs = num_envs
     cfg.commands, cfg.curriculum, cfg.metrics = {}, {}, {}
@@ -156,7 +178,7 @@ def make_field_env(
     cfg.scene.sensors = ()
     original = cfg.scene.entities["robot"].spec_fn
 
-    def robot_spec():
+    def robot_spec() -> mujoco.MjSpec:
         spec = original()
         for name, (body_name, pos) in G1_ADDED_SITES.items():
             spec.body(body_name).add_site(name=name, pos=pos, size=(0.01, 0, 0))
@@ -197,6 +219,8 @@ def make_field_env(
         group.terms["body_fields"] = ObservationTermCfg(func=_field_obs)
         group.enable_corruption = False
     cfg.rewards = {k: cfg.rewards[k] for k in ("dof_pos_limits", "action_rate_l2")}
+    cfg.rewards["dof_pos_limits"].weight = -state.rewards.joint_limit_weight
+    cfg.rewards["action_rate_l2"].weight = -state.rewards.action_rate_weight
     cfg.rewards["field"] = RewardTermCfg(func=_field_reward, weight=1.0)
     cfg.terminations = {
         name: TerminationTermCfg(
@@ -208,9 +232,62 @@ def make_field_env(
     }
 
     class NativeFieldEnv(ManagerBasedRlEnv):
-        def __init__(self):
+        def __init__(self) -> None:
             self.field_state = state
             self.field_contact_names = tuple(s.name for s in contacts)
             super().__init__(cfg=cfg, device=device)
 
     return FieldEnv(NativeFieldEnv())
+
+
+def validate_g1_clearance(manifest: SceneManifest) -> None:
+    """CPU narrow-phase checks at every declared start/goal in the default pose.
+
+    Use native robot collision shapes, excluding support ground. This is an
+    initial-pose legality check, not a proof that articulated traversal exists.
+    """
+    from mjlab.asset_zoo.robots import get_g1_robot_cfg
+    from mjlab.entity import Entity
+
+    cfg = get_g1_robot_cfg()
+    for scene in manifest.scenes:
+        spec = Entity(cfg).spec
+        for name, (body_name, pos) in G1_ADDED_SITES.items():
+            spec.body(body_name).add_site(name=name, pos=pos, size=(0.01, 0, 0))
+        for i, box in enumerate(scene.boxes):
+            body = spec.worldbody.add_body(name=f"check_box_{i}", pos=box.center)
+            body.add_geom(
+                name=f"check_box_geom_{i}",
+                type=mujoco.mjtGeom.mjGEOM_BOX,
+                size=box.half_size,
+            )
+        model = spec.compile()
+        data = mujoco.MjData(model)
+        obstacle_ids = {
+            model.geom(f"check_box_geom_{i}").id for i in range(len(scene.boxes))
+        }
+        site_ids = [model.site(n).id for n in G1_BODY_SCHEMA]
+        for point in (*scene.starts, *scene.goals):
+            mujoco.mj_resetData(model, data)
+            data.qpos[:3] = point
+            data.qpos[3:7] = (1.0, 0.0, 0.0, 0.0)
+            for j in range(1, model.njnt):
+                name = model.joint(j).name
+                for pattern, angle in cfg.init_state.joint_pos.items():
+                    if re.fullmatch(pattern, name):
+                        data.qpos[model.jnt_qposadr[j]] = angle
+            mujoco.mj_forward(model, data)
+            sites = data.site_xpos[site_ids]
+            lower = np.asarray(scene.origin)
+            upper = lower + (np.asarray(scene.shape) - 1) * scene.voxel_size
+            if (
+                np.any(sites < lower)
+                or np.any(sites > upper)
+                or any(
+                    c.geom1 in obstacle_ids or c.geom2 in obstacle_ids
+                    for c in data.contact
+                )
+            ):
+                raise ValueError(
+                    f"G1 clearance invalid in scene {scene.id}: {point}."
+                )

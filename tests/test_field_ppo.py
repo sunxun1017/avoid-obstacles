@@ -141,7 +141,7 @@ def test_real_two_scene_ppo(tmp_path):
             manifest, bank, scene_ids=(name,), num_envs=4, device="cuda:0", seed=42
         )
         try:
-            assert len(env.schema['action_scale']) == 29
+            assert len(env.schema["action_scale"]) == 29
             path = train_specialist(env, config, tmp_path / name)
             teacher = load_teacher(
                 path,
