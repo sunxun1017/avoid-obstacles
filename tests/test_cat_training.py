@@ -1,5 +1,6 @@
 """Source task contracts and actual training/resume gates."""
 
+import json
 from dataclasses import replace
 from pathlib import Path
 
