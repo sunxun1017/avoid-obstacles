@@ -1,0 +1,10 @@
+{
+  "commit": "866ba392f1c1e84b92ad75fa66550f26e8af8e48",
+  "files": {
+    "env_loco.py": "2367e0b0e58bdc3a0948de12110b95287b2d224ae3a6449ed5360c7257be8ce0",
+    "env_cat.py": "ae56b75e698d179e095307cd514c0b0c34dffaeec30e822d4b178d13abb8766e"
+  },
+  "seed": 72,
+  "batch": 16,
+  "jax": "0.4.35"
+}

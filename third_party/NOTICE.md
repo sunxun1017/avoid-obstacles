@@ -28,3 +28,10 @@ PPO and actor normalization are provided through public APIs of RSL-RL 5.4.2
 simulation backend. These packages/assets remain external dependencies; their
 licenses must be retained when redistributed. Their source is not vendored here.
 See `docs/field_training.md` for action/body/reward/backend differences.
+
+# G1Cat public-source task migration
+
+`tasks/cat_reward.py` adapts `env_cat.py` and inherited `env_loco.py`
+reward mathematics from the fixed Click-and-Traverse commit above (Apache-2.0).
+Modifications use explicit batched PyTorch inputs. Development oracle fixtures
+record source file hashes; JAX is not a runtime dependency.
