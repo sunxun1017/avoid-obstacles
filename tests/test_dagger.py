@@ -20,6 +20,7 @@ class Env:
     num_envs, num_actions, device = 2, 1, "cpu"
     schema = {"action_scale": [1.0], "scene_hash": "tiny"}
     max_episode_length, cfg = 20, {}
+    training_step = 0
     episode_length_buf = torch.zeros(2, dtype=torch.long)
 
     def __init__(self):
@@ -33,6 +34,7 @@ class Env:
         )
 
     def step(self, action):
+        self.training_step += 1
         self.executed.append(action.clone())
         self.state.add_(action)
         return self.get_observations(), torch.ones(2), torch.zeros(2).long(), {}
@@ -156,6 +158,8 @@ def test_resume_buffer_optimizer_schedule(tmp_path):
     )
     assert resumed["optimizer"]["state"][0]["step"] == 2
     assert resumed["scheduler"]["last_epoch"] == 2
+    assert saved["environment_steps"] == 2
+    assert resumed["environment_steps"] == 4
 
 
 def test_eval_never_uses_teacher():

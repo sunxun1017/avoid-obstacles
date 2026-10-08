@@ -44,12 +44,41 @@ class RewardParameters:
                 raise ValueError(f"{name} must be finite and nonnegative.")
 
 
+@dataclass(frozen=True)
+class TrainingParameters:
+    """Default-off native observation corruption, pushes and field warmup."""
+
+    observation_noise: bool = False
+    push_velocity: float = 0.0
+    push_interval_s: float = 2.0
+    field_warmup_steps: int = 0
+
+    def __post_init__(self) -> None:
+        if type(self.observation_noise) is not bool:
+            raise ValueError("observation_noise must be boolean.")
+        if (
+            not math.isfinite(self.push_velocity)
+            or self.push_velocity < 0
+            or not math.isfinite(self.push_interval_s)
+            or self.push_interval_s <= 0
+            or type(self.field_warmup_steps) is not int
+            or self.field_warmup_steps < 0
+        ):
+            raise ValueError("Invalid disturbance or curriculum parameters.")
+
+    def field_factor(self, global_steps: int) -> float:
+        """Linearly ramp direction/speed shaping, keeping safety/alive terms."""
+        if self.field_warmup_steps == 0:
+            return 1.0
+        return min(1.0, max(0.0, global_steps / self.field_warmup_steps))
+
+
 def parse_task_options(
     options: dict | None,
-) -> tuple[FieldParameters, RewardParameters, float]:
+) -> tuple[FieldParameters, RewardParameters, float, TrainingParameters]:
     """Reject unknown options and parse field/reward scales before physics."""
     options = options or {}
-    if set(options) - {"field", "rewards", "episode_length_s"}:
+    if set(options) - {"field", "rewards", "episode_length_s", "training"}:
         raise ValueError("Unknown field task option.")
     field = FieldParameters(**options.get("field", {}))
     rewards = RewardParameters(**options.get("rewards", {}))
@@ -60,7 +89,12 @@ def parse_task_options(
         or duration <= 0
     ):
         raise ValueError("episode_length_s must be finite and positive.")
-    return field, rewards, float(duration)
+    return (
+        field,
+        rewards,
+        float(duration),
+        TrainingParameters(**options.get("training", {})),
+    )
 
 
 class FieldTaskState:
@@ -83,11 +117,14 @@ class FieldTaskState:
         )
         self.goal_ids = torch.zeros(num_envs, dtype=torch.long, device=device)
         self.goals = torch.zeros(num_envs, 3, device=device)
-        self.parameters, self.rewards, duration = parse_task_options(options)
+        self.parameters, self.rewards, duration, self.training = parse_task_options(
+            options
+        )
         self.settings = dict(
             field=asdict(self.parameters),
             rewards=asdict(self.rewards),
             episode_length_s=duration,
+            training=asdict(self.training),
         )
         self.priority = torch.full((11,), 0.5, device=device)
         self.priority[1] = 1.0
@@ -188,14 +225,15 @@ class FieldTaskState:
         )
         flags = self.outcomes(env)
         params = self.rewards
+        field_factor = self.training.field_factor(env.common_step_counter)
         speed = (field.guidance[:, 1] * self.velocity[:, 1]).sum(-1)
         robot = env.scene["robot"]
         quat = robot.data.root_link_quat_w
         upright = 1 - 2 * (quat[:, 1].square() + quat[:, 2].square())
         energy = robot.data.qfrc_actuator.square().sum(-1)
         return (
-            params.vmf_weight * direction
-            + params.speed_weight * speed
+            field_factor
+            * (params.vmf_weight * direction + params.speed_weight * speed)
             + params.alive_weight * field.valid_mask.all(1)
             + params.goal_weight * flags["goal"]
             - params.collision_weight * flags["collision"]

@@ -121,6 +121,8 @@ def train_dagger(
         scheduler.load_state_dict(saved["scheduler"])
         buffer.load_state_dict(saved["buffer"])
         completed = saved["completed_rounds"]
+        if hasattr(env, "training_step"):
+            env.training_step = saved.get("environment_steps", 0)
         torch.set_rng_state(saved["torch_rng"].cpu())
         if saved["cuda_rng"]:
             torch.cuda.set_rng_state_all([r.cpu() for r in saved["cuda_rng"]])
@@ -137,6 +139,7 @@ def train_dagger(
             scheduler=scheduler.state_dict(),
             buffer=buffer.state_dict(),
             completed_rounds=round_count,
+            environment_steps=int(getattr(env, "training_step", 0)),
             dagger_config=asdict(config),
             teachers=teachers,
             torch_rng=torch.get_rng_state(),

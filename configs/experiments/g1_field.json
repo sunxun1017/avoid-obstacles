@@ -210,6 +210,12 @@
       "energy_weight": 1e-05,
       "joint_limit_weight": 1.0,
       "action_rate_weight": 0.1
+    },
+    "training": {
+      "observation_noise": false,
+      "push_velocity": 0.0,
+      "push_interval_s": 2.0,
+      "field_warmup_steps": 0
     }
   }
 }

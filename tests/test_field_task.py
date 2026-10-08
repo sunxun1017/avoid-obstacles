@@ -161,3 +161,77 @@ def test_g1_clearance_rejects_body_intersection():
     # Root is outside the box, but the arm/body geometry overlaps it.
     with pytest.raises(ValueError, match="clearance"):
         validate_g1_clearance(SceneManifest((scene,)))
+
+
+def test_training_noise_disturbance_curriculum_options():
+    from embodied_learning.tasks.field_traversal import parse_task_options
+
+    _, _, _, training = parse_task_options(
+        {
+            "training": {
+                "observation_noise": True,
+                "push_velocity": 0.1,
+                "push_interval_s": 0.5,
+                "field_warmup_steps": 100,
+            }
+        }
+    )
+    assert training.observation_noise
+    assert training.push_velocity == 0.1
+    assert training.field_factor(0) == 0
+    assert training.field_factor(50) == 0.5
+    assert training.field_factor(100) == 1
+    with pytest.raises(ValueError):
+        parse_task_options({"training": {"push_interval_s": 0.0}})
+
+
+def test_real_training_options_and_resumed_curriculum(env, tmp_path):
+    from embodied_learning.algorithms.ppo import PpoConfig, train_specialist
+    from embodied_learning.simulators.mjlab.field_traversal import make_field_env
+
+    instance = make_field_env(
+        env.field_state.manifest,
+        env.field_state.bank,
+        scene_ids=("wall_detour",),
+        num_envs=2,
+        device="cuda:0",
+        seed=42,
+        options={
+            "training": {
+                "observation_noise": True,
+                "push_velocity": 0.1,
+                "push_interval_s": 0.1,
+                "field_warmup_steps": 100,
+            }
+        },
+    )
+    try:
+        assert instance.unwrapped.cfg.observations["actor"].enable_corruption
+        assert not instance.unwrapped.cfg.observations["critic"].enable_corruption
+        assert "push_robot" in instance.unwrapped.cfg.events
+        instance.training_step = 0
+        early_reward = instance.field_state.reward(instance.unwrapped)
+        instance.training_step = 100
+        full_reward = instance.field_state.reward(instance.unwrapped)
+        assert not torch.allclose(early_reward, full_reward)
+        instance.training_step = 0
+        config = PpoConfig(
+            iterations=1,
+            rollout_steps=4,
+            epochs=1,
+            mini_batches=1,
+            hidden_dims=(16, 8),
+        )
+        path = train_specialist(instance, config, tmp_path / "initial")
+        saved = torch.load(path, weights_only=False)
+        assert saved["environment_steps"] == 4
+        instance.training_step = 0
+        path = train_specialist(instance, config, tmp_path / "resumed", resume=path)
+        saved = torch.load(path, weights_only=False)
+        assert saved["environment_steps"] == 8
+        assert (
+            instance.field_state.training.field_factor(instance.training_step)
+            == 0.08
+        )
+    finally:
+        instance.close()

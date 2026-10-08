@@ -130,6 +130,16 @@ class FieldEnv(RslRlVecEnvWrapper):
             "observation": "proprio+field_guidance+body_velocity+sdf_v1",
         }
 
+    @property
+    def training_step(self) -> int:
+        """Global control steps used by the optional field curriculum."""
+        return self.unwrapped.common_step_counter
+
+    @training_step.setter
+    def training_step(self, value: int) -> None:
+        self.unwrapped.common_step_counter = value
+        self.field_state.generation += 1
+
     def reset_slots(self, slots: torch.Tensor) -> None:
         """Reset selected slots, then refresh native kinematics and sensors."""
         self.unwrapped._reset_idx(slots)
@@ -174,7 +184,16 @@ def make_field_env(
     cfg.seed = seed
     cfg.scene.num_envs = num_envs
     cfg.commands, cfg.curriculum, cfg.metrics = {}, {}, {}
+    push = cfg.events["push_robot"]
     cfg.events = {"field_reset": EventTermCfg(func=_reset_field, mode="reset")}
+    if state.training.push_velocity > 0:
+        scale = state.training.push_velocity
+        push.interval_range_s = (
+            state.training.push_interval_s,
+            state.training.push_interval_s,
+        )
+        push.params["velocity_range"] = {"x": (-scale, scale), "y": (-scale, scale)}
+        cfg.events["push_robot"] = push
     cfg.scene.sensors = ()
     original = cfg.scene.entities["robot"].spec_fn
 
@@ -210,14 +229,16 @@ def make_field_env(
                 )
             )
     cfg.scene.sensors = tuple(contacts)
-    for group in cfg.observations.values():
+    for group_name, group in cfg.observations.items():
         group.terms = {
             k: v
             for k, v in cfg.observations["actor"].terms.items()
             if k != "command"
         }
         group.terms["body_fields"] = ObservationTermCfg(func=_field_obs)
-        group.enable_corruption = False
+        group.enable_corruption = (
+            group_name == "actor" and state.training.observation_noise
+        )
     cfg.rewards = {k: cfg.rewards[k] for k in ("dof_pos_limits", "action_rate_l2")}
     cfg.rewards["dof_pos_limits"].weight = -state.rewards.joint_limit_weight
     cfg.rewards["action_rate_l2"].weight = -state.rewards.action_rate_weight

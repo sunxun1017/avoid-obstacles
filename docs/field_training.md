@@ -123,6 +123,27 @@ DAgger 保存聚合数据、优化器、学习率调度、归一化、已完成�
 修改教师权重后，已有 DAgger resume 会拒绝；请冻结教师文件，或开始新的蒸馏 run。
 Torch checkpoint 使用 Python 训练状态，只加载自己训练或可信来源的文件。
 
+## 可选训练噪声、扰动和课程
+
+配置 `task.training`，默认全部关闭：
+
+```json
+{
+  "observation_noise": false,
+  "push_velocity": 0.0,
+  "push_interval_s": 2.0,
+  "field_warmup_steps": 0
+}
+```
+
+`observation_noise=true` 启用原生 G1 actor 本体状态噪声；critic 和身体势场不加噪声。
+`push_velocity>0` 使用官方 mjlab interval event，周期性随机设置根部 X/Y 速度到
+`[-push_velocity,+push_velocity]` m/s；`push_interval_s` 指定周期。
+`field_warmup_steps>0` 将 vMF 和沿场速度 shaping 的权重从 0 线性升到配置值，
+保留存活、安全和限位项，作为先稳定再加强场引导的基础奖励课程；它不更改障碍几何。
+全局 control step 随 PPO/DAgger checkpoint 保存和恢复，不因恢复而重新进入课程起点。
+这些设置也进入策略契约，更改后须建立新 run。它们是工程选项，不声称复刻作者完整课程。
+
 ## 输出与调试
 
 - PPO：`specialists/<scene>/latest.pt`、`model_<iteration>.pt`、`losses.jsonl`、TensorBoard（含目标距离和各终止标记）。

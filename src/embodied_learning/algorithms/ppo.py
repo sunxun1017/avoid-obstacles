@@ -145,6 +145,7 @@ def train_specialist(
             state.update(
                 iter=self.current_learning_iteration,
                 completed_iterations=self.current_learning_iteration + 1,
+                environment_steps=int(getattr(env, "training_step", 0)),
                 infos=infos,
                 field_contract=contract.to_dict(),
                 ppo_config=asdict(config),
@@ -176,6 +177,8 @@ def train_specialist(
     if restored:
         runner.alg.load(restored, load_cfg=None, strict=True)
         runner.current_learning_iteration = restored["completed_iterations"]
+        if hasattr(env, "training_step"):
+            env.training_step = restored.get("environment_steps", 0)
         torch.set_rng_state(restored["torch_rng"].cpu())
         if restored["cuda_rng"]:
             torch.cuda.set_rng_state_all([r.cpu() for r in restored["cuda_rng"]])
