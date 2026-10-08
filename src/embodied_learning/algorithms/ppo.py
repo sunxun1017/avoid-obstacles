@@ -24,6 +24,9 @@ class PpoConfig:
     iterations: int = 30000
     rollout_steps: int = 24
     hidden_dims: tuple[int, ...] = (512, 256, 128)
+    critic_hidden_dims: tuple[int, ...] | None = None
+    normalization: bool = True
+    gamma: float = 0.99
     epochs: int = 5
     mini_batches: int = 4
     learning_rate: float = 0.001
@@ -48,13 +51,25 @@ class PpoConfig:
         if not math.isfinite(self.learning_rate) or self.learning_rate <= 0:
             raise ValueError("learning_rate must be finite and positive.")
 
+        if self.critic_hidden_dims is not None and (
+            not self.critic_hidden_dims
+            or any(type(d) is not int or d < 1 for d in self.critic_hidden_dims)
+        ):
+            raise ValueError("Invalid critic_hidden_dims.")
+        if (
+            type(self.normalization) is not bool
+            or not math.isfinite(self.gamma)
+            or not 0 < self.gamma <= 1
+        ):
+            raise ValueError("Invalid normalization/gamma.")
+
     def runner_config(self) -> dict:
         """RSL-RL 5.4.2 configuration, no simulator dependency or W&B login."""
         model = dict(
             class_name="MLPModel",
             hidden_dims=list(self.hidden_dims),
             activation="elu",
-            obs_normalization=True,
+            obs_normalization=self.normalization,
         )
         return dict(
             actor={
@@ -65,7 +80,10 @@ class PpoConfig:
                     "std_type": "scalar",
                 },
             },
-            critic=model.copy(),
+            critic={
+                **model,
+                "hidden_dims": list(self.critic_hidden_dims or self.hidden_dims),
+            },
             obs_groups={"actor": ["actor"], "critic": ["critic"]},
             algorithm=dict(
                 class_name="PPO",
@@ -77,7 +95,7 @@ class PpoConfig:
                 num_mini_batches=self.mini_batches,
                 learning_rate=self.learning_rate,
                 schedule="adaptive",
-                gamma=0.99,
+                gamma=self.gamma,
                 lam=0.95,
                 desired_kl=0.01,
                 max_grad_norm=1.0,
@@ -106,7 +124,12 @@ def train_specialist(
     """
     if env.num_envs * config.rollout_steps < config.mini_batches:
         raise ValueError("Rollout smaller than the number of PPO mini-batches.")
-    contract = PolicyContract.from_env(env, config.hidden_dims)
+    contract = PolicyContract.from_env(
+        env,
+        config.hidden_dims,
+        critic_hidden_dims=config.critic_hidden_dims,
+        normalization=config.normalization,
+    )
     training_scenes = sorted(set(env.scene_ids.tolist()))
     # Native scene allow-list is stable even when not every scene is sampled.
     if hasattr(env, "field_state"):
@@ -120,6 +143,11 @@ def train_specialist(
             expected.pop(key)
             actual.pop(key)
         actual["hidden_dims"] = tuple(actual["hidden_dims"])
+        actual.setdefault("critic_hidden_dims", None)
+        actual.setdefault("normalization", True)
+        actual.setdefault("gamma", 0.99)
+        if actual["critic_hidden_dims"] is not None:
+            actual["critic_hidden_dims"] = tuple(actual["critic_hidden_dims"])
         if expected != actual or restored["training_scenes"] != training_scenes:
             raise ValueError("PPO training configuration/scene contract mismatch.")
     output_dir = Path(output_dir)

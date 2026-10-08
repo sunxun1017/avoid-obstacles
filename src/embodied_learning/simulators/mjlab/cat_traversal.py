@@ -360,7 +360,7 @@ def make_cat_env(manifest, bank, *, scene_ids, num_envs, device, seed, options):
 class CatEnv(RslRlVecEnvWrapper):
     def __init__(self, native):
         super().__init__(native, clip_actions=None)
-        self.cat_state = native.cat_state
+        self.cat_state = self.field_state = native.cat_state
         self.scene_ids = self.cat_state.scene_ids
         state = self.cat_state
         self.schema = dict(

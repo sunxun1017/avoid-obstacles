@@ -28,7 +28,11 @@ def read_teachers(path: Path, scenes: tuple[str, ...]) -> dict[str, Path]:
 
 
 def preflight_teachers(
-    paths: dict[str, Path], *, scene_hash: str, scene_names: tuple[str, ...]
+    paths: dict[str, Path],
+    *,
+    scene_hash: str,
+    scene_names: tuple[str, ...],
+    task_profile: str | None = None,
 ) -> dict[str, dict]:
     """Check checkpoint schema and scene routing before constructing physics."""
     import torch
@@ -47,8 +51,13 @@ def preflight_teachers(
                 schema["scene_hash"] != scene_hash
                 or tuple(schema["body_sites"]) != G1_BODY_SCHEMA
                 or schema["scene_names"] != list(scene_names)
-                or contract.actor_dim != 173
-                or contract.action_dim != 29
+                or contract.actor_dim
+                != (162 if task_profile == "cat_source_v1" else 173)
+                or contract.critic_dim
+                != (250 if task_profile == "cat_source_v1" else 173)
+                or contract.action_dim
+                != (12 if task_profile == "cat_source_v1" else 29)
+                or schema.get("task_profile") != task_profile
                 or scene_names.index(name) not in saved["training_scenes"]
             ):
                 raise ValueError("Teacher contract mismatch.")
@@ -70,28 +79,24 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--config", type=Path, default=Path("configs/experiments/g1_field.json")
         )
-        command.add_argument(
-            "--output-dir", type=Path, default=Path("runs/g1-field")
-        )
+        command.add_argument("--output-dir", type=Path)
         command.add_argument("--device", default="cuda:0")
         command.add_argument("--seed", type=int, default=42)
         if stage == "prepare":
             continue
         command.add_argument("--scene", action="append", help="Repeat for subsets.")
         command.add_argument("--num-envs", type=int, default=1024)
-        command.add_argument(
-            "--hidden-dims", nargs="+", type=int, default=[512, 256, 128]
-        )
+        command.add_argument("--hidden-dims", nargs="+", type=int)
         if stage in ("ppo", "dagger"):
             command.add_argument(
                 "--iterations", type=int, default=30000 if stage == "ppo" else 1000
             )
             command.add_argument(
-                "--rollout-steps", type=int, default=24 if stage == "ppo" else 64
+                "--rollout-steps", type=int, default=None if stage == "ppo" else 64
             )
             command.add_argument("--resume", type=Path)
         if stage == "ppo":
-            command.add_argument("--epochs", type=int, default=5)
+            command.add_argument("--epochs", type=int)
             command.add_argument("--mini-batches", type=int, default=4)
         if stage == "dagger":
             command.add_argument("--teachers", type=Path)
@@ -118,9 +123,18 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("The training configuration must select unitree_g1.")
     from embodied_learning.tasks.field_traversal import parse_task_options
 
-    parse_task_options(settings.get("task", {}))
+    profile = settings.get("task_profile")
+    if profile not in (None, "cat_source_v1"):
+        raise ValueError("Unknown task profile.")
+    source_profile = settings.get("source_profile") if profile else None
+    if profile and source_profile != {"version": "cat_source_v1"}:
+        raise ValueError("Invalid source field profile.")
+    if not profile:
+        parse_task_options(settings.get("task", {}))
     scene_names = tuple(s.id for s in manifest.scenes)
-    output = args.output_dir
+    output = args.output_dir or Path(
+        "runs/g1-cat-source" if profile else "runs/g1-field"
+    )
     cache_path = output / "fields" / "manifest.json"
     if args.stage == "prepare":
         from embodied_learning.simulators.mjlab.field_traversal import (
@@ -128,7 +142,9 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         validate_g1_clearance(manifest)
-        prepared = prepare_fields(manifest, output / "fields")
+        prepared = prepare_fields(
+            manifest, output / "fields", source_profile=source_profile
+        )
         print(
             json.dumps(
                 dict(field_cache=str(prepared.path), scene_hash=prepared.identity)
@@ -163,18 +179,30 @@ def main(argv: list[str] | None = None) -> int:
 
     teachers, records = {}, {}
     if args.stage == "ppo":
+        ppo = settings.get("ppo", {})
         config = PpoConfig(
             iterations=args.iterations,
-            rollout_steps=args.rollout_steps,
-            hidden_dims=tuple(args.hidden_dims),
-            epochs=args.epochs,
+            rollout_steps=args.rollout_steps or ppo.get("rollout_steps", 24),
+            hidden_dims=tuple(
+                args.hidden_dims or ppo.get("hidden_dims", [512, 256, 128])
+            ),
+            critic_hidden_dims=tuple(ppo["critic_hidden_dims"])
+            if ppo.get("critic_hidden_dims")
+            else None,
+            normalization=ppo.get("normalization", True),
+            gamma=ppo.get("gamma", 0.99),
+            learning_rate=ppo.get("learning_rate", 0.001),
+            epochs=args.epochs or ppo.get("epochs", 5),
             mini_batches=args.mini_batches,
             seed=args.seed,
         )
     elif args.stage == "dagger":
         teachers = read_teachers(args.teachers or output / "teachers.json", scenes)
         records = preflight_teachers(
-            teachers, scene_hash=manifest.identity, scene_names=scene_names
+            teachers,
+            scene_hash=manifest.identity,
+            scene_names=scene_names,
+            task_profile=profile,
         )
         config = DaggerConfig(
             iterations=args.iterations,
@@ -194,10 +222,18 @@ def main(argv: list[str] | None = None) -> int:
         )
     if getattr(args, "resume", None) and not args.resume.is_file():
         raise ValueError("Resume checkpoint does not exist.")
-    bank = load_field_cache(cache_path, manifest, device=args.device)
+    bank = load_field_cache(
+        cache_path, manifest, device=args.device, source_profile=source_profile
+    )
     from embodied_learning.simulators.mjlab.field_traversal import make_field_env
 
-    env = make_field_env(
+    if profile:
+        from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
+
+        factory = make_cat_env
+    else:
+        factory = make_field_env
+    env = factory(
         manifest,
         bank,
         scene_ids=scenes,
@@ -228,11 +264,21 @@ def main(argv: list[str] | None = None) -> int:
                 saved_contract = PolicyContract.from_dict(
                     records[name]["field_contract"]
                 )
-                expected = PolicyContract.from_env(env, saved_contract.hidden_dims)
+                expected = PolicyContract.from_env(
+                    env,
+                    saved_contract.hidden_dims,
+                    critic_hidden_dims=saved_contract.critic_hidden_dims,
+                )
                 experts[scene_names.index(name)] = load_teacher(
                     path, expected_contract=expected, device=args.device
                 )
-            contract = PolicyContract.from_env(env, tuple(args.hidden_dims))
+            contract = PolicyContract.from_env(
+                env,
+                tuple(
+                    args.hidden_dims
+                    or settings.get("ppo", {}).get("hidden_dims", [512, 256, 128])
+                ),
+            )
             student = FieldStudent(contract, args.device)
             checkpoint = train_dagger(
                 env,
@@ -246,7 +292,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             saved = records["evaluation"]
             contract = PolicyContract.from_dict(saved["field_contract"])
-            expected = PolicyContract.from_env(env, contract.hidden_dims)
+            expected = PolicyContract.from_env(
+                env,
+                contract.hidden_dims,
+                critic_hidden_dims=contract.critic_hidden_dims,
+            )
             loader = load_student if "student" in saved else load_teacher
             policy = loader(
                 args.checkpoint, expected_contract=expected, device=args.device

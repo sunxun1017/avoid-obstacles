@@ -22,10 +22,16 @@ class PolicyContract:
     hidden_dims: tuple[int, ...]
     activation: str = "elu"
     normalization: bool = True
+    critic_hidden_dims: tuple[int, ...] | None = None
 
     @classmethod
     def from_env(
-        cls, env: FieldTrainingEnvironment, hidden_dims: tuple[int, ...]
+        cls,
+        env: FieldTrainingEnvironment,
+        hidden_dims: tuple[int, ...],
+        *,
+        critic_hidden_dims: tuple[int, ...] | None = None,
+        normalization: bool | None = None,
     ) -> PolicyContract:
         obs = env.get_observations()
         return cls(
@@ -34,6 +40,10 @@ class PolicyContract:
             obs["critic"].shape[1],
             env.num_actions,
             hidden_dims,
+            normalization=env.schema.get("normalization", True)
+            if normalization is None
+            else normalization,
+            critic_hidden_dims=critic_hidden_dims,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,13 +54,15 @@ class PolicyContract:
     def from_dict(cls, value: dict[str, Any]) -> PolicyContract:
         value = dict(value)
         value["hidden_dims"] = tuple(value["hidden_dims"])
+        if value.get("critic_hidden_dims") is not None:
+            value["critic_hidden_dims"] = tuple(value["critic_hidden_dims"])
         return cls(**value)
 
     def require(self, actual: PolicyContract, *, network: bool = True) -> None:
         """Reject any schema/dimension drift; optionally allow a new network."""
         expected, observed = self.to_dict(), actual.to_dict()
         if not network:
-            for item in ("hidden_dims", "activation", "normalization"):
+            for item in ("hidden_dims", "activation", "critic_hidden_dims"):
                 expected.pop(item)
                 observed.pop(item)
         if expected != observed:
