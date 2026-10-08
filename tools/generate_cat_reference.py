@@ -170,6 +170,49 @@ def generate(source, output):
         for k, v in result.items():
             rewards.setdefault(k, []).append(np.asarray(v))
     output_values.update({f"reward_{k}": np.asarray(v) for k, v in rewards.items()})
+    author._stop_cmd = jp.zeros(4)
+    output_values["command"] = np.stack(
+        [
+            np.asarray(
+                author.compute_cmd_from_rtf(
+                    jp.array(values["gf"][i, 1]),
+                    jp.array(values["gf"][i, [0, 3, 4, 5, 6]]),
+                    jp.array(values["bf"][i, [0, 3, 4, 5, 6]]),
+                )
+            )
+            for i in range(b)
+        ]
+    )
+    author._gait_bound = 0.6
+    author._stop_cmd = jp.zeros(4)
+    author._stance_phase = jp.zeros(2)
+    state = NS(
+        info=dict(
+            last_command=jp.zeros(4),
+            phase=jp.array([0.0, np.pi]),
+            phase_dt=jp.float32(2 * np.pi * 0.02 * 1.4),
+            stop_timestep=jp.array(100),
+        )
+    )
+    commands = []
+    results = []
+    phases = []
+    masks = []
+    for i in range(64):
+        command = jp.array([0.75, 0.4, 0.0, 0.0]) if i < 3 else jp.zeros(4)
+        commands.append(np.asarray(command))
+        state.info["command"] = command
+        author._update_phase(state)
+        results.append(np.asarray(state.info["command"]))
+        phases.append(np.asarray(state.info["phase"]))
+        masks.append(np.asarray(state.info["gait_mask"]))
+        state.info["last_command"] = state.info["command"]
+    output_values.update(
+        gait_commands=np.stack(commands),
+        gait_result=np.stack(results),
+        gait_phase=np.stack(phases),
+        gait_mask=np.stack(masks),
+    )
     output_values.update(soft_lower=lower, soft_upper=upper)
     output.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(output / "cat_source_reference.npz", **output_values)
