@@ -161,8 +161,8 @@ def main(argv: list[str] | None = None) -> int:
     from embodied_learning.data.field_scenes import load_scene_manifest
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
-    manifest = load_scene_manifest(args.config)
     settings = load_experiment_config(args.config)
+    manifest = load_scene_manifest(args.config)
     resolve_training_defaults(args, settings)
     if settings.get("robot") != "unitree_g1":
         raise ValueError("The training configuration must select unitree_g1.")
@@ -181,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
         "runs/g1-cat-source" if profile else "runs/g1-field"
     )
     cache_path = output / "fields" / "manifest.json"
-    if args.stage == "prepare":
+    if args.stage == "prepare":# 也就是在准备离线地图和障碍是吗
         from embodied_learning.simulators.mjlab.field_traversal import (
             validate_g1_clearance,
         )
@@ -197,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
                 zip(CAT_JOINT_NAMES, CAT_DEFAULT_JOINTS, strict=True)
             )
         validate_g1_clearance(manifest, joint_positions=source_joints)
-        prepared = prepare_fields(
+        prepared = prepare_fields(  # 为配置里的场景和目标离线计算并缓存体素势场
             manifest, output / "fields", source_profile=source_profile
         )
         print(

@@ -138,14 +138,14 @@ def load_scene_manifest(path: Path) -> SceneManifest:
     return SceneManifest(tuple(scenes))
 
 
-def voxelize_scene(scene: FieldScene) -> NDArray[np.bool_]:
+def voxelize_scene(scene: FieldScene) -> NDArray[np.bool_]: # 将障碍物转换成三维布尔网格occupied
     """Sample declared forbidden box volumes at field grid vertices.
 
     The support ground is not an obstacle. Discretization error remains
     bounded by grid resolution; this is not exact mesh-distance computation.
     """
-    axes = np.meshgrid(
-        *(
+    axes = np.meshgrid( # 为X,Y,Z三个方向生成坐标轴
+        *(# scene.voxel_size 是相邻点的距离，origin
             np.arange(n) * scene.voxel_size + scene.origin[i]
             for i, n in enumerate(scene.shape)
         ),
@@ -153,7 +153,7 @@ def voxelize_scene(scene: FieldScene) -> NDArray[np.bool_]:
         sparse=True,
     )
     occupied = np.zeros(scene.shape, dtype=bool)
-    for box in scene.boxes:
+    for box in scene.boxes: # 只有同时满足X,Y,Z范围的点才会保留为True
         inside = np.ones(scene.shape, dtype=bool)
         for axis, center, half in zip(axes, box.center, box.half_size, strict=True):
             inside &= np.abs(axis - center) <= half + 1e-9

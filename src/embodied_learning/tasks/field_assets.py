@@ -121,7 +121,7 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare_fields(
+def prepare_fields( # 根据场景中的障碍物和目标，离线计算每个场景-目标组合对应的体素场，训练时可以直接加载，不必每次重新计算
     manifest: SceneManifest, output_dir: Path, *, source_profile: dict | None = None
 ) -> FieldCacheManifest:
     """Build each scene/goal field once and save pickle-free arrays plus hashes.
@@ -133,15 +133,15 @@ def prepare_fields(
         raise ValueError("Unknown source profile.")
     output_dir = Path(output_dir)
     path = output_dir / "manifest.json"
-    if path.exists():
+    if path.exists():   # 如果输出缓存已经存在，那么就校验并复用
         load_field_cache(path, manifest, device="cpu", source_profile=source_profile)
         return FieldCacheManifest(path, manifest.identity)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)   # 创建输出目录
     entries = []
-    for scene in manifest.scenes:
+    for scene in manifest.scenes:   # 在yaml文件中定义的场景，逐个场景处理，把障碍物转换成体素
         occupied = voxelize_scene(scene)
-        for goal_id, goal in enumerate(scene.goals):
-            builder = (
+        for goal_id, goal in enumerate(scene.goals):    # 这个就是那个yaml文件中定义的目标点，逐个目标处理
+            builder = ( # build_source_voxel_field 构建cat_source_v1的体素场，build_voxel_field 构建普通的体素场
                 build_source_voxel_field if source_profile else build_voxel_field
             )
             field = builder(

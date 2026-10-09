@@ -247,7 +247,7 @@ def build_voxel_field(
         ImportError: Install the optional scikit-fmm dependency.
     """
     _positive("voxel_size", voxel_size)
-    occupied = np.asarray(occupied)
+    occupied = np.asarray(occupied) # 这个[x,y,z]，当它为true时，表示该体素被障碍物占据，机器人不能进入
     if occupied.dtype != np.bool_ or occupied.ndim != 3 or min(occupied.shape) < 3:
         raise ValueError("occupied must be a bool XYZ grid with axis sizes >=3.")
     if known_mask is None:
