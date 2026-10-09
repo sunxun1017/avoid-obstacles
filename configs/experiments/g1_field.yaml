@@ -5,7 +5,7 @@ robot: unitree_g1
 method: paper_field_ppo_dagger
 # 公开源码的 11 个身体查询点；实际点位在 Python 中定义
 body_schema: published_code_11
-# 记录预期种子；实际使用命令行 --seed（默认 42）
+# 随机种子；可用命令行 --seed 覆盖
 seed: 42
 # 场景列表；坐标单位米，顺序为 [x, y, z]
 scenes:

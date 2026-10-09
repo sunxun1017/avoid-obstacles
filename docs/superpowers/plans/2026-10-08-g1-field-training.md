@@ -41,7 +41,7 @@
 | `tasks/field_traversal.py`, `simulators/mjlab/field_traversal.py` | Task composition, physical geometry, state/termination/reset adapter |
 | `protocols/imitation.py`, `algorithms/ppo.py`, `policies/field_policy.py` | Trainable environment/teacher contracts, PPO backend and policy loading |
 | `data/aggregation.py`, `algorithms/dagger.py` | Bounded persistent dataset and student-driven online DAgger |
-| `cli/field_training.py`, `configs/experiments/g1_field.json` | Application composition and portable CLI/config |
+| `cli/field_training.py`, `configs/experiments/g1_field.yaml` | Application composition and portable CLI/config |
 | `docs/field_training.md`, `tests/test_field_*.py`, `tests/test_dagger.py` | Server guide, provenance and verification |
 
 Paths in the table are relative to `src/embodied_learning/` except configs/docs/tests.
@@ -60,7 +60,7 @@ Paths in the table are relative to `src/embodied_learning/` except configs/docs/
 
 ### Task 2: Portable known scene assets and goal field cache
 
-**Files:** Create `src/embodied_learning/data/field_scenes.py`, `field_cache.py`, `configs/experiments/g1_field.json`, `tests/test_field_scenes.py`.
+**Files:** Create `src/embodied_learning/data/field_scenes.py`, `field_cache.py`, `configs/experiments/g1_field.yaml`, `tests/test_field_scenes.py`.
 
 **Interfaces:** `load_scene_manifest(path: Path) -> SceneManifest`; immutable scene records contain ID, boxes, grid bounds/resolution, legal starts/goals. `prepare_fields(manifest: SceneManifest, output_dir: Path) -> FieldCacheManifest`; `load_field_cache(path: Path, scene_manifest: SceneManifest, device: str) -> FieldBank`. `FieldBank.sample(positions: Tensor, scene_ids: Tensor, goal_ids: Tensor) -> FieldSample` uses scene-local positions.
 

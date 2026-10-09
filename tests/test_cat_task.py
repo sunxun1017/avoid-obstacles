@@ -65,7 +65,7 @@ def test_reads_do_not_advance_state(tmp_path):
     from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
-    manifest = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    manifest = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     profile = {"version": "cat_source_v1"}
     cache = prepare_fields(manifest, tmp_path, source_profile=profile)
     bank = load_field_cache(

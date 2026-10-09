@@ -18,7 +18,7 @@
 - 权重、命令、相位、动作历史顺序及最终 clip(sum(weighted)*dt,0,10000) 遵循设计，禁止二次 dt。
 - 不混入论文 log-vMF、额外存活/到达奖励，不擅自改用 far_baseline；缺少身体/接触数据明确报错。
 - 保留 mjlab 模型、RSL-RL 后端和几何场景差异的说明，不宣称跨后端轨迹一致。
-- 新配置 `configs/experiments/g1_cat_source.json`、新输出 `runs/g1-cat-source`；旧配置、检查点和用户未提交修改保留。
+- 新配置 `configs/experiments/g1_cat_source.yaml`、新输出 `runs/g1-cat-source`；旧配置、检查点和用户未提交修改保留。
 - 来源改编保留 Apache-2.0 与 NOTICE；不修改服务器源码、不推送、不启动长期训练，除非另有授权。
 - 执行在隔离 worktree；Python 使用 `/home/sx/miniconda3/envs/mjlab/bin/python`，普通数学测试 CPU、集成测试 CUDA。
 
@@ -103,7 +103,7 @@
 
 ### Task 6: 策略契约、PPO/DAgger兼容与独立配置
 
-**Files:** Modify `protocols/imitation.py`, `policies/field_policy.py`, `algorithms/ppo.py`, `algorithms/dagger.py`, `cli/field_training.py`; Create `configs/experiments/g1_cat_source.json`, `tests/test_cat_training.py`; Extend `tests/test_field_ppo.py`, `tests/test_dagger.py`, `tests/test_field_cli.py`。
+**Files:** Modify `protocols/imitation.py`, `policies/field_policy.py`, `algorithms/ppo.py`, `algorithms/dagger.py`, `cli/field_training.py`; Create `configs/experiments/g1_cat_source.yaml`, `tests/test_cat_training.py`; Extend `tests/test_field_ppo.py`, `tests/test_dagger.py`, `tests/test_field_cli.py`。
 
 **Interfaces:** `PolicyContract` 新增有默认值的 `critic_hidden_dims: tuple[int,...] | None`，旧反序列化保持有效；normalization=False实际选择identity。`PpoConfig` 支持critic_hidden_dims、normalization、gamma等显式参数，旧默认保留。CLI根据配置 `task_profile: "cat_source_v1"` 选择Task5工厂和source缓存；没有该字段仍走旧路径。preflight按已注册schema校验，不硬编码173/29。
 

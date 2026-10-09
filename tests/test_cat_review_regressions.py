@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 import torch
 
+from embodied_learning.data.config import load_experiment_config
 from embodied_learning.robots.g1 import CAT_JOINT_NAMES
 from embodied_learning.simulators.mjlab.cat_control import CatJointController
 from embodied_learning.simulators.mjlab.cat_traversal import CatEnv
@@ -133,7 +134,7 @@ def test_source_site_velocity_and_asset_contracts(tmp_path):
     )
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
-    m = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    m = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     profile = {"version": "cat_source_v1"}
     cache = prepare_fields(m, tmp_path, source_profile=profile)
     bank = load_field_cache(cache.path, m, device="cuda:0", source_profile=profile)
@@ -185,7 +186,10 @@ def test_model_identity_changes_with_native_numeric_asset():
     )
 
     model = SimpleNamespace(
-        body_mass=np.array([1.0, 2.0]), body_inertia=np.ones((2, 3)), names=b"robot"
+        body_mass=np.array([1.0, 2.0]),
+        body_inertia=np.ones((2, 3)),
+        names=b"robot",
+        opt=SimpleNamespace(iterations=100),
     )
     before = native_model_identity(model)
     model.body_mass[1] = 3.0
@@ -198,7 +202,7 @@ def test_verified_cache_identity_changes_for_a_different_valid_cache(tmp_path):
     from embodied_learning.data.field_scenes import load_scene_manifest
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
-    m = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    m = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     profile = {"version": "cat_source_v1"}
     cache = prepare_fields(m, tmp_path, source_profile=profile)
     before = load_field_cache(cache.path, m, device="cpu", source_profile=profile)
@@ -227,7 +231,7 @@ def test_no_perturbations_cleans_the_first_cached_observation(tmp_path, monkeypa
     from embodied_learning.simulators.mjlab import cat_traversal
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
-    config = json.loads(Path("configs/experiments/g1_field.json").read_text())
+    config = load_experiment_config(Path("configs/experiments/g1_field.yaml"))
     options = dict(noise_level=1.0, random_pd=False, random_rfi=False, push=False)
     config.update(
         task_profile="cat_source_v1",

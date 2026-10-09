@@ -130,7 +130,7 @@ def test_real_two_scene_ppo(tmp_path):
     from embodied_learning.simulators.mjlab.field_traversal import make_field_env
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
-    manifest = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    manifest = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     cache = prepare_fields(manifest, tmp_path / "fields")
     bank = load_field_cache(cache.path, manifest, device="cuda:0")
     config = PpoConfig(

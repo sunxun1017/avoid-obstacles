@@ -102,7 +102,7 @@ def _parser() -> argparse.ArgumentParser:
         )
         command.add_argument("--output-dir", type=Path)
         command.add_argument("--device", default="cuda:0")
-        command.add_argument("--seed", type=int, default=42)
+        command.add_argument("--seed", type=int, default=None)
         if stage == "prepare":
             continue
         command.add_argument("--scene", action="append", help="Repeat for subsets.")
@@ -120,7 +120,7 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument("--resume", type=Path)
         if stage == "ppo":
             command.add_argument("--epochs", type=int)
-            command.add_argument("--mini-batches", type=int, default=4)
+            command.add_argument("--mini-batches", type=int, default=None)
         if stage == "dagger":
             command.add_argument("--teachers", type=Path)
             command.add_argument("--updates", type=int, default=100)
@@ -142,6 +142,19 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def resolve_training_defaults(args, settings):
+    """CLI overrides experiment defaults; reject ambiguous booleans as integers."""
+    if args.seed is None:
+        args.seed = settings.get("seed", 42)
+    if type(args.seed) is not int or args.seed < 0:
+        raise ValueError("seed must be a nonnegative integer.")
+    if args.stage == "ppo":
+        if args.mini_batches is None:
+            args.mini_batches = settings.get("ppo", {}).get("mini_batches", 4)
+        if type(args.mini_batches) is not int or args.mini_batches < 1:
+            raise ValueError("mini_batches must be a positive integer.")
+
+
 def main(argv: list[str] | None = None) -> int:
     """Validate inputs, compose the native backend, execute one selected stage."""
     args = _parser().parse_args(argv)
@@ -150,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = load_scene_manifest(args.config)
     settings = load_experiment_config(args.config)
+    resolve_training_defaults(args, settings)
     if settings.get("robot") != "unitree_g1":
         raise ValueError("The training configuration must select unitree_g1.")
     from embodied_learning.tasks.field_traversal import parse_task_options

@@ -49,13 +49,13 @@ def test_source_query_clamps_without_cross_env_shift():
 
 
 def test_cache_rejects_source_profile_drift(tmp_path):
-    manifest = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    manifest = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     prepare_fields(manifest, tmp_path, source_profile={"version": "cat_source_v1"})
     with pytest.raises(ValueError, match="profile"):
         load_field_cache(tmp_path / "manifest.json", manifest, device="cpu")
 
 
 def test_unknown_cache_not_silently_filled(tmp_path):
-    manifest = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    manifest = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     with pytest.raises(ValueError):
         prepare_fields(manifest, tmp_path, source_profile={"version": "unknown"})

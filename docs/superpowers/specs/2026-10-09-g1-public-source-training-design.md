@@ -168,7 +168,7 @@ gae=0.95、clip=0.2、rollout=20、4 次更新，actor 256/128/64、critic 512/2
 在文档中单列，不能宣称优化器或采样完全相同。默认环境数按服务器容量设置，
 不盲目照搬作者 32768。DAgger 的契约更新支持不同 actor/critic 架构与新维度。
 
-新增独立 `g1_cat_source.json` 与输出 `runs/g1-cat-source`。提供 prepare/ppo/
+新增独立 `g1_cat_source.yaml` 与输出 `runs/g1-cat-source`。提供 prepare/ppo/
 dagger/evaluate/play 命令；play 可用 native viewer 或服务器 localhost Viser，
 通过 SSH 转发观看。当前临时 `/tmp/embodied_field_play.py` 不作为正式入口。
 迁移代码保留 Apache-2.0 来源和修改说明，更新 NOTICE，原 MIT 不覆盖第三方条款。

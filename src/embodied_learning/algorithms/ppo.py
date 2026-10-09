@@ -63,8 +63,10 @@ class PpoConfig:
         ):
             raise ValueError("Invalid normalization/gamma.")
 
-    def runner_config(self) -> dict:
+    def runner_config(self, *, action_transform: str | None = None) -> dict:
         """RSL-RL 5.4.2 configuration, no simulator dependency or W&B login."""
+        from embodied_learning.policies.source_distribution import distribution_class
+
         model = dict(
             class_name="MLPModel",
             hidden_dims=list(self.hidden_dims),
@@ -75,7 +77,7 @@ class PpoConfig:
             actor={
                 **model,
                 "distribution_cfg": {
-                    "class_name": "GaussianDistribution",
+                    "class_name": distribution_class(action_transform),
                     "init_std": 1.0,
                     "std_type": "scalar",
                 },
@@ -201,7 +203,9 @@ def train_specialist(
 
     runner = FieldRunner(
         env,
-        copy.deepcopy(config.runner_config()),
+        copy.deepcopy(
+            config.runner_config(action_transform=env.schema.get("action_transform"))
+        ),
         log_dir=str(output_dir),
         device=str(env.device),
     )

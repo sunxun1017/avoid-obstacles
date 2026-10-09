@@ -53,6 +53,16 @@ def native_model_identity(model) -> str:
             digest.update(np.ascontiguousarray(value).tobytes())
         elif name == "names" and isinstance(value, bytes):
             digest.update(value)
+    # MjOption is a separate object: solver/integrator/tolerances are not
+    # included among MjModel's numeric arrays above.
+    for name in sorted(dir(model.opt)):
+        value = getattr(model.opt, name)
+        if isinstance(value, np.ndarray):
+            digest.update(name.encode())
+            digest.update(str(value.dtype).encode())
+            digest.update(np.ascontiguousarray(value).tobytes())
+        elif isinstance(value, (int, float)):
+            digest.update(f"opt.{name}={value!r}".encode())
     return digest.hexdigest()
 
 
@@ -64,7 +74,8 @@ def check_physics_buffers(overflow, nefc, *, njmax):
         raise RuntimeError(
             f"MuJoCo Warp physics buffer overflow: njmax={njmax}, "
             f"observed constraints={required}, overflow masks={masks}. "
-            "Stop training and increase the affected constraint/contact allocation; "
+            "Stop training and inspect dynamics, contact demand "
+            "and buffer allocation; "
             "do not resume from a checkpoint trained on overflowing physics."
         )
 
@@ -425,6 +436,7 @@ class CatEnv(RslRlVecEnvWrapper):
             action_names=list(CAT_ACTION_NAMES),
             obs_joint_names=list(CAT_OBS_NAMES),
             action_scale=0.5,
+            action_transform="latent_tanh_v1",
             task=state.options,
             source_profile=state.bank.source_profile,
             physics={"timestep": 0.002, "decimation": 10},
@@ -448,7 +460,11 @@ class CatEnv(RslRlVecEnvWrapper):
         self.unwrapped.reset(env_ids=slots)
 
     def step(self, actions):
-        result = super().step(actions)
+        # PPO stores the latent Gaussian sample; source control/rewards receive
+        # bounded tanh actions, as in Brax. Play and DAgger use the same boundary.
+        if not torch.isfinite(actions).all():
+            raise ValueError("Policy latent actions must be finite.")
+        result = super().step(torch.tanh(actions))
         state = self.cat_state
         result[3]["field_outcomes"] = state.saved_outcomes
         result[3]["cat_metrics"] = state.last_metrics

@@ -37,7 +37,7 @@ def test_missing_teacher_fails_early(tmp_path, monkeypatch):
             [
                 "dagger",
                 "--config",
-                "configs/experiments/g1_field.json",
+                "configs/experiments/g1_field.yaml",
                 "--output-dir",
                 str(tmp_path),
                 "--teachers",

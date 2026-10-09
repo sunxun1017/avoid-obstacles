@@ -1,6 +1,6 @@
 # G1Cat 公开源码版本训练
 
-本入口迁移 Click-and-Traverse 固定提交 `866ba392f1c1e84b92ad75fa66550f26e8af8e48` 的 **G1Cat**，包含 env_loco 继承方法和 train_ppo 的势场权重覆盖。它独立于旧的 `g1_field.json` 论文公式实验；旧 checkpoint 不能作为新任务的教师或恢复点。
+本入口迁移 Click-and-Traverse 固定提交 `866ba392f1c1e84b92ad75fa66550f26e8af8e48` 的 **G1Cat**，包含 env_loco 继承方法和 train_ppo 的势场权重覆盖。它独立于旧的 `g1_field.yaml` 论文公式实验；旧 checkpoint 不能作为新任务的教师或恢复点。
 
 这仍然是在已知盒体场景上做离线势场训练。没有接入相机、在线建图、Fast-LIO2、OctoMap 或 AMP。mjlab 的 G1 模型和 RSL-RL 的优化器与作者 MJX/Brax 实现不同，不能声称跨后端轨迹或训练结果一致。
 
@@ -156,7 +156,7 @@ python -m embodied_learning.cli.field_training evaluate \
 
 ## YAML 配置与注释
 
-日后编辑 `configs/experiments/g1_cat_source.yaml`，使用 `# 注释`。旧 `.json` 路径仍兼容；两份文件互不自动同步。场景数值未改变，已有势场缓存身份保持一致。解析使用 PyYAML 的安全加载器。更新代码后运行 `python -m pip install -e .` 安装 YAML 依赖。
+日后编辑 `configs/experiments/g1_cat_source.yaml`，使用 `# 注释`。旧 JSON 实验文件已删除；配置加载器仍能读取外部 JSON 文件。场景数值未改变，已有势场缓存身份保持一致。解析使用 PyYAML 的安全加载器。更新代码后运行 `python -m pip install -e .` 安装 YAML 依赖。
 
 ## 2026-10-09 数值稳定性修复
 
@@ -169,3 +169,10 @@ MuJoCo Warp 区分全批次接触池和每环境约束容量，溢出会导致�
 之前偶发的 `test_reads_do_not_advance_state` 错误地假设仅第 0 个环境会重置；现在强制两个环境同时超时，分别验证继续环境的相位推进和重置环境的新相位，并从新鲜物理状态开始，避免依赖跌倒时刻。
 
 此修复改变原生模型身份，旧模型 checkpoint 不能直接恢复到新模型。出现图中巨大奖励/overflow 的训练应停止，使用新的输出目录从头训练；势场几何没有改变，但新目录需要再次 prepare。
+
+
+2026-10-09 源码复核补充：作者策略使用 Brax 的 tanh-normal 动作分布；先前直接将 RSL-RL 高斯输出传入控制器是迁移遗漏。当前 PPO 保存未变换的潜变量，`CatEnv.step` 在进入物理和动作历史前仅执行一次 `tanh`。播放、教师和 DAgger 学生也返回潜变量，通过同一环境边界变换；不能再手动 tanh 一次。概率密度包括 tanh Jacobian，熵使用重参数采样估计变换后的熵，KL 沿用等价的潜变量高斯 KL。参见 [Brax PPO 策略](https://github.com/google/brax/blob/main/brax/training/agents/ppo/networks.py) 和 [分布实现](https://github.com/google/brax/blob/main/brax/training/distribution.py)。当前 RSL-RL 标准差仍是状态无关参数，和作者状态相关标准差网络存在差异；这不是完整 Brax PPO 复刻。
+
+`seed` 和 `ppo.mini_batches` 现在读取 YAML 默认值，显式 CLI 参数优先。模型身份额外包含 MuJoCo 求解器、积分器和容差等 `model.opt` 参数。动作契约增加 `latent_tanh_v1`，旧的未变换 checkpoint 会被拒绝，避免静默改变旧策略行为；本轮修改需要新的输出目录从头训练。旧 JSON 实验配置已删除，训练命令使用 YAML，缓存和 checkpoint 中的 JSON 元数据格式不变。
+
+最终配置短测：RTX 4060 Laptop CUDA、32 个 wall_detour 环境、500 个控制步，开启默认 PD/RFI/推力扰动，策略输入为标准正态潜变量。`njmax=300`、tanh 动作边界下未触发溢出，控制步结束时采样的最大约束数 144、最大关节速度约 64.06 rad/s。随机动作下的速度峰值不代表正常步态性能；此短测与 183 项通过的测试均不能证明服务器长训练稳定或任务收敛。

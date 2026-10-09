@@ -42,7 +42,7 @@ def env(tmp_path_factory):
         pytest.skip("Real mjlab integration requires CUDA.")
     from embodied_learning.simulators.mjlab.field_traversal import make_field_env
 
-    manifest = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    manifest = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     cache = prepare_fields(manifest, tmp_path_factory.mktemp("fields"))
     bank = load_field_cache(cache.path, manifest, device="cuda:0")
     instance = make_field_env(

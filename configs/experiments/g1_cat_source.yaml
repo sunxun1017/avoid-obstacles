@@ -5,7 +5,7 @@ robot: unitree_g1
 method: public_source_g1cat_ppo_dagger
 # 公开源码的 11 个身体查询点；实际点位在 Python 中定义
 body_schema: published_code_11
-# 记录预期种子；实际使用命令行 --seed（默认 42）
+# 随机种子；可用命令行 --seed 覆盖
 seed: 42
 # 场景列表；坐标单位米，顺序为 [x, y, z]
 scenes:
@@ -122,7 +122,7 @@ ppo:
   rollout_steps: 20
   # 每批采样数据重复优化的轮数
   epochs: 4
-  # 记录预期分批数；实际使用 --mini-batches（默认 4）
+  # PPO 分批数；可用命令行 --mini-batches 覆盖
   mini_batches: 4
 # 下面仅记录源码固定常量；修改此块不会改变运行参数
 source_semantics:

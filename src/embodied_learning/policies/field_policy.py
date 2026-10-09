@@ -10,6 +10,7 @@ from rsl_rl.models import MLPModel
 from tensordict import TensorDict
 from torch import Tensor, nn
 
+from embodied_learning.policies.source_distribution import distribution_class
 from embodied_learning.protocols.imitation import PolicyContract
 
 
@@ -24,7 +25,13 @@ def _make_model(
         batch_size=[1],
     )
     distribution = (
-        {"class_name": "GaussianDistribution", "init_std": 1.0, "std_type": "scalar"}
+        {
+            "class_name": distribution_class(
+                contract.schema.get("action_transform")
+            ),
+            "init_std": 1.0,
+            "std_type": "scalar",
+        }
         if stochastic
         else None
     )

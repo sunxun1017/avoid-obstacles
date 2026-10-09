@@ -1,6 +1,5 @@
 """Source task contracts and actual training/resume gates."""
 
-import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,6 +7,7 @@ import pytest
 import torch
 
 from embodied_learning.algorithms.ppo import PpoConfig, train_specialist
+from embodied_learning.data.config import load_experiment_config
 from embodied_learning.policies.field_policy import FieldStudent, load_teacher
 from embodied_learning.protocols.imitation import PolicyContract
 
@@ -58,7 +58,7 @@ def test_source_ppo_update_resume_and_dagger_frozen_teachers(tmp_path):
     from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
-    manifest = load_scene_manifest(Path("configs/experiments/g1_field.json"))
+    manifest = load_scene_manifest(Path("configs/experiments/g1_field.yaml"))
     profile = {"version": "cat_source_v1"}
     cache = prepare_fields(manifest, tmp_path / "fields", source_profile=profile)
     bank = load_field_cache(
@@ -159,12 +159,12 @@ def test_source_ppo_update_resume_and_dagger_frozen_teachers(tmp_path):
 def test_source_cli_configuration_defaults():
     from embodied_learning.cli.field_training import _parser
 
-    settings = json.loads(Path("configs/experiments/g1_cat_source.json").read_text())
+    settings = load_experiment_config(Path("configs/experiments/g1_cat_source.yaml"))
     args = _parser().parse_args(
         [
             "ppo",
             "--config",
-            "configs/experiments/g1_cat_source.json",
+            "configs/experiments/g1_cat_source.yaml",
             "--scene",
             "wall_detour",
         ]

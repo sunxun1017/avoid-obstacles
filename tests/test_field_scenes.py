@@ -87,7 +87,7 @@ def test_cache_rejects_geometry_change(tmp_path):
 
 
 def test_all_start_goal_pairs_reachable():
-    config = Path(__file__).parents[1] / "configs/experiments/g1_field.json"
+    config = Path(__file__).parents[1] / "configs/experiments/g1_field.yaml"
     manifest = load_scene_manifest(config)
     assert len(manifest.scenes) >= 3
     from embodied_learning.perception.voxel_field import build_voxel_field
