@@ -9,6 +9,8 @@ import argparse
 import json
 from pathlib import Path
 
+from embodied_learning.data.config import load_experiment_config
+
 
 def read_teachers(path: Path, scenes: tuple[str, ...]) -> dict[str, Path]:
     """Resolve portable teacher paths relative to the teacher manifest."""
@@ -96,7 +98,7 @@ def _parser() -> argparse.ArgumentParser:
     for stage in ("prepare", "ppo", "dagger", "evaluate", "play"):
         command = commands.add_parser(stage)
         command.add_argument(
-            "--config", type=Path, default=Path("configs/experiments/g1_field.json")
+            "--config", type=Path, default=Path("configs/experiments/g1_field.yaml")
         )
         command.add_argument("--output-dir", type=Path)
         command.add_argument("--device", default="cuda:0")
@@ -147,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
     manifest = load_scene_manifest(args.config)
-    settings = json.loads(args.config.read_text())
+    settings = load_experiment_config(args.config)
     if settings.get("robot") != "unitree_g1":
         raise ValueError("The training configuration must select unitree_g1.")
     from embodied_learning.tasks.field_traversal import parse_task_options

@@ -56,13 +56,26 @@ def native_model_identity(model) -> str:
     return digest.hexdigest()
 
 
+def check_physics_buffers(overflow, nefc, *, njmax):
+    """Reject GPU allocation overflow before corrupted transitions reach PPO."""
+    if ((overflow != 0) | (nefc > njmax)).any():
+        required = int(nefc.max().item())
+        masks = torch.unique(overflow).cpu().tolist()
+        raise RuntimeError(
+            f"MuJoCo Warp physics buffer overflow: njmax={njmax}, "
+            f"observed constraints={required}, overflow masks={masks}. "
+            "Stop training and increase the affected constraint/contact allocation; "
+            "do not resume from a checkpoint trained on overflowing physics."
+        )
+
+
 def build_cat_cfg(
     *, num_envs: int, seed: int, random_pd: bool = True, random_rfi: bool = True
 ):
     cfg = unitree_g1_flat_env_cfg()
     cfg.scene.num_envs = num_envs
     cfg.sim.nconmax = 128
-    cfg.sim.njmax = 512
+    cfg.sim.njmax = 300
     cfg.seed = seed
     cfg.sim.mujoco.timestep = 0.002
     cfg.decimation = 10
@@ -72,10 +85,17 @@ def build_cat_cfg(
         robot,
         articulation=replace(
             robot.articulation,
-            actuators=(
+            # Keep native passive dynamics when replacing position servos.
+            # Explicit source PD supplies torques, but still needs rotor inertia.
+            actuators=tuple(
                 BuiltinMotorActuatorCfg(
-                    target_names_expr=CAT_JOINT_NAMES, effort_limit=139.0
-                ),
+                    target_names_expr=a.target_names_expr,
+                    effort_limit=139.0,
+                    armature=a.armature,
+                    frictionloss=a.frictionloss,
+                    viscous_damping=a.viscous_damping,
+                )
+                for a in robot.articulation.actuators
             ),
             soft_joint_pos_limit_factor=0.95,
         ),
@@ -225,6 +245,11 @@ def _refresh(env):
     state = env.cat_state
     if state._key != (env.common_step_counter, state.generation):
         env.sim.forward()
+        check_physics_buffers(
+            env.sim.data.overflow,
+            env.sim.data.nefc,
+            njmax=env.sim.wp_data.njmax,
+        )
         env.sim.sense()
         state.refresh(
             read_cat_reward_inputs(env, state),

@@ -97,9 +97,14 @@ def test_reads_do_not_advance_state(tmp_path):
         assert torch.isfinite(reward).all()
         env.reset_slots(torch.tensor([0], device="cuda:0"))
         assert env.cat_state.gait.stop_timestep[0] == 100
-        # Force one timeout: reward/outcomes must survive the native auto-reset.
-        env.episode_length_buf[0] = 999
+        # Start every slot from a fresh physical state so the test does not
+        # depend on whether a zero-action rollout happened to make G1 fall.
+        env.reset_slots(torch.arange(4, device="cuda:0"))
+        # Force simultaneous resets: continuing slots and reset slots differ.
+        env.episode_length_buf[:2] = 999
+        env.cat_state.gait.phase[1] = 0.3
         phase = env.cat_state.gait.phase.clone()
+        phase_dt = env.cat_state.gait.phase_dt.clone()
         obs, reward, done, extras = env.step(torch.zeros(4, 12, device="cuda:0"))
         assert done[0] and extras["field_outcomes"]["timeout"][0]
         assert env.episode_length_buf[0] == 0
@@ -109,14 +114,24 @@ def test_reads_do_not_advance_state(tmp_path):
             env.cat_state.saved_terms, env.cat_state.scales, dt=0.02
         )
         torch.testing.assert_close(reward, expected)
+        # Other slots may fall and reset in this same step. Only continuing
+        # episodes advance the old phase; reset slots get a new phase/frequency.
+        active = ~done
+        assert active.any()
         expected_phase = (
             torch.fmod(
-                phase[1:] + env.cat_state.gait.phase_dt[1:, None] + torch.pi,
+                phase[active] + phase_dt[active, None] + torch.pi,
                 2 * torch.pi,
             )
             - torch.pi
         )
-        torch.testing.assert_close(env.cat_state.gait.phase[1:], expected_phase)
+        torch.testing.assert_close(env.cat_state.gait.phase[active], expected_phase)
+        assert done[1] and extras["field_outcomes"]["timeout"][1]
+        assert (env.episode_length_buf[done] == 0).all()
+        torch.testing.assert_close(
+            env.cat_state.gait.phase[done].abs().sum(-1),
+            torch.full_like(phase_dt[done], torch.pi),
+        )
         torch.testing.assert_close(
             obs["actor"][1:], env.get_observations()["actor"][1:]
         )

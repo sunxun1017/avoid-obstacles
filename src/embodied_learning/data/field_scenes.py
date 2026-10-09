@@ -12,6 +12,8 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
+from embodied_learning.data.config import load_experiment_config
+
 Point = tuple[float, float, float]
 
 
@@ -60,13 +62,13 @@ class SceneManifest:
 
 
 def load_scene_manifest(path: Path) -> SceneManifest:
-    """Load and validate known scenes from the experiment's JSON configuration.
+    """Load and validate known scenes from a YAML or JSON experiment.
 
     Training configuration may share the file; scene identity includes only
     the scenes. Targets and starts must have room for field interpolation.
     Physics-specific full-body initial clearance is checked by the G1 task.
     """
-    payload = json.loads(Path(path).read_text())
+    payload = load_experiment_config(path)
     records = payload.get("scenes") if isinstance(payload, dict) else None
     if not isinstance(records, list) or not records:
         raise ValueError("Configuration must contain a nonempty scenes list.")

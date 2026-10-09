@@ -6,7 +6,7 @@
 
 ## 入口与配置
 
-入口是 `src/embodied_learning/cli/field_training.py`。新配置 `configs/experiments/g1_cat_source.json` 选择 `cat_source_v1`，默认输出 `runs/g1-cat-source`。不指定 `--config` 仍保留旧实验默认值，所以以下命令都显式选择新配置。
+入口是 `src/embodied_learning/cli/field_training.py`。新配置 `configs/experiments/g1_cat_source.yaml` 选择 `cat_source_v1`，默认输出 `runs/g1-cat-source`。不指定 `--config` 仍保留旧实验默认值，所以以下命令都显式选择新配置。
 
 | 数据/控制 | source task |
 |---|---|
@@ -55,11 +55,11 @@ python -c 'import torch; print(torch.cuda.get_device_name(0))'
 
 ```bash
 python -m embodied_learning.cli.field_training prepare \
-  --config configs/experiments/g1_cat_source.json
+  --config configs/experiments/g1_cat_source.yaml
 
 for scene in wall_detour passage hurdle_crouch; do
   python -m embodied_learning.cli.field_training ppo \
-    --config configs/experiments/g1_cat_source.json \
+    --config configs/experiments/g1_cat_source.yaml \
     --scene "$scene" --device cuda:0 \
     --num-envs 1024 --iterations 30000 || break
 done
@@ -73,7 +73,7 @@ done
 
 ```bash
 python -m embodied_learning.cli.field_training ppo \
-  --config configs/experiments/g1_cat_source.json \
+  --config configs/experiments/g1_cat_source.yaml \
   --scene wall_detour --device cuda:0 --num-envs 1024 --iterations 10000 \
   --resume runs/g1-cat-source/specialists/wall_detour/latest.pt
 ```
@@ -82,7 +82,7 @@ python -m embodied_learning.cli.field_training ppo \
 
 ```bash
 python -m embodied_learning.cli.field_training dagger \
-  --config configs/experiments/g1_cat_source.json \
+  --config configs/experiments/g1_cat_source.yaml \
   --device cuda:0 --num-envs 1024 --iterations 1000
 ```
 
@@ -94,7 +94,7 @@ DAgger 是本项目的 PyTorch 数据聚合与监督优化实现；教师只进�
 
 ```bash
 python -m embodied_learning.cli.field_training play \
-  --config configs/experiments/g1_cat_source.json \
+  --config configs/experiments/g1_cat_source.yaml \
   --checkpoint runs/g1-cat-source/specialists/wall_detour/latest.pt \
   --scene wall_detour --device cuda:0 --num-envs 1 --viewer native
 ```
@@ -109,7 +109,7 @@ ssh -N -L 8765:127.0.0.1:8765 zjut
 
 ```bash
 python -m embodied_learning.cli.field_training evaluate \
-  --config configs/experiments/g1_cat_source.json \
+  --config configs/experiments/g1_cat_source.yaml \
   --checkpoint runs/g1-cat-source/generalist/latest.pt \
   --device cuda:0 --num-envs 128 --steps 2000 --no-perturbations
 ```
@@ -136,7 +136,7 @@ python -m embodied_learning.cli.field_training evaluate \
 
 观测每五步更新延迟根位姿；当前身体点通过延迟位姿变换查询场。reset 观测不推进相位，同一控制步的多次读不推进状态。奖励和终止读取复位前状态，回合结束后 reset 对应槽位，日志保留终止步结果。
 
-源码碰撞使用身体点负 SDF 与指定自接触，并有前 50 步豁免；物理盒体接触额外记录为诊断。跌倒、非法状态、1000 步 timeout 终止，goal 不终止。mjlab 使用 nconmax=128/njmax=512，以避免单环境播放的自动容量不足。
+源码碰撞使用身体点负 SDF 与指定自接触，并有前 50 步豁免；物理盒体接触额外记录为诊断。跌倒、非法状态、1000 步 timeout 终止，goal 不终止。mjlab 使用 nconmax=128/njmax=300；约束容量沿用官方 G1 平地任务配置，溢出即停止。
 
 源版采样保留作者 X/Z corner-weight 排列与索引裁剪行为，即使它不同于标准三线性插值。空障碍地图以 +inf SDF、零 BF 处理，属于明确的工程扩展。旧论文场采样函数保持原语义，不能与 source 缓存混用。
 
@@ -153,3 +153,19 @@ python -m embodied_learning.cli.field_training evaluate \
 独立审阅修正了 actor 的当前 move flag、reset 的场归一化、恢复计数器导致的额外相位更新、IMU 位点速度、旧 PPO 配置默认值兼容，以及缓存/原生模型身份缺失。新契约包含已校验场文件的聚合哈希和编译后原生模型数值数组的哈希；跨环境数量播放不改变契约。搬运 checkpoint 时需同时搬运其 fields 缓存，重建出的不同文件哈希会被拒绝。
 
 目前尚未单独暴露出界诊断：source 查询仍按作者方式裁剪索引，返回 valid；它不意味着机器人仍在原网格覆盖范围内。没有迁移作者 reset 时的连续 XY/yaw/关节/根速度扰动，本设计使用枚举起点和目标，仅迁移指定的 PD/RFI、步态、push 与观测噪声随机化。
+
+## YAML 配置与注释
+
+日后编辑 `configs/experiments/g1_cat_source.yaml`，使用 `# 注释`。旧 `.json` 路径仍兼容；两份文件互不自动同步。场景数值未改变，已有势场缓存身份保持一致。解析使用 PyYAML 的安全加载器。更新代码后运行 `python -m pip install -e .` 安装 YAML 依赖。
+
+## 2026-10-09 数值稳定性修复
+
+力矩执行器转换现在保留 mjlab G1 各执行器组的转子惯量（armature）、被动阻尼和摩擦配置；此前单组电机配置遗漏了原生 armature。源版 PD、动作累积、力矩限幅和奖励公式不变。按用户要求，约束容量设为官方 G1 平地任务使用的 `njmax=300`；接触池仍为 `nconmax=128`。不再以扩大容量容纳异常日志中的 1725 条需求。任何 Warp overflow 或超容量约束数都会在奖励/观测生成前抛出错误，避免继续训练损坏的数据；300 对当前障碍任务是否足够仍需监测。
+
+MuJoCo Warp 区分全批次接触池和每环境约束容量，溢出会导致未定义行为，参见 [官方说明](https://mujoco.readthedocs.io/en/latest/mjwarp/#overflow-detection)。服务器建议先以 1024 环境启动；若 300 溢出，应先检查碰撞与动力学状态。
+
+32 环境、500 控制步、随机动作与开启扰动的本地对比：遗漏惯量时最大关节速度约 357.47 rad/s，保留惯量后约 112.88 rad/s；当时在容量 2048 下测得修复后最大约束数 133，未溢出；该记录不是最终 300 容量的压力测试结果。该短测没有复现服务器长训练末期的灾难性发散，因此不能声称其唯一原因已完全证明，也不能证明长训练收敛。需要服务器继续监测原始奖励、关节速度和溢出。
+
+之前偶发的 `test_reads_do_not_advance_state` 错误地假设仅第 0 个环境会重置；现在强制两个环境同时超时，分别验证继续环境的相位推进和重置环境的新相位，并从新鲜物理状态开始，避免依赖跌倒时刻。
+
+此修复改变原生模型身份，旧模型 checkpoint 不能直接恢复到新模型。出现图中巨大奖励/overflow 的训练应停止，使用新的输出目录从头训练；势场几何没有改变，但新目录需要再次 prepare。

@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Embodied Learning Contributors" }]
-dependencies = []
+dependencies = ["PyYAML>=6.0,<7"]
 
 [project.optional-dependencies]
 mapping = ["torch>=2.0"]
