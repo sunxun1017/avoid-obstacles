@@ -43,3 +43,17 @@ construction and the literal sampler are separate from the paper-formula path.
 All these adaptations retain the fixed commit and Apache-2.0 provenance above.
 Simulation contacts/kinematics are supplied by mjlab; PPO uses RSL-RL public APIs.
 See `docs/cat_source_training.md` for source mapping and backend differences.
+
+# CAT online deployment fields
+
+`perception/cat_deployment.py` adapts the occupancy preprocessing from
+`deploy/scripts/exp_dis_pf/octomap_bridge.py` and the numerical field pipeline
+from `deploy/gx_loco_deploy/policies/g1_cat/pf.py` at the same pinned commit,
+under Apache-2.0. Torch replaces SciPy morphology; source Fast Marching remains
+CPU scikit-fmm. `tools/generate_cat_online_reference.py` extracts the original
+functions for numerical fixtures and checks the upstream file hashes.
+
+The ray-based occupancy mapper is this project's replacement for OctoMap, not
+a copy of Fast-LIO2 or a claim to reproduce the author's entire ROS stack.
+Sensor adapters, lifecycle and task interfaces are independently implemented.
+Deployment differences and usage are documented in `docs/cat_online.md`.

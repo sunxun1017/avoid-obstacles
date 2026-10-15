@@ -86,6 +86,50 @@ def rays_from_point_cloud(cloud: PointCloud, origins: Tensor) -> RayMeasurements
     return rays
 
 
+def rays_from_lidar(
+    origins: Tensor,
+    directions: Tensor,
+    ranges: Tensor,
+    *,
+    max_range: float,
+    no_hit_mask: Tensor | None = None,
+) -> RayMeasurements:
+    """Convert world beam directions and metric ranges to independent rays.
+
+    Missing beams are invalid unless explicitly marked as confirmed no-return.
+    Unlike camera depth, LiDAR range is Euclidean distance along a unit beam.
+    Localization/deskew must be supplied by the caller via per-beam origins and
+    world directions; this function does not estimate a pose.
+    """
+    if not math.isfinite(max_range) or max_range <= 0:
+        raise ValueError("max_range must be finite and positive.")
+    if no_hit_mask is None:
+        no_hit_mask = torch.zeros_like(ranges, dtype=torch.bool)
+    validate_rays(RayMeasurements(origins, directions, no_hit_mask, no_hit_mask))
+    if (
+        ranges.shape != directions.shape[:2]
+        or ranges.device != directions.device
+        or ranges.dtype != directions.dtype
+    ):
+        raise ValueError("ranges must match beam shape, device and precision.")
+    norm = directions.norm(dim=-1)
+    geometry = (
+        torch.isfinite(origins).all(-1)
+        & torch.isfinite(directions).all(-1)
+        & (norm > 0)
+    )
+    measured = torch.isfinite(ranges) & (ranges > 0)
+    valid = geometry & (measured | no_hit_mask)
+    hit = valid & measured & ~no_hit_mask & (ranges <= max_range)
+    distance = torch.where(hit, ranges, max_range)
+    endpoint = (
+        origins + directions / norm.clamp_min(1e-12)[..., None] * distance[..., None]
+    )
+    return RayMeasurements(
+        origins.clone(), torch.where(valid[..., None], endpoint, 0.0), valid, hit
+    )
+
+
 def rays_from_depth(
     depth: Tensor,
     intrinsics: Tensor,

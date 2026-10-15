@@ -1,0 +1,7 @@
+{
+  "commit": "866ba392f1c1e84b92ad75fa66550f26e8af8e48",
+  "sha256": {
+    "pf.py": "cfc9d1f91b49f06e99d9b4683e76f48025bb09187452e49af506a3ad0df4c74b",
+    "octomap_bridge.py": "dcd51e20c2fd6860674b68b9d0d2bf1b0409f72c183d917a7927ae9850596c4a"
+  }
+}

@@ -4,6 +4,7 @@ Robot model/contact geometry remain mjlab assets; source-name mappings are expli
 """
 
 import hashlib
+import time
 from dataclasses import replace
 
 import numpy as np
@@ -261,7 +262,14 @@ def _refresh(env):
             env.sim.data.nefc,
             njmax=env.sim.wp_data.njmax,
         )
+        capture_timestamp = time.monotonic()
         env.sim.sense()
+        if env.cat_sensor_config is not None:
+            from embodied_learning.simulators.mjlab.cat_online import (
+                refresh_online_fields,
+            )
+
+            refresh_online_fields(env, capture_timestamp=capture_timestamp)
         state.refresh(
             read_cat_reward_inputs(env, state),
             env.cat_controller,
@@ -291,10 +299,19 @@ def _source_reset(env, env_ids):
         env_ids = torch.arange(env.num_envs, device=env.device)
     _reset_field(env, env_ids)
     env.cat_state.reset(env_ids)
+    if env.cat_sensor_config is not None:
+        env.cat_state.bank.reset(env_ids, env.cat_state.scene_ids)
 
 
-def make_cat_env(manifest, bank, *, scene_ids, num_envs, device, seed, options):
-    if bank.cache_identity is None:
+def make_cat_env(
+    manifest, bank, *, scene_ids, num_envs, device, seed, options, online_sensor=None
+):
+    if online_sensor is not None:
+        from embodied_learning.tasks.cat_online import CatOnlineFields
+
+        if not isinstance(bank, CatOnlineFields):
+            raise ValueError("Online sensors require measured CatOnlineFields.")
+    elif bank.cache_identity is None:
         raise ValueError("Source task requires a verified field-cache identity.")
     names = tuple(s.id for s in manifest.scenes)
     if not scene_ids or any(n not in names for n in scene_ids):
@@ -386,11 +403,28 @@ def make_cat_env(manifest, bank, *, scene_ids, num_envs, device, seed, options):
                 ContactMatch(mode="body", pattern="box", entity=entity),
             )
     cfg.scene.sensors = tuple(sensors)
+    baseline_identity = None
+    if online_sensor is not None:
+        from mjlab.scene import Scene
+
+        from embodied_learning.simulators.mjlab.cat_sensors import (
+            attach_online_sensor,
+        )
+
+        # Sensor attachments change compiled model arrays. Validate checkpoints
+        # against an independently compiled sensorless model, not a wildcard hash.
+        baseline = Scene(cfg.scene, device="cpu").compile()
+        cfg.sim.mujoco.apply(baseline)
+        baseline_identity = native_model_identity(baseline)
+        attach_online_sensor(cfg, online_sensor)
 
     class CatNativeEnv(ManagerBasedRlEnv):
         def __init__(self):
             self.cat_state = self.field_state = state
             self.cat_obstacle_contacts = obstacle_contacts
+            self.cat_sensor_config = online_sensor
+            self.cat_sensor_reader = None
+            self.cat_baseline_identity = baseline_identity
             super().__init__(cfg=cfg, device=device)
 
         def step(self, actions):
@@ -421,6 +455,7 @@ def make_cat_env(manifest, bank, *, scene_ids, num_envs, device, seed, options):
 class CatEnv(RslRlVecEnvWrapper):
     def __init__(self, native):
         super().__init__(native, clip_actions=None)
+        self.inference_only = native.cat_sensor_config is not None
         self.cat_state = self.field_state = native.cat_state
         self.scene_ids = self.cat_state.scene_ids
         state = self.cat_state
@@ -443,6 +478,22 @@ class CatEnv(RslRlVecEnvWrapper):
             observation="cat_source_actor162_critic250_v1",
             normalization=False,
         )
+        if native.cat_sensor_config is not None:
+            self.schema["online_perception"] = dict(
+                source=native.cat_sensor_config.source,
+                version="cat_online_v1",
+                sensorless_model_identity=native.cat_baseline_identity,
+                execution=state.bank.execution,
+                field_backend=state.bank.online.field_backend,
+                mapping_backend=state.bank.online.mapper.backend,
+            )
+
+    def close(self):
+        try:
+            super().close()
+        finally:
+            if self.inference_only:
+                self.cat_state.bank.close()
 
     @property
     def training_step(self):

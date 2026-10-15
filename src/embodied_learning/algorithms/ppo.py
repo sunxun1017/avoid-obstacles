@@ -124,6 +124,8 @@ def train_specialist(
     Torch checkpoints contain Python training state: load trusted files only.
     The last checkpoint and each periodic checkpoint embed their full contract.
     """
+    if getattr(env, "inference_only", False):
+        raise ValueError("Cannot train an inference-only environment.")
     if env.num_envs * config.rollout_steps < config.mini_batches:
         raise ValueError("Rollout smaller than the number of PPO mini-batches.")
     contract = PolicyContract.from_env(

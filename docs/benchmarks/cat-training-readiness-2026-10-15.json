@@ -1,0 +1,420 @@
+{
+  "date": "2026-10-15",
+  "purpose": "Verify source training data path and actual CAT training readiness, not policy convergence",
+  "source_commit": "866ba392f1c1e84b92ad75fa66550f26e8af8e48",
+  "source_evidence": [
+    {
+      "file": "cat_ppo/envs/g1/env_cat.py",
+      "lines": [
+        331,
+        337
+      ],
+      "sha256": "ae56b75e698d179e095307cd514c0b0c34dffaeec30e822d4b178d13abb8766e",
+      "url": "https://github.com/GalaxyGeneralRobotics/Click-and-Traverse/blob/866ba392f1c1e84b92ad75fa66550f26e8af8e48/cat_ppo/envs/g1/env_cat.py",
+      "finding": "Loads precomputed sdf.npy, bf.npy and gf.npy during initialization"
+    },
+    {
+      "file": "cat_ppo/envs/g1/env_cat_dagger.py",
+      "lines": [
+        50,
+        61
+      ],
+      "sha256": "811b4c7bd725a8cd6920a2b33d1e9dfb6f6432a52c9870bfcd423f61d564eb1f",
+      "url": "https://github.com/GalaxyGeneralRobotics/Click-and-Traverse/blob/866ba392f1c1e84b92ad75fa66550f26e8af8e48/cat_ppo/envs/g1/env_cat_dagger.py",
+      "finding": "Loads precomputed sdf.npy, bf.npy and gf.npy during initialization"
+    }
+  ],
+  "hardware": "NVIDIA GeForce RTX 4060 Laptop GPU, 8188 MiB",
+  "python": "/home/sx/miniconda3/envs/mjlab/bin/python",
+  "torch": "2.7.1+cu126",
+  "config": "configs/experiments/g1_cat_source.yaml",
+  "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+  "num_envs": 32,
+  "ppo": {
+    "wall_detour": {
+      "checkpoint": "runs/cat-training-verified-20261015/specialists/wall_detour/latest.pt",
+      "sha256": "383e3d4b03d3d8a1f432c7e6a80e0e25f732fb4611483eaf561ac4b751350c5f",
+      "completed_iterations": 7,
+      "environment_control_steps": 140,
+      "last_run_actor_parameter_delta": 0.3879445493221283,
+      "last_losses": {
+        "value": 0.000944242379773641,
+        "surrogate": -0.03764511534245685,
+        "entropy": 7.505490303039551
+      },
+      "finite_model_and_optimizer": true,
+      "loss_rows": 7,
+      "ppo_config": {
+        "iterations": 2,
+        "rollout_steps": 20,
+        "hidden_dims": [
+          256,
+          128,
+          64
+        ],
+        "critic_hidden_dims": [
+          512,
+          256,
+          128
+        ],
+        "normalization": false,
+        "gamma": 0.97,
+        "epochs": 4,
+        "mini_batches": 4,
+        "learning_rate": 0.0003,
+        "save_interval": 100,
+        "seed": 42
+      }
+    },
+    "passage": {
+      "checkpoint": "runs/cat-training-verified-20261015/specialists/passage/latest.pt",
+      "sha256": "7c6cc50bfaa04eb991cbe995f9597c0eaff5955eaafd4dd4e543e2bbbcae9d25",
+      "completed_iterations": 5,
+      "environment_control_steps": 100,
+      "last_run_actor_parameter_delta": 0.7476115226745605,
+      "last_losses": {
+        "value": 0.0027394408753025346,
+        "surrogate": -0.0382416536922392,
+        "entropy": 7.63071084022522
+      },
+      "finite_model_and_optimizer": true,
+      "loss_rows": 5,
+      "ppo_config": {
+        "iterations": 5,
+        "rollout_steps": 20,
+        "hidden_dims": [
+          256,
+          128,
+          64
+        ],
+        "critic_hidden_dims": [
+          512,
+          256,
+          128
+        ],
+        "normalization": false,
+        "gamma": 0.97,
+        "epochs": 4,
+        "mini_batches": 4,
+        "learning_rate": 0.0003,
+        "save_interval": 100,
+        "seed": 42
+      }
+    },
+    "hurdle_crouch": {
+      "checkpoint": "runs/cat-training-verified-20261015/specialists/hurdle_crouch/latest.pt",
+      "sha256": "208d05546e2f23ed61518ff1f87d827afde442ab37b268e111b175ad0bb0063a",
+      "completed_iterations": 5,
+      "environment_control_steps": 100,
+      "last_run_actor_parameter_delta": 0.6903129816055298,
+      "last_losses": {
+        "value": 0.00244280733022606,
+        "surrogate": -0.04692628563498147,
+        "entropy": 7.601395756006241
+      },
+      "finite_model_and_optimizer": true,
+      "loss_rows": 5,
+      "ppo_config": {
+        "iterations": 5,
+        "rollout_steps": 20,
+        "hidden_dims": [
+          256,
+          128,
+          64
+        ],
+        "critic_hidden_dims": [
+          512,
+          256,
+          128
+        ],
+        "normalization": false,
+        "gamma": 0.97,
+        "epochs": 4,
+        "mini_batches": 4,
+        "learning_rate": 0.0003,
+        "save_interval": 100,
+        "seed": 42
+      }
+    }
+  },
+  "dagger": {
+    "checkpoint": "runs/cat-training-verified-20261015/generalist/latest.pt",
+    "sha256": "701d563fe185e068c82b3d1dc9164bc6e55925b3816ac614bd9b983d2c92f763",
+    "completed_rounds": 3,
+    "optimizer_updates": 12,
+    "finite_model_and_optimizer": true,
+    "metrics": [
+      {
+        "round": 1,
+        "beta": 0.0,
+        "samples": 640,
+        "seen": 640,
+        "mse": 0.02701926976442337
+      },
+      {
+        "round": 2,
+        "beta": 0.0,
+        "samples": 1280,
+        "seen": 1280,
+        "mse": 0.016067971708253026
+      },
+      {
+        "round": 3,
+        "beta": 0.0,
+        "samples": 1920,
+        "seen": 1920,
+        "mse": 0.012425897177308798
+      }
+    ],
+    "config": {
+      "iterations": 1,
+      "rollout_steps": 20,
+      "updates": 4,
+      "batch_size": 128,
+      "capacity": 4096,
+      "learning_rate": 0.0003,
+      "beta_start": 0.0,
+      "beta_rounds": 20,
+      "lr_decay": 0.999,
+      "save_interval": 10,
+      "seed": 42
+    }
+  },
+  "evaluation": {
+    "mean_final_goal_distance": 3.00320141260014,
+    "mean_min_goal_distance": 2.993088864540869,
+    "stopped_step_fraction": 0.0,
+    "steps": 100,
+    "envs": 32,
+    "episodes": 129,
+    "mean_step_reward": 0.008043286511674524,
+    "outcomes": {
+      "fall": 129,
+      "collision": 0,
+      "invalid": 0,
+      "timeout": 0,
+      "goal": 0,
+      "physical_collision": 0
+    },
+    "rates": {
+      "fall": 1.0,
+      "collision": 0.0,
+      "invalid": 0.0,
+      "timeout": 0.0,
+      "goal": 0.0,
+      "physical_collision": 0.0
+    },
+    "evaluation_overrides": {
+      "noise_level": 0.0,
+      "push": false,
+      "random_pd": false,
+      "random_rfi": false
+    }
+  },
+  "commands": [
+    {
+      "stage": "ppo-passage",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "ppo",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015",
+        "--device",
+        "cuda:0",
+        "--num-envs",
+        "32",
+        "--scene",
+        "passage",
+        "--iterations",
+        "5"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 12.359073897998314
+    },
+    {
+      "stage": "ppo-hurdle_crouch",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "ppo",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015",
+        "--device",
+        "cuda:0",
+        "--num-envs",
+        "32",
+        "--scene",
+        "hurdle_crouch",
+        "--iterations",
+        "5"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 11.953118277000613
+    },
+    {
+      "stage": "ppo-resume",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "ppo",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015",
+        "--device",
+        "cuda:0",
+        "--num-envs",
+        "32",
+        "--scene",
+        "wall_detour",
+        "--iterations",
+        "2",
+        "--resume",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015/specialists/wall_detour/latest.pt"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 9.361813190000248
+    },
+    {
+      "stage": "dagger",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "dagger",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015",
+        "--device",
+        "cuda:0",
+        "--num-envs",
+        "32",
+        "--rollout-steps",
+        "20",
+        "--updates",
+        "4",
+        "--batch-size",
+        "128",
+        "--capacity",
+        "4096",
+        "--beta-start",
+        "0",
+        "--iterations",
+        "2"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 9.582127155998023
+    },
+    {
+      "stage": "dagger-resume",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "dagger",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015",
+        "--device",
+        "cuda:0",
+        "--num-envs",
+        "32",
+        "--rollout-steps",
+        "20",
+        "--updates",
+        "4",
+        "--batch-size",
+        "128",
+        "--capacity",
+        "4096",
+        "--beta-start",
+        "0",
+        "--iterations",
+        "1",
+        "--resume",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015/generalist/latest.pt"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 8.548680908992537
+    },
+    {
+      "stage": "evaluate",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "evaluate",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015",
+        "--device",
+        "cuda:0",
+        "--num-envs",
+        "32",
+        "--steps",
+        "100",
+        "--no-perturbations",
+        "--checkpoint",
+        "/home/sx/embodied-learning/runs/cat-training-verified-20261015/generalist/latest.pt"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 11.48004940598912
+    }
+  ],
+  "initial_commands": [
+    {
+      "stage": "prepare",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "prepare",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "runs/cat-training-verified-20261015"
+      ],
+      "exit_code": 0
+    },
+    {
+      "stage": "ppo-wall_detour",
+      "command": [
+        "/home/sx/miniconda3/envs/mjlab/bin/python",
+        "-m",
+        "embodied_learning.cli.field_training",
+        "ppo",
+        "--config",
+        "configs/experiments/g1_cat_source.yaml",
+        "--output-dir",
+        "runs/cat-training-verified-20261015",
+        "--scene",
+        "wall_detour",
+        "--device",
+        "cuda:0",
+        "--num-envs",
+        "32",
+        "--iterations",
+        "5"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "conclusion": {
+    "training_pipeline_verified": true,
+    "convergence_verified": false,
+    "slam_integrated": false,
+    "online_sensor_training_enabled": false,
+    "runtime_code_changed_for_this_audit": false
+  }
+}

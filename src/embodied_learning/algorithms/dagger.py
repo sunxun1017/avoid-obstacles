@@ -78,6 +78,8 @@ def train_dagger(
     student actor group; expert privileged observations are never replayed.
     A resumed run starts fresh physical episodes, retaining learner/data/RNG.
     """
+    if getattr(env, "inference_only", False):
+        raise ValueError("Cannot train an inference-only environment.")
     contract = student.contract
     contract.require(
         PolicyContract.from_env(env, contract.hidden_dims), network=False

@@ -57,6 +57,7 @@ class OccupancyMapper:
         max_log_odds: float = 3.5,
         free_threshold: float = -0.2,
         occupied_threshold: float = 0.2,
+        backend: str = "torch",
     ) -> None:
         """Configure grid geometry and bounded log-odds evidence increments.
 
@@ -106,6 +107,13 @@ class OccupancyMapper:
         self.voxel_size = voxel_size
         self.device = torch.device(device)
         self.dtype = dtype
+        if backend not in ("torch", "warp"):
+            raise ValueError("Mapping backend must be torch or warp.")
+        if backend == "warp" and (
+            self.device.type != "cuda" or dtype != torch.float32
+        ):
+            raise ValueError("Warp mapping requires CUDA float32.")
+        self.backend = backend
         origin_tensor = torch.as_tensor(origin, device=self.device, dtype=dtype)
         if origin_tensor.shape == (3,):
             origin_tensor = origin_tensor[None].expand(num_envs, -1)
@@ -166,7 +174,7 @@ class OccupancyMapper:
         )
 
     @torch.no_grad()
-    def update(self, rays: RayMeasurements) -> None:
+    def update(self, rays: RayMeasurements) -> Tensor:
         """Fuse one scan per environment using clipped 3D DDA ray traversal.
 
         Args:
@@ -183,6 +191,9 @@ class OccupancyMapper:
 
         Raises:
             ValueError: Incompatible tensor shapes, frame, precision or device.
+
+        Returns:
+            Boolean [B] indicating that this scan measured at least one map cell.
         """
         validate_rays(rays)
         if (
@@ -191,6 +202,10 @@ class OccupancyMapper:
             or rays.endpoints.dtype != self.dtype
         ):
             raise ValueError("Rays must match mapper batch, dtype and device.")
+        if self.backend == "warp":
+            from embodied_learning.perception.occupancy_warp import update_warp
+
+            return update_warp(self, rays)
         size = rays.endpoints.new_tensor(self.shape)
         lower = self._origin[:, None] - self.voxel_size / 2
         valid = (
@@ -285,3 +300,4 @@ class OccupancyMapper:
         self._log_odds += hits.to(self.dtype) * self.hit_log_odds
         self._log_odds += frees.to(self.dtype) * self.miss_log_odds
         self._log_odds.clamp_(self.min_log_odds, self.max_log_odds)
+        return (hits | frees).flatten(1).any(-1)

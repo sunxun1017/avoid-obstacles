@@ -1,3 +1,11 @@
+'''
+Author: sunxun sx2728977548@163.com
+Date: 2026-10-08 16:44:01
+LastEditors: sunxun sx2728977548.com
+LastEditTime: 2026-10-08 20:17:21
+FilePath: /embodied-learning/examples/depth_mapping_demo.py
+Description: A simple demo of depth mapping and body observation sampling.
+'''
 """Fuse synthetic depth frames, build a field, and query body observations."""
 
 import argparse
@@ -21,17 +29,19 @@ def main() -> None:
         origin=(-1.0, -1.0, 0.0),
         device=args.device,
     )
+    # 人为构建一个深度图
     depth = torch.full((1, 21, 21), 2.0, device=args.device)
-    intrinsics = depth.new_tensor(
+    # 人为构建内参
+    intrinsics = depth.new_tensor(          # 这个是为了让新矩阵自动使用与depth相同的设备和数据类型
         [[10.0, 0.0, 10.5], [0.0, 10.0, 10.5], [0.0, 0.0, 1.0]]
     )
-    rotation = torch.eye(3, device=args.device)[None]
+    rotation = torch.eye(3, device=args.device)[None]       # 旋转矩阵，这是为了描述相机光学坐标系相对于世界坐标系的朝向
     # Two views of the same plane z=2, with known optical-to-world poses.
-    for camera_x in (0.0, 0.1):
+    for camera_x in (0.0, 0.1):         # 为了模拟相机在两个位置采集深度图
         position = depth.new_tensor([[camera_x, 0.0, 0.0]])
-        mapper.update(
-            rays_from_depth(
-                depth,
+        mapper.update(      # 用这些射线占据地图
+            rays_from_depth(    # 把深度图换成世界坐标系中的射线，只有不同相机采集的点都落在同一个世界坐标系中，才能融合进同一张地图
+                depth,          # 两次都用同一张深度图，但是对应的世界坐标系不同，可以理解为墙很大，两次拍到了同一面墙，x方向平移一下，那堵墙还是那个墙
                 intrinsics,
                 rotation=rotation,
                 position=position,

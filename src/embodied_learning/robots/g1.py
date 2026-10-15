@@ -19,7 +19,7 @@ G1_BODY_SCHEMA = (
     "right_shoulder",
 )
 # Exact source site offsets for sites absent from native mjlab G1.
-G1_ADDED_SITES = {
+G1_ADDED_SITES = {  # 这些就是相对link的位置
     "head": ("torso_link", (0.0, 0.0, 0.4)),
     "left_knee": ("left_knee_link", (0.0, 0.0, 0.0)),
     "right_knee": ("right_knee_link", (0.0, 0.0, 0.0)),

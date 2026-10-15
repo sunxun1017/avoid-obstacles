@@ -215,6 +215,24 @@ class CatTaskState:
             delayed_gf[:, [0, 3, 4, 5, 6]],
             delayed_bf[:, [0, 3, 4, 5, 6]],
         )
+        if getattr(self.bank, "deployment", False):
+            # The actor uses delayed odometry, while the critic uses the current
+            # pose. Either query can leave the measured grid independently.
+            # Gate both together after source gait processing (which may restore
+            # move_flag=1), so delayed guidance cannot restart an unavailable field.
+            available = (
+                sample.guidance_valid.all(-1)
+                & delayed_sample.guidance_valid.all(-1)
+                & ~invalid
+            )
+            unavailable = ~available
+            command[unavailable] = 0
+            delayed_command[unavailable] = 0
+            self.gait.last_command[unavailable] = 0
+            gf[unavailable] = bf[unavailable] = 0
+            delayed_gf[unavailable] = delayed_bf[unavailable] = 0
+            sample.sdf[unavailable] = delayed_sample.sdf[unavailable] = 0.5
+            self.bank.query_available.copy_(available)
         x = payload["reward_inputs"]
         x.gf = gf
         x.bf = bf
@@ -241,6 +259,12 @@ class CatTaskState:
             steps=steps,
             threshold=self.options["term_collision_threshold"],
         )
+        if getattr(self.bank, "deployment", False):
+            # Partial measured occupancy cannot certify physical collision.
+            # Keep native collision reporting separate from deployment fields.
+            flags["collision"] = (
+                payload["physical_collision"] | payload["self_contact"]
+            ) & (steps >= 50)
         self.goal_distance = (root[:, :2] - self.goals[:, :2]).norm(dim=-1)
         self.goal_distance = torch.where(invalid, torch.nan, self.goal_distance)
         self.record_goal(

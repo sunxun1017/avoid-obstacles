@@ -1,0 +1,52 @@
+{
+  "sensor": "lidar",
+  "smoke": true,
+  "headless_timing": {
+    "target_control_hz": 50,
+    "missed_deadlines": 123,
+    "steps": 150,
+    "mean_step_seconds": 0.0353545201534871,
+    "max_step_seconds": 0.0853639629931422
+  },
+  "execution": "async",
+  "field_backend": "cuda",
+  "mapping_backend": "warp",
+  "versions": [
+    22
+  ],
+  "build_counts": [
+    10
+  ],
+  "valid_rays": [
+    4030
+  ],
+  "measured_voxels": [
+    524585
+  ],
+  "occupied_voxels": [
+    1270
+  ],
+  "last_update_seconds": 0.002453014996717684,
+  "field_available": [
+    true
+  ],
+  "field_age_seconds": [
+    0.05349732900504023
+  ],
+  "errors": [
+    ""
+  ],
+  "worker": {
+    "submitted_sequence": 49,
+    "published_sequence": 49,
+    "dropped_scans": 0,
+    "worker_alive": true,
+    "build_counts": [
+      10
+    ],
+    "errors": [
+      ""
+    ],
+    "last_update_seconds": 0.02542895299848169
+  }
+}

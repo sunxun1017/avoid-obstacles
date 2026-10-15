@@ -2,7 +2,16 @@
 
 本入口迁移 Click-and-Traverse 固定提交 `866ba392f1c1e84b92ad75fa66550f26e8af8e48` 的 **G1Cat**，包含 env_loco 继承方法和 train_ppo 的势场权重覆盖。它独立于旧的 `g1_field.yaml` 论文公式实验；旧 checkpoint 不能作为新任务的教师或恢复点。
 
-这仍然是在已知盒体场景上做离线势场训练。没有接入相机、在线建图、Fast-LIO2、OctoMap 或 AMP。mjlab 的 G1 模型和 RSL-RL 的优化器与作者 MJX/Brax 实现不同，不能声称跨后端轨迹或训练结果一致。
+训练使用已知场景的预计算势场，这与作者公开训练源码的数据路径一致：
+[G1CatEnv 初始化](https://github.com/GalaxyGeneralRobotics/Click-and-Traverse/blob/866ba392f1c1e84b92ad75fa66550f26e8af8e48/cat_ppo/envs/g1/env_cat.py#L331-L337)
+加载 `sdf.npy`、`bf.npy`、`gf.npy`，随后按身体位置插值查询；
+[DAgger 场加载](https://github.com/GalaxyGeneralRobotics/Click-and-Traverse/blob/866ba392f1c1e84b92ad75fa66550f26e8af8e48/cat_ppo/envs/g1/env_cat_dagger.py#L50-L61)
+也读取各场景的这些数组。这里的“离线”指场预计算，PPO 仍在线采集仿真轨迹并更新策略。
+
+[论文 III-C](https://arxiv.org/html/2601.16035v1#S3.SS3) 的 Fast-LIO2、OctoMap 和 10 Hz 建图/场构造用于实机部署，不能据此推断每个并行训练环境都运行 SLAM。
+本项目的点云推理入口见 [在线感知](cat_online.md)，目前使用仿真真值定位，SLAM 尚未接通；训练无需等待它。
+当前训练场景仍是本项目的盒体场景，不包含作者完整场景资产，也没有 AMP。
+mjlab 的 G1 模型和 RSL-RL 的优化器与作者 MJX/Brax 实现不同，不能声称跨后端轨迹或训练结果一致。
 
 ## 入口与配置
 
@@ -52,6 +61,29 @@ python -c 'import torch; print(torch.cuda.get_device_name(0))'
 随后程序中的 `cuda:0` 指向这个可见 GPU。不会启动五张卡。
 
 ## 准备、训练和恢复
+
+2026-10-15 当前工作区已用本配置在 RTX 4060 Laptop 上实际验证训练，
+结果和完整命令见 [训练可运行性记录](benchmarks/cat-training-readiness-2026-10-15.json)。
+32 个并行环境，保持默认网络、rollout=20、epochs=4、minibatches=4 和训练扰动：
+三个场景各完成 5 次 PPO 更新，绕墙恢复后累计 7 次；DAgger 完成 2 轮并恢复到第 3 轮，
+累计聚合 1920 个样本、执行 12 次监督更新。检查点模型、优化器状态和损失均为有限数值，PPO 权重确实更新。
+产物保存在 `runs/cat-training-verified-20261015/`，其中 `generalist/latest.pt` 为短测学生。
+100 步、32 环境的评估链路正常退出，但 129 个结束回合全部跌倒、到达率为 0；
+这些产物仅证明训练与恢复可运行，不是可用导航策略。正式训练请使用独立输出目录。
+
+本机可先用以下命令开始正式训练；服务器显存充足时再增大 `--num-envs`。
+增加并行环境数不会改变固定的 0.02 秒控制周期，墙钟训练速度无需达到 50 Hz。
+
+```bash
+conda activate mjlab
+python -m embodied_learning.cli.field_training prepare \
+  --config configs/experiments/g1_cat_source.yaml --output-dir runs/cat-train
+python -m embodied_learning.cli.field_training ppo \
+  --config configs/experiments/g1_cat_source.yaml --output-dir runs/cat-train \
+  --scene wall_detour --device cuda:0 --num-envs 32 --iterations 30000
+```
+
+下面是使用默认输出目录和更大并行数的多场景训练示例。
 
 ```bash
 python -m embodied_learning.cli.field_training prepare \

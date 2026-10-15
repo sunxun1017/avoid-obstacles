@@ -139,12 +139,12 @@ def prepare_fields( # 根据场景中的障碍物和目标，离线计算每个�
     output_dir.mkdir(parents=True, exist_ok=True)   # 创建输出目录
     entries = []
     for scene in manifest.scenes:   # 在yaml文件中定义的场景，逐个场景处理，把障碍物转换成体素
-        occupied = voxelize_scene(scene)
-        for goal_id, goal in enumerate(scene.goals):    # 这个就是那个yaml文件中定义的目标点，逐个目标处理
+        occupied = voxelize_scene(scene)    # 注意，这里的occupied是固定在世界坐标中的完整场景地图，不是相机看到的地图
+        for goal_id, goal in enumerate(scene.goals):    # 这个就是每个场景的多个目标点的遍历
             builder = ( # build_source_voxel_field 构建cat_source_v1的体素场，build_voxel_field 构建普通的体素场
                 build_source_voxel_field if source_profile else build_voxel_field
             )
-            field = builder(
+            field = builder(    # 转成某个目标的导航场
                 occupied,
                 goal=goal,
                 voxel_size=scene.voxel_size,

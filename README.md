@@ -66,6 +66,11 @@ importing either simulator at package import time. See
 for setup and behavioral notes. G1 paper-field PPO specialists and online
 DAgger training are available; see [the server training guide](docs/field_training.md).
 
+CAT also has a decoupled online deployment path using depth-camera or LiDAR
+measurements, without loading offline field caches. See
+[CAT online mapping and playback](docs/cat_online.md) for commands, source
+correspondence, GPU boundaries, and current limitations.
+
 ## License
 
 The project is currently marked MIT. Verify this choice before distributing
