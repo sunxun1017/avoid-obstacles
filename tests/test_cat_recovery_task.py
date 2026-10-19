@@ -141,3 +141,25 @@ def test_native_contact_cost_is_once_per_episode_without_changing_termination():
     state.refresh(payload, controller, torch.zeros(16, dtype=torch.long), 62)
     state.refresh(payload, controller, torch.ones(16, dtype=torch.long), 63)
     assert state.terms["recovery_first_contact"][0] * 0.02 == -5.0
+
+
+@pytest.mark.parametrize(
+    ("task_options", "recovery_options"),
+    [({"ground": 1e50}, {}), ({}, {"tracking_weight": 1e50})],
+)
+def test_recovery_rejects_scales_that_cannot_be_used_in_float32_rewards(
+    task_options,
+    recovery_options,
+):
+    base, _, _, _ = task_case()
+    with pytest.raises(ValueError, match="float32"):
+        CatTaskState(
+            base.manifest,
+            base.bank,
+            base.allowed,
+            16,
+            "cpu",
+            task_options,
+            task_profile="cat_recovery_v1",
+            recovery_options=recovery_options,
+        )

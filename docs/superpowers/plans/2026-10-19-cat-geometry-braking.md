@@ -118,3 +118,14 @@ checkpoint SHA256 and contract in every output checkpoint.
   deselected; the unconditional CUDA demo `test_scan.py` was excluded. The later
   native-first-contact cost passed its red/green regression and a 38-test
   task/navigation/source regression run (2 CUDA skipped).
+- Server GPU smoke: 3 native tests passed on GPU 5 (RTX 4090). GPU 2 (RTX 5090)
+  could not run the installed PyTorch kernels, so no dependency changes were
+  attempted. A 4096-environment wall15800 warmstart completed 3 PPO updates,
+  approximately 1.9 s/update, and saved its strict recovery checkpoint.
+- Reject research parameters beyond float32 representability (review found
+  `ground=1e50` could otherwise produce invalid reward arithmetic); 44 related
+  task/navigation/loading tests passed after the fix.
+- `tools/experiments/run_cat_recovery.py` records an immutable Git/config/parent
+  manifest, runs wall then hurdle training/evaluation sequentially, and stops on
+  stage failure. Requested formal budget: 1000 PPO iterations × 4096 environments
+  per specialist, followed by 1000 fixed first episodes per specialist.

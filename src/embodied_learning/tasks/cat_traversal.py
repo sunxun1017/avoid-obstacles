@@ -68,6 +68,11 @@ class CatTaskState:
             if task_profile == "cat_recovery_v1"
             else None
         )
+        if self.recovery is not None and any(
+            value > torch.finfo(torch.float32).max
+            for value in vars(self.recovery.config).values()
+        ):
+            raise ValueError("Recovery parameters must be representable in float32.")
         if self.recovery is not None and getattr(bank, "deployment", False):
             raise ValueError(
                 "Recovery profile requires explicit offline scene geometry."
@@ -95,6 +100,13 @@ class CatTaskState:
         ):
             if not math.isfinite(self.options[k]) or self.options[k] < 0:
                 raise ValueError("Invalid source task scale.")
+            if (
+                self.recovery is not None
+                and self.options[k] > torch.finfo(torch.float32).max
+            ):
+                raise ValueError(
+                    "Research task scales must be representable in float32."
+                )
         for k in ("random_pd", "random_rfi", "push"):
             if type(self.options[k]) is not bool:
                 raise ValueError("Source randomization flags must be boolean.")
