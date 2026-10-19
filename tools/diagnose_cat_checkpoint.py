@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 from collections import Counter
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,6 +26,64 @@ def sample_diagnostic_source(bank, positions, scene_ids, goal_ids, invalid):
     valid = ~invalid & torch.isfinite(positions).all((1, 2))
     query = torch.where(valid[:, None, None], positions, 0.0)
     return bank.sample_source(query, scene_ids, goal_ids), valid
+
+
+def require_recovery_probe(state):
+    if state.task_profile != "cat_recovery_v1" or state.recovery is None:
+        raise ValueError("settle_without_support requires cat_recovery_v1.")
+    return state.recovery
+
+
+def probe_settle_contacts(state, *, feet_contact, velocity, active):
+    """Copy only the navigator input for the authorized counterfactual gate."""
+    nav = require_recovery_probe(state)
+    eligible = (
+        active
+        & (nav.mode == nav.BRAKE)
+        & (nav.last_velocity.norm(dim=-1) < 1e-6)
+        & (velocity.norm(dim=-1) < nav.config.settle_entry_speed)
+    )
+    contacts = feet_contact.clone()
+    contacts[eligible] = 1.0
+    return contacts
+
+
+@contextmanager
+def settle_without_support_probe(state, selected):
+    """Temporarily override one navigator instance; never edit real contacts."""
+    nav = require_recovery_probe(state)
+    original_advance = nav.advance
+
+    def advance(**inputs):
+        contacts = probe_settle_contacts(
+            state,
+            feet_contact=inputs["feet_contact"],
+            velocity=inputs["velocity"],
+            active=inputs["active"] & selected,
+        )
+        return original_advance(**{**inputs, "feet_contact": contacts})
+
+    with patch.object(nav, "advance", advance):
+        yield
+
+
+def recovery_diagnostic_values(state, payload):
+    """Snapshot real recovery state; missing geometry is left unreported."""
+    if state.task_profile != "cat_recovery_v1":
+        return {}
+    nav = state.recovery
+    values = dict(
+        navigation_mode=nav.mode.clone(),
+        reversal_pending=nav.reversal_pending.clone(),
+        resume_steps=nav.resume_steps.clone(),
+        settle_steps=nav.settle_steps.clone(),
+        reference_velocity=nav.last_velocity.clone(),
+    )
+    if "body_envelope" in payload:
+        values["body_envelope_clearance"] = payload[
+            "body_envelope"
+        ].clearance.clone()
+    return values
 
 
 def main():
@@ -43,7 +102,7 @@ def main():
     parser.add_argument("--disable-random-pd", action="store_true")
     parser.add_argument(
         "--variant",
-        choices=("baseline", "coherent_stop", "rearm"),
+        choices=("baseline", "coherent_stop", "rearm", "settle_without_support"),
         default="baseline",
     )
     args = parser.parse_args()
@@ -74,6 +133,26 @@ def main():
         ),
         cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES"),
     )
+    if args.variant == "settle_without_support":
+        metadata["navigator_override"] = dict(
+            purpose="Inference counterfactual of the SETTLE entry support gate.",
+            required_task_profile="cat_recovery_v1",
+            eligibility=(
+                "Designated active slots only: current mode=BRAKE, previous "
+                "reference norm<1e-6, current 3D speed<settle_entry_speed."
+            ),
+            intervention=(
+                "Copy feet_contact passed to navigator.advance and set eligible "
+                "rows to ones only for that call. Real feet_contact payload, "
+                "contact telemetry and foot-contact reward inputs are not replaced. "
+                "Termination/success formulas are unchanged. Commands, states and "
+                "reward values may change as a result of the control intervention."
+            ),
+            scope=(
+                "Tests one gate; not a production fix or evidence of true support. "
+                "Other modes and slots receive their original contact values."
+            ),
+        )
     (args.result_dir / "metadata.json").write_text(
         json.dumps(metadata, indent=2) + "\n"
     )
@@ -81,6 +160,8 @@ def main():
 
     def evaluate(env, policy, *, steps):
         state, native = env.cat_state, env.unwrapped
+        if args.variant == "settle_without_support":
+            require_recovery_probe(state)
         if args.disable_push:
             state.options = {**state.options, "push": False}
         if args.disable_observation_noise:
@@ -113,7 +194,11 @@ def main():
                     selected & (state.gait.stop_timestep <= 0) & (distance > 0.3)
                 )
                 state.gait.stop_timestep[resume] = 100
-            original(payload, controller, lengths, common)
+            if fresh and args.variant == "settle_without_support":
+                with settle_without_support_probe(state, selected):
+                    original(payload, controller, lengths, common)
+            else:
+                original(payload, controller, lengths, common)
             if not fresh or not bool(selected.any()):
                 return
             if args.variant == "coherent_stop":
@@ -170,6 +255,7 @@ def main():
                 settled_steps=state.settled_steps,
                 push_interval=state.push_interval,
             )
+            values.update(recovery_diagnostic_values(state, payload))
             # Save eight slots densely and all first-contact/terminal events.
             count = min(8, env.num_envs)
             if common % 5 == 0:
