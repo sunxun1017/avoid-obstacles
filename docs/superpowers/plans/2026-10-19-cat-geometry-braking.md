@@ -112,8 +112,8 @@ checkpoint SHA256 and contract in every output checkpoint.
 - Server parent checkpoints were checked read-only: wall15800 and hurdle3000
   share field identity `ef3177329abbff5b9c7b8d111696af9b22cdd3ba5a7880dbaec60439f852379b`
   and native model identity `5d86b8d275276e3bce6178f69943f1a2a064b493e865096dd6ffc465721e24e3`.
-- GPU testing and training/evaluation results are pending; unit tests do not
-  establish recovered robot behavior.
+- Formal training/evaluation has completed (results below); unit tests and the
+  GPU smoke alone do not establish recovered robot behavior.
 - CPU regression sweep: 305 passed, 31 CUDA skipped, 1 CUDA-status assertion
   deselected; the unconditional CUDA demo `test_scan.py` was excluded. The later
   native-first-contact cost passed its red/green regression and a 38-test
@@ -129,3 +129,88 @@ checkpoint SHA256 and contract in every output checkpoint.
   manifest, runs wall then hurdle training/evaluation sequentially, and stops on
   stage failure. Requested formal budget: 1000 PPO iterations × 4096 environments
   per specialist, followed by 1000 fixed first episodes per specialist.
+- The final implementation is committed as `eebaee0` and integrated into the
+  local main working branch. The CPU regression sweep on that tree completed
+  with 308 passed, 31 CUDA skips and 1 CUDA-status assertion deselected; the
+  unconditional CUDA demo `test_scan.py` remains excluded locally.
+- Code reached zjut through Git, in the isolated worktree
+  `/home/sunxun/embodied-learning-recovery-eebaee0`. The bounded experiment runs
+  from that frozen commit under
+  `/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0`.
+- Static geometry evidence is recorded in
+  `docs/benchmarks/cat-recovery-geometry-2026-10-19.json`, with the same-prefix
+  clearance figure. Three counterexamples retain positive old point SDFs while
+  native robot geometry penetrates; all are warned by the cover. All 33 native
+  collision geoms are covered, and all 12 tested starting/goal poses are clear.
+  This establishes the sampled static geometry issue, not policy performance.
+- Same-code baseline reevaluations each completed 1000 designated first episodes
+  on the formal run's RTX 4090. Wall15800: 844 success, 58 physical-contact
+  episodes, 2 fall flags; first-arrival mean speed 2.1095 m/s (901 arrivals), no
+  goal holding. Hurdle3000: zero arrivals/success, 1000 physical-contact episodes,
+  998 fall flags, no goal holding. Independent raw-record audits passed for both.
+  Minor differences from the earlier baseline are retained rather than hidden;
+  the current reevaluations will be the primary comparisons.
+- Goal-hold requires the current position inside the goal and the preceding
+  0.5 s of low measured speed; it does not require that entire interval inside
+  the goal or exclude historical contact. Report it together with whole-episode
+  safety. Arrival speeds are conditional on reaching; terminal speeds include
+  early failures. Same seed does not make the changed profiles a paired trial,
+  and this combined intervention is not an isolated geometry/braking ablation.
+- Wall completed 1000 PPO updates with 4096 environments and 1000 first-episode
+  evaluations. All 1000 loss records and checkpoint tensors are finite; the
+  parent checkpoint is unchanged. Success regressed from 844/1000 to 291/1000,
+  physical-contact episodes rose from 58 to 131, and goal holding remained zero.
+  Conditional arrival speed fell from 2.1095 m/s (901 arrivals) to 0.3588 m/s
+  (324 arrivals); this is not an overall navigation improvement. Among full
+  20-second timeouts, terminal speed increased from 0.0835 to 0.1927 m/s.
+- A diagnostic-only commit `2afd700` adds real navigator telemetry and the
+  `settle_without_support` inference probe. It temporarily substitutes only the
+  navigator support input on selected low-speed BRAKE calls with zero reference;
+  real contact telemetry and success definitions remain unchanged. The frozen
+  formal training/evaluation continues on `eebaee0`. Related CPU checks: 42 passed.
+- Two new 64-episode wall diagnostics probe the settling-entry bottleneck.
+  Baseline terminal modes: 62 BRAKE and 2 DRIVE, no SETTLE. Probe terminal modes:
+  64 SETTLE, no HOLD. Both have zero physically settled goal holds and seven
+  obstacle-contact episodes. In eight sampled trajectories, zero-reference
+  baseline braking never combines speed below 0.15 m/s with real dual support;
+  the probe permits stance but measured angular motion remains excessive.
+  Removing the entry gate alone is therefore insufficient. Prefix trajectories
+  differ before observed SETTLE entries, so success 19/64 versus 23/64 and the
+  early failure difference are not treated as strict paired causal estimates.
+- At all 14 first-contact events across those two cohorts the new body envelope
+  is negative while the old eleven-point SDF remains positive. This confirms
+  detection at the sampled contact frames; earlier warning time is not measured.
+  These 128 mechanism-probe episodes are separate from the formal evaluation.
+- The next behavioral gate is a measured low-speed/standstill and gait-transition
+  curriculum before another navigation comparison. A controller reaching SETTLE
+  is not equivalent to the learned policy maintaining balance. The support-input
+  probe must not become a production shortcut. The current experiments remain
+  at expert PPO validation; online near/far perception and CMPC integration are
+  not established by this offline geometry experiment.
+- Both specialists completed exactly 1000 PPO updates with 4096 environments,
+  followed by 1000 designated first episodes each. The frozen driver completed
+  all four stages at 2026-10-19 18:42:44 Asia/Shanghai. Same-code source-parent
+  reevaluations add two further 1000-episode cohorts (4000 formal evaluations in
+  total); the 3-update smoke and small mechanism probes are excluded.
+- Hurdle/crouch improved from 0/1000 to 129/1000 safe successes and from 1000 to
+  232 physical-contact episodes; goal arrivals rose to 153. Fall flags decreased
+  from 998 to 395, source-collision flags rose from 5 to 28, and invalid flags
+  remained zero. These outcomes may overlap. Goal holding remains zero, so this
+  is partial navigation progress and not an accepted expert policy.
+- Final safe CPU checkpoint audits confirmed 1000 finite loss records per
+  specialist, completed_iterations=1000 and environment_steps=20000, finite
+  parameter tensors and nonzero stored parameter changes. Parent hashes remain
+  unchanged; evaluated checkpoint/config hashes match. The frozen server
+  worktree remains clean. All result claims retain the original success and
+  physical stopping thresholds.
+- Independent raw-episode audits passed for all four formal cohorts, checking
+  unique first-episode slots, counts, distributions and input hashes; derived
+  success-and-hold and timeout/failure strata are recorded separately. The final
+  evidence report is `docs/benchmarks/cat-recovery-evaluation-2026-10-19.json`.
+- An additional 64-episode hurdle diagnostic records 4 successes, 10 obstacle
+  contact episodes, 18 fall flags, 4 source-collision flags and no goal holds.
+  All 18 fall flags use the head-height branch with positive up_z, but substantial
+  body inclination, angular motion and downward velocity support dynamic loss
+  of balance rather than stable crouching alone. Twelve have no recorded obstacle
+  contact; substep contact or other external forces cannot be excluded. These
+  diagnostics do not replace the formal 129/1000 success estimate.

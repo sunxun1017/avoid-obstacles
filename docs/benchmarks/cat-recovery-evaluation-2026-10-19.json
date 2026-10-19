@@ -1,0 +1,3867 @@
+{
+  "date": "2026-10-19",
+  "task": "Offline body-envelope and measured-motion braking research; source reproduction preserved",
+  "status": "complete",
+  "promotion": "No automatic promotion to DAgger teacher; evaluation gates remain unmet",
+  "findings_zh": [
+    "全身包络覆盖33个原生碰撞几何，静态反例和接触帧证据均能识别旧11点距离漏掉的几何风险；这不等于策略已经学会避碰。",
+    "绕墙研究策略追加1000轮后，1000回合安全成功率从84.4%降至29.1%，物理接触从5.8%升至13.1%，目标停稳保持仍为零。",
+    "跨越下蹲研究策略追加1000轮后，安全成功从0/1000提高至129/1000，物理接触从1000降至232回合，但395回合仍触发跌倒判据，目标停稳保持仍为零。",
+    "支持入口探针让64/64回合末帧进入SETTLE，但目标停稳保持仍为0/64；仅放宽入口不足以修复行为。",
+    "当前是离线专家PPO验证阶段。低速平衡、步态收束和安全到达仍需解决，不能据此推进为可靠蒸馏教师或宣称完成在线感知/CMPC集成。"
+  ],
+  "manifest": {
+    "started_at": "2026-10-19T08:46:03.612959+00:00",
+    "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+    "git_status": "",
+    "config": "/home/sunxun/embodied-learning-recovery-eebaee0/configs/experiments/g1_cat_recovery.yaml",
+    "config_sha256": "ed99ddf97795047c5acef9d4170cefe4f36550a2d7d53e57fcc0e7ef010c2e92",
+    "fields": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/fields",
+    "iterations_per_scene": 1000,
+    "training_envs": 4096,
+    "evaluation_episodes_per_scene": 1000,
+    "training_seed": 42,
+    "evaluation_seed": 20261019,
+    "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+    "python": "/home/sunxun/embodied-learning/.venv-field/bin/python",
+    "parents": {
+      "wall_detour": {
+        "path": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9"
+      },
+      "hurdle_crouch": {
+        "path": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/hurdle_crouch/model_2999.pt",
+        "sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b"
+      }
+    }
+  },
+  "local_analysis_sources_manifest": {
+    "path": "runs/cat-recovery-20261019-eebaee0/analysis-sources/manifest.json",
+    "sha256": "e6af5c718e5cc1e8688de3f41bb6ba2342be91c844a0b03d83967454677f0f72",
+    "bytes": 713
+  },
+  "driver_status": {
+    "state": "complete",
+    "completed": [
+      "wall_detour/train",
+      "wall_detour/evaluate",
+      "hurdle_crouch/train",
+      "hurdle_crouch/evaluate"
+    ],
+    "started_at": "2026-10-19T08:46:03.612959+00:00",
+    "scene": "hurdle_crouch",
+    "stage": "evaluate",
+    "updated_at": "2026-10-19T10:42:44.002021+00:00"
+  },
+  "training": {
+    "wall_detour": {
+      "audited_at_utc": "2026-10-19T10:44:00.969555+00:00",
+      "scene": "wall_detour",
+      "driver_status": {
+        "state": "complete",
+        "completed": [
+          "wall_detour/train",
+          "wall_detour/evaluate",
+          "hurdle_crouch/train",
+          "hurdle_crouch/evaluate"
+        ],
+        "started_at": "2026-10-19T08:46:03.612959+00:00",
+        "scene": "hurdle_crouch",
+        "stage": "evaluate",
+        "updated_at": "2026-10-19T10:42:44.002021+00:00"
+      },
+      "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/specialists/wall_detour/latest.pt",
+      "checkpoint_sha256": "7682085b271f620cef77998c3712374511f137e07bdeffe7f31042545c2ddbde",
+      "completed_iterations": 1000,
+      "iteration": 999,
+      "environment_steps": 20000,
+      "ppo_config": {
+        "iterations": 1000,
+        "rollout_steps": 20,
+        "hidden_dims": [
+          256,
+          128,
+          64
+        ],
+        "critic_hidden_dims": [
+          512,
+          256,
+          128
+        ],
+        "normalization": false,
+        "gamma": 0.97,
+        "epochs": 4,
+        "mini_batches": 4,
+        "learning_rate": 0.0001,
+        "save_interval": 100,
+        "seed": 42
+      },
+      "parameter_delta": 9.707277297973633,
+      "last_losses": {
+        "value": 0.04407330695539713,
+        "surrogate": -0.005351278305170126,
+        "entropy": -2.365287557244301
+      },
+      "loss_records": 1000,
+      "all_recorded_losses_finite": true,
+      "loss_file_sha256": "b652e7c9272fba65111c0a6bf7a5b3653739f7c1d8924aa130b21aca9a6ead5e",
+      "tensor_audit": {
+        "tensor_count": 70,
+        "floating_elements": 1145756
+      },
+      "nonfinite_tensor_paths": [],
+      "actor_linear_weight_shapes": {
+        "mlp.0.weight": [
+          256,
+          171
+        ],
+        "mlp.2.weight": [
+          128,
+          256
+        ],
+        "mlp.4.weight": [
+          64,
+          128
+        ],
+        "mlp.6.weight": [
+          12,
+          64
+        ]
+      },
+      "critic_linear_weight_shapes": {
+        "mlp.0.weight": [
+          512,
+          256
+        ],
+        "mlp.2.weight": [
+          256,
+          512
+        ],
+        "mlp.4.weight": [
+          128,
+          256
+        ],
+        "mlp.6.weight": [
+          1,
+          128
+        ]
+      },
+      "contract_dimensions": {
+        "actor_dim": 171,
+        "critic_dim": 256,
+        "action_dim": 12
+      },
+      "task_profile": "cat_recovery_v1",
+      "field_cache_identity": "ef3177329abbff5b9c7b8d111696af9b22cdd3ba5a7880dbaec60439f852379b",
+      "robot_model_identity": "5d86b8d275276e3bce6178f69943f1a2a064b493e865096dd6ffc465721e24e3",
+      "warmstart": {
+        "migration": "cat_source162_250_to_recovery171_256_v1",
+        "parent_checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "parent_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "parent_completed_iterations": 15801,
+        "optimizer_restored": false
+      },
+      "parent_sha256_now": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+      "parent_sha256_matches_manifest": true,
+      "evaluated_checkpoint_sha256_matches": true,
+      "config_sha256_matches_manifest": true,
+      "git_head": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+      "git_status": "",
+      "passed": true,
+      "audit_file": {
+        "path": "runs/cat-recovery-20261019-eebaee0/wall_detour/checkpoint-audit.json",
+        "sha256": "c165b59b0546885b9c3e72219e91014a7e962c4ab1379a32c694890944624629",
+        "bytes": 33938
+      }
+    },
+    "hurdle_crouch": {
+      "audited_at_utc": "2026-10-19T10:44:01.921594+00:00",
+      "scene": "hurdle_crouch",
+      "driver_status": {
+        "state": "complete",
+        "completed": [
+          "wall_detour/train",
+          "wall_detour/evaluate",
+          "hurdle_crouch/train",
+          "hurdle_crouch/evaluate"
+        ],
+        "started_at": "2026-10-19T08:46:03.612959+00:00",
+        "scene": "hurdle_crouch",
+        "stage": "evaluate",
+        "updated_at": "2026-10-19T10:42:44.002021+00:00"
+      },
+      "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/specialists/hurdle_crouch/latest.pt",
+      "checkpoint_sha256": "ae2358d1817fb7e0c35a790a77188f30cbbdbc386744108139315d7be2531108",
+      "completed_iterations": 1000,
+      "iteration": 999,
+      "environment_steps": 20000,
+      "ppo_config": {
+        "iterations": 1000,
+        "rollout_steps": 20,
+        "hidden_dims": [
+          256,
+          128,
+          64
+        ],
+        "critic_hidden_dims": [
+          512,
+          256,
+          128
+        ],
+        "normalization": false,
+        "gamma": 0.97,
+        "epochs": 4,
+        "mini_batches": 4,
+        "learning_rate": 0.0001,
+        "save_interval": 100,
+        "seed": 42
+      },
+      "parameter_delta": 9.106341361999512,
+      "last_losses": {
+        "value": 0.29150352999567986,
+        "surrogate": -0.005449232801765902,
+        "entropy": 0.7768114842474461
+      },
+      "loss_records": 1000,
+      "all_recorded_losses_finite": true,
+      "loss_file_sha256": "3145c11db634e55ec27fe197c2ee2ba993721574fcdfd4bd08a7eda60681f3c0",
+      "tensor_audit": {
+        "tensor_count": 70,
+        "floating_elements": 1145756
+      },
+      "nonfinite_tensor_paths": [],
+      "actor_linear_weight_shapes": {
+        "mlp.0.weight": [
+          256,
+          171
+        ],
+        "mlp.2.weight": [
+          128,
+          256
+        ],
+        "mlp.4.weight": [
+          64,
+          128
+        ],
+        "mlp.6.weight": [
+          12,
+          64
+        ]
+      },
+      "critic_linear_weight_shapes": {
+        "mlp.0.weight": [
+          512,
+          256
+        ],
+        "mlp.2.weight": [
+          256,
+          512
+        ],
+        "mlp.4.weight": [
+          128,
+          256
+        ],
+        "mlp.6.weight": [
+          1,
+          128
+        ]
+      },
+      "contract_dimensions": {
+        "actor_dim": 171,
+        "critic_dim": 256,
+        "action_dim": 12
+      },
+      "task_profile": "cat_recovery_v1",
+      "field_cache_identity": "ef3177329abbff5b9c7b8d111696af9b22cdd3ba5a7880dbaec60439f852379b",
+      "robot_model_identity": "5d86b8d275276e3bce6178f69943f1a2a064b493e865096dd6ffc465721e24e3",
+      "warmstart": {
+        "migration": "cat_source162_250_to_recovery171_256_v1",
+        "parent_checkpoint": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/hurdle_crouch/model_2999.pt",
+        "parent_sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+        "parent_completed_iterations": 3000,
+        "optimizer_restored": false
+      },
+      "parent_sha256_now": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+      "parent_sha256_matches_manifest": true,
+      "evaluated_checkpoint_sha256_matches": true,
+      "config_sha256_matches_manifest": true,
+      "git_head": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+      "git_status": "",
+      "passed": true,
+      "audit_file": {
+        "path": "runs/cat-recovery-20261019-eebaee0/hurdle_crouch/checkpoint-audit.json",
+        "sha256": "75f73eaa716452cf326ce7de367f426e3bb8d95e3b7fd60d75470ec3effa2b8c",
+        "bytes": 33933
+      }
+    }
+  },
+  "formal_evaluation_episodes_total": 4000,
+  "cases": {
+    "wall_source_parent": {
+      "metadata": {
+        "started_at": "2026-10-19T09:02:21.507479+00:00",
+        "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "config": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/config.yaml",
+        "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+        "fields": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/fields",
+        "scene": "wall_detour",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 997977,
+        "elapsed_seconds": 97.4580546761863,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 2,
+          "collision": 1,
+          "invalid": 0,
+          "timeout": 997,
+          "goal": 901,
+          "physical_collision": 58,
+          "success": 844,
+          "timeout_without_goal": 97
+        },
+        "rates": {
+          "fall": 0.002,
+          "collision": 0.001,
+          "invalid": 0.0,
+          "timeout": 0.997,
+          "goal": 0.901,
+          "physical_collision": 0.058,
+          "success": 0.844,
+          "timeout_without_goal": 0.097
+        },
+        "wilson_95": {
+          "fall": [
+            0.000548643588120728,
+            0.007262807863492177
+          ],
+          "collision": [
+            0.00017654637062607809,
+            0.0056425585979579355
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.9912169859464969,
+            0.9989792161188614
+          ],
+          "goal": [
+            0.8809263810632503,
+            0.9180045586313347
+          ],
+          "physical_collision": [
+            0.04513327823499824,
+            0.0742495762662325
+          ],
+          "success": [
+            0.8201985055513945,
+            0.8651686846105435
+          ],
+          "timeout_without_goal": [
+            0.08016916179032305,
+            0.1169152055490344
+          ]
+        },
+        "mean_step_reward": 0.2838267932532321,
+        "mean_root_speed": 0.27470712736968994,
+        "stop_command_fraction": 0.7696840708753809,
+        "settled_stop_fraction": 0.0,
+        "goal_hold_fraction": 0.0,
+        "ever_goal_hold_count": 0,
+        "ever_goal_hold_rate": 0.0,
+        "final_goal_hold_count": 0,
+        "final_goal_hold_rate": 0.0,
+        "pre_goal_stop_command_fraction": 0.2501427289780605,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 19.95954,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 901,
+          "mean": 4.6360044395116535,
+          "median": 4.58,
+          "p95": 5.6000000000000005
+        },
+        "first_goal_root_speed": {
+          "count": 901,
+          "mean": 2.109528802608147,
+          "median": 2.127769708633423,
+          "p95": 2.3544700145721436
+        },
+        "final_root_speed": {
+          "count": 1000,
+          "mean": 0.08723059564782307,
+          "median": 0.05763581581413746,
+          "p95": 0.23630794212221973
+        },
+        "final_root_angular_speed": {
+          "count": 1000,
+          "mean": 0.5288898336701096,
+          "median": 0.44172412157058716,
+          "p95": 1.0161101818084717
+        },
+        "successful_first_goal_seconds": {
+          "count": 844,
+          "mean": 4.644739336492891,
+          "median": 4.6000000000000005,
+          "p95": 5.6000000000000005
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.761567159390077,
+          "median": 0.7532282769680023,
+          "p95": 1.2276662230491635
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.058528003637242365,
+          "median": 0.046595554798841476,
+          "p95": 0.11847174204885959
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed.",
+          "goal_hold": {
+            "goal_distance_below_m": 0.1,
+            "settled_stop_required": true,
+            "excludes_current_fall_or_invalid": true,
+            "step_fraction_denominator": "all transitions in designated complete episodes",
+            "ever": "At least one qualifying step during the designated episode.",
+            "final": "Qualifies on the terminal step before automatic reset."
+          }
+        },
+        "evaluation_overrides": {}
+      },
+      "audit": {
+        "audited_at": "2026-10-19T09:05:37.614900+00:00",
+        "auditor_sha256": "d35b585b97b5ac96fccb0e2f8d8f2a8d19ff3b070b1d50bf2f8de49f2c7325ac",
+        "availability": {
+          "final_root_angular_speed": "available",
+          "final_root_speed": "available",
+          "first_goal_root_speed": "available",
+          "goal_hold": "available"
+        },
+        "checks": 46957,
+        "error_count": 0,
+        "errors": [],
+        "historical_comparison": {
+          "all_shared_episode_fields_exactly_equal": false,
+          "episodes_with_any_shared_field_difference": 1000,
+          "interpretation": "Arithmetic audit passed, but this is not an exact replay of the historical baseline. Metadata records equal checkpoint/config hashes and seed, different code commit and GPU UUID. Artifacts alone cannot isolate the cause of trajectory differences.",
+          "metadata_field_differences": [
+            {
+              "field": "cuda_visible_devices",
+              "new": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+              "old": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+            },
+            {
+              "field": "git_commit",
+              "new": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+              "old": "da73d210244e5cbf8dd96d8b4727cf00379d8908"
+            },
+            {
+              "field": "started_at",
+              "new": "2026-10-19T09:02:21.507479+00:00",
+              "old": "2026-10-19T05:11:16.717251+00:00"
+            }
+          ],
+          "metadata_fields_equal": {
+            "checkpoint_sha256": true,
+            "config_sha256": true,
+            "cuda_visible_devices": false,
+            "device": true,
+            "episodes": true,
+            "git_commit": false,
+            "num_envs": true,
+            "perturbations": true,
+            "python": true,
+            "scene": true,
+            "seed": true,
+            "torch": true
+          },
+          "new_early_terminal_slots": [
+            {
+              "outcomes": {
+                "collision": true,
+                "fall": false,
+                "goal": true,
+                "invalid": false,
+                "physical_collision": false,
+                "success": false,
+                "timeout": false
+              },
+              "slot": 11,
+              "steps": 304
+            },
+            {
+              "outcomes": {
+                "collision": false,
+                "fall": true,
+                "goal": false,
+                "invalid": false,
+                "physical_collision": false,
+                "success": false,
+                "timeout": false
+              },
+              "slot": 430,
+              "steps": 313
+            },
+            {
+              "outcomes": {
+                "collision": false,
+                "fall": true,
+                "goal": false,
+                "invalid": false,
+                "physical_collision": false,
+                "success": false,
+                "timeout": false
+              },
+              "slot": 833,
+              "steps": 360
+            }
+          ],
+          "outcome_counts": {
+            "collision": {
+              "delta": 1,
+              "new": 1,
+              "old": 0
+            },
+            "fall": {
+              "delta": 2,
+              "new": 2,
+              "old": 0
+            },
+            "goal": {
+              "delta": 9,
+              "new": 901,
+              "old": 892
+            },
+            "invalid": {
+              "delta": 0,
+              "new": 0,
+              "old": 0
+            },
+            "physical_collision": {
+              "delta": -1,
+              "new": 58,
+              "old": 59
+            },
+            "success": {
+              "delta": 9,
+              "new": 844,
+              "old": 835
+            },
+            "timeout": {
+              "delta": -3,
+              "new": 997,
+              "old": 1000
+            },
+            "timeout_without_goal": {
+              "delta": -11,
+              "new": 97,
+              "old": 108
+            }
+          },
+          "reference_directory": "/home/sx/embodied-learning/runs/cat-expert-eval-20261019-da73d21/wall_15800",
+          "reference_sha256": {
+            "episodes.jsonl": "4ad9e370f2a89675e890beb1efd4854be32534933393b34e11020464269233a2",
+            "evaluation.json": "58bbead3c0d2501f05d9ef66f831545242c6722645e83a6beb09dbd40212be5e",
+            "metadata.json": "2fa02545e2e6967abeed34dd992ace7b4fed29b9e9248721f35e4e026fc9e49f"
+          },
+          "shared_episode_field_difference_counts": {
+            "duration_seconds": 3,
+            "final_goal_distance": 1000,
+            "first_goal_seconds": 508,
+            "min_goal_distance": 1000,
+            "outcomes.collision": 1,
+            "outcomes.fall": 2,
+            "outcomes.goal": 67,
+            "outcomes.physical_collision": 11,
+            "outcomes.success": 77,
+            "outcomes.timeout": 3,
+            "steps": 3,
+            "sums.pre_goal_steps": 510,
+            "sums.pre_goal_stop_command": 489,
+            "sums.reward": 1000,
+            "sums.root_speed": 1000,
+            "sums.stop_command": 527,
+            "timeout_without_goal": 69
+          },
+          "shared_summary_field_differences": [
+            {
+              "field": "duration_seconds.mean",
+              "new": 19.95954,
+              "old": 20.0
+            },
+            {
+              "field": "elapsed_seconds",
+              "new": 97.4580546761863,
+              "old": 37.700683617033064
+            },
+            {
+              "field": "final_goal_distance.mean",
+              "new": 0.761567159390077,
+              "old": 0.76235025889799
+            },
+            {
+              "field": "final_goal_distance.median",
+              "new": 0.7532282769680023,
+              "old": 0.7665214240550995
+            },
+            {
+              "field": "final_goal_distance.p95",
+              "new": 1.2276662230491635,
+              "old": 1.1876839399337769
+            },
+            {
+              "field": "first_goal_seconds.count",
+              "new": 901,
+              "old": 892
+            },
+            {
+              "field": "first_goal_seconds.mean",
+              "new": 4.6360044395116535,
+              "old": 4.636367713004485
+            },
+            {
+              "field": "included_transitions",
+              "new": 997977,
+              "old": 1000000
+            },
+            {
+              "field": "mean_root_speed",
+              "new": 0.27470712736968994,
+              "old": 0.27408115666467003
+            },
+            {
+              "field": "mean_step_reward",
+              "new": 0.2838267932532321,
+              "old": 0.2839191676528629
+            },
+            {
+              "field": "min_goal_distance.mean",
+              "new": 0.058528003637242365,
+              "old": 0.05895231891708681
+            },
+            {
+              "field": "min_goal_distance.median",
+              "new": 0.046595554798841476,
+              "old": 0.04821977950632572
+            },
+            {
+              "field": "min_goal_distance.p95",
+              "new": 0.11847174204885959,
+              "old": 0.11397334672510621
+            },
+            {
+              "field": "outcomes.collision",
+              "new": 1,
+              "old": 0
+            },
+            {
+              "field": "outcomes.fall",
+              "new": 2,
+              "old": 0
+            },
+            {
+              "field": "outcomes.goal",
+              "new": 901,
+              "old": 892
+            },
+            {
+              "field": "outcomes.physical_collision",
+              "new": 58,
+              "old": 59
+            },
+            {
+              "field": "outcomes.success",
+              "new": 844,
+              "old": 835
+            },
+            {
+              "field": "outcomes.timeout",
+              "new": 997,
+              "old": 1000
+            },
+            {
+              "field": "outcomes.timeout_without_goal",
+              "new": 97,
+              "old": 108
+            },
+            {
+              "field": "pre_goal_stop_command_fraction",
+              "new": 0.2501427289780605,
+              "old": 0.2699296656098506
+            },
+            {
+              "field": "rates.collision",
+              "new": 0.001,
+              "old": 0.0
+            },
+            {
+              "field": "rates.fall",
+              "new": 0.002,
+              "old": 0.0
+            },
+            {
+              "field": "rates.goal",
+              "new": 0.901,
+              "old": 0.892
+            },
+            {
+              "field": "rates.physical_collision",
+              "new": 0.058,
+              "old": 0.059
+            },
+            {
+              "field": "rates.success",
+              "new": 0.844,
+              "old": 0.835
+            },
+            {
+              "field": "rates.timeout",
+              "new": 0.997,
+              "old": 1.0
+            },
+            {
+              "field": "rates.timeout_without_goal",
+              "new": 0.097,
+              "old": 0.108
+            },
+            {
+              "field": "stop_command_fraction",
+              "new": 0.7696840708753809,
+              "old": 0.770187
+            },
+            {
+              "field": "successful_first_goal_seconds.count",
+              "new": 844,
+              "old": 835
+            },
+            {
+              "field": "successful_first_goal_seconds.mean",
+              "new": 4.644739336492891,
+              "old": 4.646922155688623
+            },
+            {
+              "field": "wilson_95.collision",
+              "new": [
+                0.00017654637062607809,
+                0.0056425585979579355
+              ],
+              "old": [
+                2.168404344971009e-19,
+                0.0038267584855551234
+              ]
+            },
+            {
+              "field": "wilson_95.fall",
+              "new": [
+                0.000548643588120728,
+                0.007262807863492177
+              ],
+              "old": [
+                2.168404344971009e-19,
+                0.0038267584855551234
+              ]
+            },
+            {
+              "field": "wilson_95.goal",
+              "new": [
+                0.8809263810632503,
+                0.9180045586313347
+              ],
+              "old": [
+                0.8712410199098767,
+                0.9097588014374481
+              ]
+            },
+            {
+              "field": "wilson_95.physical_collision",
+              "new": [
+                0.04513327823499824,
+                0.0742495762662325
+              ],
+              "old": [
+                0.04601429821280047,
+                0.07536090277145915
+              ]
+            },
+            {
+              "field": "wilson_95.success",
+              "new": [
+                0.8201985055513945,
+                0.8651686846105435
+              ],
+              "old": [
+                0.8107207516702334,
+                0.8567153201444447
+              ]
+            },
+            {
+              "field": "wilson_95.timeout",
+              "new": [
+                0.9912169859464969,
+                0.9989792161188614
+              ],
+              "old": [
+                0.996173241514445,
+                1.0
+              ]
+            },
+            {
+              "field": "wilson_95.timeout_without_goal",
+              "new": [
+                0.08016916179032305,
+                0.1169152055490344
+              ],
+              "old": [
+                0.09024119856255189,
+                0.12875898009012332
+              ]
+            }
+          ]
+        },
+        "input_files": {
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/episodes.jsonl": {
+            "bytes": 770336,
+            "sha256": "8d8055bb6b22654d09c05760bebc6e7237cdce66fc3c336f764607ef4cdaed79"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/evaluation.json": {
+            "bytes": 3823,
+            "sha256": "8403a622f4edc063b0d086aec8a5f496a298cc070ec3696a923d31b2062051f0"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/metadata.json": {
+            "bytes": 917,
+            "sha256": "f567b1720cd64b4d8572eab5a3cf868d0619d4a948d61ad7fdd82ba6bcd205b8"
+          }
+        },
+        "limitations": [
+          "Verifies recorded episode/summary arithmetic, not raw simulator truth.",
+          "Per-step goal membership and continuous settled duration cannot be reconstructed from episode aggregates.",
+          "Final hold checks necessary terminal conditions; absence of hold cannot be inferred from terminal speed alone.",
+          "Metadata checkpoint/config identities are checked for format, not rehashed from remote referenced files.",
+          "Historical missing fields remain not_available; no values are imputed."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+          "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "git_status": "",
+          "scene": "wall_detour",
+          "seed": 20261019
+        },
+        "recomputed": {
+          "duration_seconds": {
+            "count": 1000,
+            "mean": 19.95954,
+            "median": 20.0,
+            "p95": 20.0
+          },
+          "episode_sum_totals": {
+            "goal_hold": 0.0,
+            "pre_goal_settled_stop": 0.0,
+            "pre_goal_steps": 306525.0,
+            "pre_goal_stop_command": 76675.0,
+            "reward": 283252.61165048083,
+            "root_speed": 274151.39485102106,
+            "settled_stop": 0.0,
+            "stop_command": 768127.0
+          },
+          "ever_goal_hold_count": 0,
+          "ever_goal_hold_rate": 0.0,
+          "final_goal_distance": {
+            "count": 1000,
+            "mean": 0.761567159390077,
+            "median": 0.7532282769680023,
+            "p95": 1.2276662230491635
+          },
+          "final_goal_hold_count": 0,
+          "final_goal_hold_rate": 0.0,
+          "final_root_angular_speed": {
+            "count": 1000,
+            "mean": 0.5288898336701096,
+            "median": 0.44172412157058716,
+            "p95": 1.0161101818084717
+          },
+          "final_root_speed": {
+            "count": 1000,
+            "mean": 0.08723059564782307,
+            "median": 0.05763581581413746,
+            "p95": 0.23630794212221973
+          },
+          "first_goal_root_speed": {
+            "count": 901,
+            "mean": 2.109528802608147,
+            "median": 2.127769708633423,
+            "p95": 2.3544700145721436
+          },
+          "first_goal_seconds": {
+            "count": 901,
+            "mean": 4.6360044395116535,
+            "median": 4.58,
+            "p95": 5.6000000000000005
+          },
+          "goal_hold_fraction": 0.0,
+          "included_transitions": 997977,
+          "mean_root_speed": 0.27470712736968994,
+          "mean_step_reward": 0.2838267932532321,
+          "min_goal_distance": {
+            "count": 1000,
+            "mean": 0.058528003637242365,
+            "median": 0.046595554798841476,
+            "p95": 0.11847174204885959
+          },
+          "outcomes": {
+            "collision": 1,
+            "fall": 2,
+            "goal": 901,
+            "invalid": 0,
+            "physical_collision": 58,
+            "success": 844,
+            "timeout": 997,
+            "timeout_without_goal": 97
+          },
+          "pre_goal_settled_stop_fraction": 0.0,
+          "pre_goal_stop_command_fraction": 0.2501427289780605,
+          "rates": {
+            "collision": 0.001,
+            "fall": 0.002,
+            "goal": 0.901,
+            "invalid": 0.0,
+            "physical_collision": 0.058,
+            "success": 0.844,
+            "timeout": 0.997,
+            "timeout_without_goal": 0.097
+          },
+          "settled_stop_fraction": 0.0,
+          "simulation_steps": 1000,
+          "stop_command_fraction": 0.7696840708753809,
+          "successful_first_goal_seconds": {
+            "count": 844,
+            "mean": 4.644739336492891,
+            "median": 4.6000000000000005,
+            "p95": 5.6000000000000005
+          },
+          "wilson_95": {
+            "collision": [
+              0.00017654637062607809,
+              0.005642558597957934
+            ],
+            "fall": [
+              0.0005486435881207272,
+              0.007262807863492174
+            ],
+            "goal": [
+              0.8809263810632502,
+              0.9180045586313346
+            ],
+            "invalid": [
+              0.0,
+              0.0038267584855551217
+            ],
+            "physical_collision": [
+              0.04513327823499824,
+              0.07424957626623249
+            ],
+            "success": [
+              0.8201985055513946,
+              0.8651686846105434
+            ],
+            "timeout": [
+              0.9912169859464968,
+              0.9989792161188613
+            ],
+            "timeout_without_goal": [
+              0.08016916179032305,
+              0.1169152055490344
+            ]
+          }
+        },
+        "record_count": 1000,
+        "status": "passed"
+      },
+      "derived": {
+        "case_directory": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_wall_15800",
+        "definitions": {
+          "all_arrived": "outcomes.goal=true, including arrivals that did not ultimately succeed.",
+          "distributions": "n is measured finite observations; missing counts explicit nulls. Empty statistics are null; p95 uses linear interpolation.",
+          "early_failure": "timeout=false, steps<1000, and fall/collision/invalid terminal flag.",
+          "hold_outcomes": "Episode-latched physical_collision; terminal fall/invalid flags. Counts may overlap.",
+          "joint_rate_denominator": "All designated episodes, not only successful or holding episodes.",
+          "success": "outcomes.success=true; a subset of all_arrived, not a disjoint group.",
+          "timeout": "timeout=true, including any simultaneous failure flags; terminal time 20 seconds."
+        },
+        "episodes": 1000,
+        "first_arrival_strata": {
+          "all_arrived": {
+            "episode_count": 901,
+            "first_goal_root_speed": {
+              "mean": 2.109528802608147,
+              "median": 2.127769708633423,
+              "missing": 0,
+              "n": 901,
+              "p95": 2.3544700145721436
+            }
+          },
+          "success": {
+            "episode_count": 844,
+            "first_goal_root_speed": {
+              "mean": 2.107392234259872,
+              "median": 2.1270787715911865,
+              "missing": 0,
+              "n": 844,
+              "p95": 2.3530077099800106
+            }
+          }
+        },
+        "hold_outcomes": {
+          "ever_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          },
+          "final_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          }
+        },
+        "input_files": {
+          "episodes.jsonl": {
+            "bytes": 770336,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/episodes.jsonl",
+            "sha256": "8d8055bb6b22654d09c05760bebc6e7237cdce66fc3c336f764607ef4cdaed79"
+          },
+          "evaluation.json": {
+            "bytes": 3823,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/evaluation.json",
+            "sha256": "8403a622f4edc063b0d086aec8a5f496a298cc070ec3696a923d31b2062051f0"
+          },
+          "metadata.json": {
+            "bytes": 917,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/metadata.json",
+            "sha256": "f567b1720cd64b4d8572eab5a3cf868d0619d4a948d61ad7fdd82ba6bcd205b8"
+          }
+        },
+        "limitations": [
+          "Descriptive arithmetic from recorded episodes, not simulator truth or causal attribution.",
+          "First-arrival speed is conditional on reaching the goal; terminal strata are conditional on termination type.",
+          "Goal-hold is current goal membership plus continuous low speed; it does not itself exclude earlier collisions.",
+          "No missing field is invented; a missing required field causes an explicit error."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+          "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "scene": "wall_detour",
+          "seed": 20261019
+        },
+        "schema": "cat_derived_episode_strata_v1",
+        "script_sha256": "22df6995cd7211eb6fe95bf68ae59e11bd6a6b63545cc44abce1359389d3372a",
+        "success_and_hold": {
+          "ever_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          },
+          "final_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          }
+        },
+        "terminal_strata": {
+          "early_failure": {
+            "episode_count": 3,
+            "final_goal_distance": {
+              "mean": 1.3675582806269329,
+              "median": 1.409132719039917,
+              "missing": 0,
+              "n": 3,
+              "p95": 1.462581419944763
+            },
+            "final_root_angular_speed": {
+              "mean": 5.709370930989583,
+              "median": 5.506432056427002,
+              "missing": 0,
+              "n": 3,
+              "p95": 8.114777326583862
+            },
+            "final_root_speed": {
+              "mean": 1.3280979196230571,
+              "median": 1.4859169721603394,
+              "missing": 0,
+              "n": 3,
+              "p95": 1.527206254005432
+            }
+          },
+          "timeout": {
+            "episode_count": 997,
+            "final_goal_distance": {
+              "mean": 0.7597437156952821,
+              "median": 0.7530744671821594,
+              "missing": 0,
+              "n": 997,
+              "p95": 1.2187765836715694
+            },
+            "final_root_angular_speed": {
+              "mean": 0.513301625754404,
+              "median": 0.4410727918148041,
+              "missing": 0,
+              "n": 997,
+              "p95": 0.996917128562927
+            },
+            "final_root_speed": {
+              "mean": 0.08349679226575114,
+              "median": 0.05748845636844635,
+              "missing": 0,
+              "n": 997,
+              "p95": 0.22241984903812384
+            }
+          }
+        },
+        "validation": {
+          "checks": 18057,
+          "goal_hold_fraction": 0.0,
+          "hold_counts": {
+            "ever_goal_hold": 0,
+            "final_goal_hold": 0
+          },
+          "status": "passed",
+          "summary_counts": {
+            "collision": 1,
+            "fall": 2,
+            "goal": 901,
+            "invalid": 0,
+            "physical_collision": 58,
+            "success": 844,
+            "timeout": 997,
+            "timeout_without_goal": 97
+          },
+          "terminal_episode_count_sum": 1000
+        }
+      },
+      "files": [
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/metadata.json",
+          "sha256": "f567b1720cd64b4d8572eab5a3cf868d0619d4a948d61ad7fdd82ba6bcd205b8",
+          "bytes": 917
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/evaluation.json",
+          "sha256": "8403a622f4edc063b0d086aec8a5f496a298cc070ec3696a923d31b2062051f0",
+          "bytes": 3823
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/episodes.jsonl",
+          "sha256": "8d8055bb6b22654d09c05760bebc6e7237cdce66fc3c336f764607ef4cdaed79",
+          "bytes": 770336
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/audit.json",
+          "sha256": "96a1abbce942ea1043c8689ea92768bf2afa86fe85bf20f15ad7130037eccb07",
+          "bytes": 14214
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_wall_15800/derived.json",
+          "sha256": "e737dd5a4dc14951381e247d7118341112efe4d68fbfbdea9fa107f86fe2a03b",
+          "bytes": 5268
+        }
+      ]
+    },
+    "wall_recovery_1000": {
+      "metadata": {
+        "started_at": "2026-10-19T09:41:11.732057+00:00",
+        "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/specialists/wall_detour/latest.pt",
+        "checkpoint_sha256": "7682085b271f620cef77998c3712374511f137e07bdeffe7f31042545c2ddbde",
+        "config": "/home/sunxun/embodied-learning-recovery-eebaee0/configs/experiments/g1_cat_recovery.yaml",
+        "config_sha256": "ed99ddf97795047c5acef9d4170cefe4f36550a2d7d53e57fcc0e7ef010c2e92",
+        "fields": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/fields",
+        "scene": "wall_detour",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 996228,
+        "elapsed_seconds": 77.30036462191492,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 6,
+          "collision": 2,
+          "invalid": 0,
+          "timeout": 992,
+          "goal": 324,
+          "physical_collision": 131,
+          "success": 291,
+          "timeout_without_goal": 669
+        },
+        "rates": {
+          "fall": 0.006,
+          "collision": 0.002,
+          "invalid": 0.0,
+          "timeout": 0.992,
+          "goal": 0.324,
+          "physical_collision": 0.131,
+          "success": 0.291,
+          "timeout_without_goal": 0.669
+        },
+        "wilson_95": {
+          "fall": [
+            0.0027526691418763745,
+            0.01302816824185209
+          ],
+          "collision": [
+            0.000548643588120728,
+            0.007262807863492177
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.9842936654690199,
+            0.995940804181194
+          ],
+          "goal": [
+            0.2957148222722109,
+            0.35363219671470447
+          ],
+          "physical_collision": [
+            0.11149250620200898,
+            0.15333164156033072
+          ],
+          "success": [
+            0.2636897827038124,
+            0.3199098023431496
+          ],
+          "timeout_without_goal": [
+            0.63923606946991,
+            0.6974704861619725
+          ]
+        },
+        "mean_step_reward": 0.060116810622434375,
+        "mean_root_speed": 0.261981299100892,
+        "stop_command_fraction": 0.46941262441930964,
+        "settled_stop_fraction": 0.0,
+        "goal_hold_fraction": 0.0,
+        "ever_goal_hold_count": 0,
+        "ever_goal_hold_rate": 0.0,
+        "final_goal_hold_count": 0,
+        "final_goal_hold_rate": 0.0,
+        "pre_goal_stop_command_fraction": 0.40115580217905306,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 19.92456,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 324,
+          "mean": 12.985061728395062,
+          "median": 12.530000000000001,
+          "p95": 17.894000000000002
+        },
+        "first_goal_root_speed": {
+          "count": 324,
+          "mean": 0.3588106862763748,
+          "median": 0.31351226568222046,
+          "p95": 0.8306567311286915
+        },
+        "final_root_speed": {
+          "count": 1000,
+          "mean": 0.20325277974363418,
+          "median": 0.14886167645454407,
+          "p95": 0.4739065930247306
+        },
+        "final_root_angular_speed": {
+          "count": 1000,
+          "mean": 0.6866639374196529,
+          "median": 0.6066727042198181,
+          "p95": 1.2638655364513394
+        },
+        "successful_first_goal_seconds": {
+          "count": 291,
+          "mean": 13.021649484536082,
+          "median": 12.56,
+          "p95": 17.910000000000004
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.4170409967638552,
+          "median": 0.4024011343717575,
+          "p95": 0.723722469806671
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.1326490542232059,
+          "median": 0.12170349061489105,
+          "p95": 0.2503216475248336
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed.",
+          "goal_hold": {
+            "goal_distance_below_m": 0.1,
+            "settled_stop_required": true,
+            "excludes_current_fall_or_invalid": true,
+            "step_fraction_denominator": "all transitions in designated complete episodes",
+            "ever": "At least one qualifying step during the designated episode.",
+            "final": "Qualifies on the terminal step before automatic reset."
+          }
+        },
+        "evaluation_overrides": {}
+      },
+      "audit": {
+        "audited_at": "2026-10-19T09:44:44.185074+00:00",
+        "auditor_sha256": "d35b585b97b5ac96fccb0e2f8d8f2a8d19ff3b070b1d50bf2f8de49f2c7325ac",
+        "availability": {
+          "final_root_angular_speed": "available",
+          "final_root_speed": "available",
+          "first_goal_root_speed": "available",
+          "goal_hold": "available"
+        },
+        "checks": 45226,
+        "error_count": 0,
+        "errors": [],
+        "input_files": {
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/episodes.jsonl": {
+            "bytes": 764140,
+            "sha256": "f8bcfced1f2ef8d59b051bc9e63c7c20d793a6fcf9709f5e590f3b5d80b32b56"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/evaluation.json": {
+            "bytes": 3822,
+            "sha256": "32d2882740eb9c15a58e5a314add92d3e50a0b5e7e54aaa872d73d7ea507d9db"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/metadata.json": {
+            "bytes": 931,
+            "sha256": "ffef5ecde27c180df6e736ce23010b4ae52e387d77ab477f5e746f7e9bf0dd21"
+          }
+        },
+        "limitations": [
+          "Verifies recorded episode/summary arithmetic, not raw simulator truth.",
+          "Per-step goal membership and continuous settled duration cannot be reconstructed from episode aggregates.",
+          "Final hold checks necessary terminal conditions; absence of hold cannot be inferred from terminal speed alone.",
+          "Metadata checkpoint/config identities are checked for format, not rehashed from remote referenced files.",
+          "Historical missing fields remain not_available; no values are imputed."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "7682085b271f620cef77998c3712374511f137e07bdeffe7f31042545c2ddbde",
+          "config_sha256": "ed99ddf97795047c5acef9d4170cefe4f36550a2d7d53e57fcc0e7ef010c2e92",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "git_status": "",
+          "scene": "wall_detour",
+          "seed": 20261019
+        },
+        "recomputed": {
+          "duration_seconds": {
+            "count": 1000,
+            "mean": 19.92456,
+            "median": 20.0,
+            "p95": 20.0
+          },
+          "episode_sum_totals": {
+            "goal_hold": 0.0,
+            "pre_goal_settled_stop": 0.0,
+            "pre_goal_steps": 882677.0,
+            "pre_goal_stop_command": 354091.0,
+            "reward": 59890.050012766565,
+            "root_speed": 260993.10564068344,
+            "settled_stop": 0.0,
+            "stop_command": 467642.0
+          },
+          "ever_goal_hold_count": 0,
+          "ever_goal_hold_rate": 0.0,
+          "final_goal_distance": {
+            "count": 1000,
+            "mean": 0.4170409967638552,
+            "median": 0.4024011343717575,
+            "p95": 0.723722469806671
+          },
+          "final_goal_hold_count": 0,
+          "final_goal_hold_rate": 0.0,
+          "final_root_angular_speed": {
+            "count": 1000,
+            "mean": 0.6866639374196529,
+            "median": 0.6066727042198181,
+            "p95": 1.2638655364513394
+          },
+          "final_root_speed": {
+            "count": 1000,
+            "mean": 0.20325277974363418,
+            "median": 0.14886167645454407,
+            "p95": 0.4739065930247306
+          },
+          "first_goal_root_speed": {
+            "count": 324,
+            "mean": 0.3588106862763748,
+            "median": 0.31351226568222046,
+            "p95": 0.8306567311286915
+          },
+          "first_goal_seconds": {
+            "count": 324,
+            "mean": 12.985061728395062,
+            "median": 12.530000000000001,
+            "p95": 17.894000000000002
+          },
+          "goal_hold_fraction": 0.0,
+          "included_transitions": 996228,
+          "mean_root_speed": 0.261981299100892,
+          "mean_step_reward": 0.06011681062243439,
+          "min_goal_distance": {
+            "count": 1000,
+            "mean": 0.1326490542232059,
+            "median": 0.12170349061489105,
+            "p95": 0.2503216475248336
+          },
+          "outcomes": {
+            "collision": 2,
+            "fall": 6,
+            "goal": 324,
+            "invalid": 0,
+            "physical_collision": 131,
+            "success": 291,
+            "timeout": 992,
+            "timeout_without_goal": 669
+          },
+          "pre_goal_settled_stop_fraction": 0.0,
+          "pre_goal_stop_command_fraction": 0.40115580217905306,
+          "rates": {
+            "collision": 0.002,
+            "fall": 0.006,
+            "goal": 0.324,
+            "invalid": 0.0,
+            "physical_collision": 0.131,
+            "success": 0.291,
+            "timeout": 0.992,
+            "timeout_without_goal": 0.669
+          },
+          "settled_stop_fraction": 0.0,
+          "simulation_steps": 1000,
+          "stop_command_fraction": 0.46941262441930964,
+          "successful_first_goal_seconds": {
+            "count": 291,
+            "mean": 13.021649484536082,
+            "median": 12.56,
+            "p95": 17.910000000000004
+          },
+          "wilson_95": {
+            "collision": [
+              0.0005486435881207272,
+              0.007262807863492174
+            ],
+            "fall": [
+              0.0027526691418763754,
+              0.013028168241852087
+            ],
+            "goal": [
+              0.2957148222722109,
+              0.35363219671470447
+            ],
+            "invalid": [
+              0.0,
+              0.0038267584855551217
+            ],
+            "physical_collision": [
+              0.111492506202009,
+              0.15333164156033072
+            ],
+            "success": [
+              0.2636897827038125,
+              0.3199098023431496
+            ],
+            "timeout": [
+              0.9842936654690199,
+              0.9959408041811938
+            ],
+            "timeout_without_goal": [
+              0.6392360694699099,
+              0.6974704861619724
+            ]
+          }
+        },
+        "record_count": 1000,
+        "status": "passed"
+      },
+      "derived": {
+        "case_directory": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation",
+        "definitions": {
+          "all_arrived": "outcomes.goal=true, including arrivals that did not ultimately succeed.",
+          "distributions": "n is measured finite observations; missing counts explicit nulls. Empty statistics are null; p95 uses linear interpolation.",
+          "early_failure": "timeout=false, steps<1000, and fall/collision/invalid terminal flag.",
+          "hold_outcomes": "Episode-latched physical_collision; terminal fall/invalid flags. Counts may overlap.",
+          "joint_rate_denominator": "All designated episodes, not only successful or holding episodes.",
+          "success": "outcomes.success=true; a subset of all_arrived, not a disjoint group.",
+          "timeout": "timeout=true, including any simultaneous failure flags; terminal time 20 seconds."
+        },
+        "episodes": 1000,
+        "first_arrival_strata": {
+          "all_arrived": {
+            "episode_count": 324,
+            "first_goal_root_speed": {
+              "mean": 0.3588106862763748,
+              "median": 0.31351226568222046,
+              "missing": 0,
+              "n": 324,
+              "p95": 0.8306567311286915
+            }
+          },
+          "success": {
+            "episode_count": 291,
+            "first_goal_root_speed": {
+              "mean": 0.3545424395282449,
+              "median": 0.3093532919883728,
+              "missing": 0,
+              "n": 291,
+              "p95": 0.8245332837104797
+            }
+          }
+        },
+        "hold_outcomes": {
+          "ever_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          },
+          "final_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          }
+        },
+        "input_files": {
+          "episodes.jsonl": {
+            "bytes": 764140,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/episodes.jsonl",
+            "sha256": "f8bcfced1f2ef8d59b051bc9e63c7c20d793a6fcf9709f5e590f3b5d80b32b56"
+          },
+          "evaluation.json": {
+            "bytes": 3822,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/evaluation.json",
+            "sha256": "32d2882740eb9c15a58e5a314add92d3e50a0b5e7e54aaa872d73d7ea507d9db"
+          },
+          "metadata.json": {
+            "bytes": 931,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/metadata.json",
+            "sha256": "ffef5ecde27c180df6e736ce23010b4ae52e387d77ab477f5e746f7e9bf0dd21"
+          }
+        },
+        "limitations": [
+          "Descriptive arithmetic from recorded episodes, not simulator truth or causal attribution.",
+          "First-arrival speed is conditional on reaching the goal; terminal strata are conditional on termination type.",
+          "Goal-hold is current goal membership plus continuous low speed; it does not itself exclude earlier collisions.",
+          "No missing field is invented; a missing required field causes an explicit error."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "7682085b271f620cef77998c3712374511f137e07bdeffe7f31042545c2ddbde",
+          "config_sha256": "ed99ddf97795047c5acef9d4170cefe4f36550a2d7d53e57fcc0e7ef010c2e92",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "scene": "wall_detour",
+          "seed": 20261019
+        },
+        "schema": "cat_derived_episode_strata_v1",
+        "script_sha256": "22df6995cd7211eb6fe95bf68ae59e11bd6a6b63545cc44abce1359389d3372a",
+        "success_and_hold": {
+          "ever_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          },
+          "final_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          }
+        },
+        "terminal_strata": {
+          "early_failure": {
+            "episode_count": 8,
+            "final_goal_distance": {
+              "mean": 1.4068404659628868,
+              "median": 1.089749813079834,
+              "missing": 0,
+              "n": 8,
+              "p95": 2.979840779304504
+            },
+            "final_root_angular_speed": {
+              "mean": 4.466379597783089,
+              "median": 3.5568928718566895,
+              "missing": 0,
+              "n": 8,
+              "p95": 9.71480264663696
+            },
+            "final_root_speed": {
+              "mean": 1.5109627470374107,
+              "median": 1.6648980379104614,
+              "missing": 0,
+              "n": 8,
+              "p95": 2.366630423069
+            }
+          },
+          "timeout": {
+            "episode_count": 992,
+            "final_goal_distance": {
+              "mean": 0.40905874297999206,
+              "median": 0.40131647884845734,
+              "missing": 0,
+              "n": 992,
+              "p95": 0.7066034466028212
+            },
+            "final_root_angular_speed": {
+              "mean": 0.6561823595134962,
+              "median": 0.6041570007801056,
+              "missing": 0,
+              "n": 992,
+              "p95": 1.233876496553421
+            },
+            "final_root_speed": {
+              "mean": 0.19270673162029725,
+              "median": 0.14824559539556503,
+              "missing": 0,
+              "n": 992,
+              "p95": 0.45801147520542124
+            }
+          }
+        },
+        "validation": {
+          "checks": 18057,
+          "goal_hold_fraction": 0.0,
+          "hold_counts": {
+            "ever_goal_hold": 0,
+            "final_goal_hold": 0
+          },
+          "status": "passed",
+          "summary_counts": {
+            "collision": 2,
+            "fall": 6,
+            "goal": 324,
+            "invalid": 0,
+            "physical_collision": 131,
+            "success": 291,
+            "timeout": 992,
+            "timeout_without_goal": 669
+          },
+          "terminal_episode_count_sum": 1000
+        }
+      },
+      "files": [
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/metadata.json",
+          "sha256": "ffef5ecde27c180df6e736ce23010b4ae52e387d77ab477f5e746f7e9bf0dd21",
+          "bytes": 931
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/evaluation.json",
+          "sha256": "32d2882740eb9c15a58e5a314add92d3e50a0b5e7e54aaa872d73d7ea507d9db",
+          "bytes": 3822
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/episodes.jsonl",
+          "sha256": "f8bcfced1f2ef8d59b051bc9e63c7c20d793a6fcf9709f5e590f3b5d80b32b56",
+          "bytes": 764140
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/audit.json",
+          "sha256": "14144923ef97370d4f7fd44bf781c6f87e0a4894b3aa2ce89ff72c13951ab4a6",
+          "bytes": 5172
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_detour/evaluation/derived.json",
+          "sha256": "394c1a9a4e3bfecf1cdfc0469bd0c5b744b4090954cd01cdd9ff0e9106bfd6a9",
+          "bytes": 5286
+        }
+      ]
+    },
+    "hurdle_source_parent": {
+      "metadata": {
+        "started_at": "2026-10-19T09:13:43.631049+00:00",
+        "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/hurdle_crouch/model_2999.pt",
+        "checkpoint_sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+        "config": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/config.yaml",
+        "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+        "fields": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/fields",
+        "scene": "hurdle_crouch",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 444,
+        "included_transitions": 267275,
+        "elapsed_seconds": 53.5888637881726,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 998,
+          "collision": 5,
+          "invalid": 0,
+          "timeout": 0,
+          "goal": 0,
+          "physical_collision": 1000,
+          "success": 0,
+          "timeout_without_goal": 0
+        },
+        "rates": {
+          "fall": 0.998,
+          "collision": 0.005,
+          "invalid": 0.0,
+          "timeout": 0.0,
+          "goal": 0.0,
+          "physical_collision": 1.0,
+          "success": 0.0,
+          "timeout_without_goal": 0.0
+        },
+        "wilson_95": {
+          "fall": [
+            0.9927371921365079,
+            0.9994513564118793
+          ],
+          "collision": [
+            0.0021375355273244596,
+            0.011650955373375113
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "goal": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "physical_collision": [
+            0.996173241514445,
+            1.0
+          ],
+          "success": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout_without_goal": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ]
+        },
+        "mean_step_reward": 0.1624834047568039,
+        "mean_root_speed": 0.5114355873857236,
+        "stop_command_fraction": 0.021199139463099804,
+        "settled_stop_fraction": 0.0,
+        "goal_hold_fraction": 0.0,
+        "ever_goal_hold_count": 0,
+        "ever_goal_hold_rate": 0.0,
+        "final_goal_hold_count": 0,
+        "final_goal_hold_rate": 0.0,
+        "pre_goal_stop_command_fraction": 0.021199139463099804,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 5.3455,
+          "median": 5.3,
+          "p95": 6.12
+        },
+        "first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "first_goal_root_speed": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "final_root_speed": {
+          "count": 1000,
+          "mean": 0.24444675512239336,
+          "median": 0.2270602583885193,
+          "p95": 0.4610788360238075
+        },
+        "final_root_angular_speed": {
+          "count": 1000,
+          "mean": 2.4461901197582483,
+          "median": 2.5139471292495728,
+          "p95": 3.6836471199989314
+        },
+        "successful_first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.7420178378224372,
+          "median": 0.727533221244812,
+          "p95": 0.8403938263654709
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.7371822876334191,
+          "median": 0.7314093112945557,
+          "p95": 0.7921703845262528
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed.",
+          "goal_hold": {
+            "goal_distance_below_m": 0.1,
+            "settled_stop_required": true,
+            "excludes_current_fall_or_invalid": true,
+            "step_fraction_denominator": "all transitions in designated complete episodes",
+            "ever": "At least one qualifying step during the designated episode.",
+            "final": "Qualifies on the terminal step before automatic reset."
+          }
+        },
+        "evaluation_overrides": {}
+      },
+      "audit": {
+        "audited_at": "2026-10-19T09:15:39.727744+00:00",
+        "auditor_sha256": "d35b585b97b5ac96fccb0e2f8d8f2a8d19ff3b070b1d50bf2f8de49f2c7325ac",
+        "availability": {
+          "final_root_angular_speed": "available",
+          "final_root_speed": "available",
+          "first_goal_root_speed": "available",
+          "goal_hold": "available"
+        },
+        "checks": 44245,
+        "cohort_details": {
+          "all_first_episodes": true,
+          "all_terminated_before_timeout": true,
+          "distinct_slots": 1000,
+          "fall_and_collision_count": 3,
+          "fall_or_collision_count": 1000,
+          "maximum_steps": 444,
+          "minimum_steps": 197
+        },
+        "error_count": 0,
+        "errors": [],
+        "historical_comparison": {
+          "all_identity_checks_passed": true,
+          "identity_checks": {
+            "checkpoint_sha256": {
+              "current": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+              "historical": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+              "match": true
+            },
+            "config_sha256": {
+              "current": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+              "historical": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+              "match": true
+            },
+            "device": {
+              "current": "NVIDIA GeForce RTX 4090",
+              "historical": "NVIDIA GeForce RTX 4090",
+              "match": true
+            },
+            "episodes": {
+              "current": 1000,
+              "historical": 1000,
+              "match": true
+            },
+            "num_envs": {
+              "current": 1000,
+              "historical": 1000,
+              "match": true
+            },
+            "perturbations": {
+              "current": "training settings retained",
+              "historical": "training settings retained",
+              "match": true
+            },
+            "python": {
+              "current": "3.11.15",
+              "historical": "3.11.15",
+              "match": true
+            },
+            "scene": {
+              "current": "hurdle_crouch",
+              "historical": "hurdle_crouch",
+              "match": true
+            },
+            "seed": {
+              "current": 20261019,
+              "historical": 20261019,
+              "match": true
+            },
+            "torch": {
+              "current": "2.7.1+cu126",
+              "historical": "2.7.1+cu126",
+              "match": true
+            }
+          },
+          "interpretation": "Same recorded checkpoint/config identities and evaluation setup; counts are not an exact historical replay. Code commit and GPU UUID differ; artifacts alone cannot isolate the source of trajectory differences.",
+          "matches_current_research_parent_sha256": true,
+          "metadata_field_differences": {
+            "config": {
+              "new": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/config.yaml",
+              "old": "/home/sunxun/embodied-learning-eval-da73d21/configs/experiments/g1_cat_source.yaml"
+            },
+            "cuda_visible_devices": {
+              "new": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+              "old": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+            },
+            "fields": {
+              "new": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/fields",
+              "old": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/fields"
+            },
+            "git_commit": {
+              "new": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+              "old": "da73d210244e5cbf8dd96d8b4727cf00379d8908"
+            },
+            "started_at": {
+              "new": "2026-10-19T09:13:43.631049+00:00",
+              "old": "2026-10-19T05:13:44.559992+00:00"
+            }
+          },
+          "outcome_counts": {
+            "collision": {
+              "delta": 3,
+              "new": 5,
+              "old": 2
+            },
+            "fall": {
+              "delta": -1,
+              "new": 998,
+              "old": 999
+            },
+            "goal": {
+              "delta": 0,
+              "new": 0,
+              "old": 0
+            },
+            "invalid": {
+              "delta": 0,
+              "new": 0,
+              "old": 0
+            },
+            "physical_collision": {
+              "delta": 0,
+              "new": 1000,
+              "old": 1000
+            },
+            "success": {
+              "delta": 0,
+              "new": 0,
+              "old": 0
+            },
+            "timeout": {
+              "delta": 0,
+              "new": 0,
+              "old": 0
+            },
+            "timeout_without_goal": {
+              "delta": 0,
+              "new": 0,
+              "old": 0
+            }
+          },
+          "reference_case": "hurdle_crouch_3000",
+          "reference_file": "/home/sx/embodied-learning/docs/benchmarks/cat-expert-evaluation-2026-10-19.json",
+          "reference_sha256": "a0e46496d61bfd2b435f7e8dc27e03886f41d46add2d3df4349f5d4970e9f06a"
+        },
+        "input_files": {
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/episodes.jsonl": {
+            "bytes": 754078,
+            "sha256": "bf4b02cc0eaceba486aba41313bdd8f0c0005c14ae83e5ccaf0021f6007908da"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/evaluation.json": {
+            "bytes": 3686,
+            "sha256": "d0c67528e9c85e60cd0e427d63de0c8e5126f89064dc0559a80880304317abd8"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/metadata.json": {
+            "bytes": 909,
+            "sha256": "6fc0498d10670122482b96ab18d37129bd2541d73695e28e5a7aefbcf4678585"
+          }
+        },
+        "limitations": [
+          "Verifies recorded episode/summary arithmetic, not raw simulator truth.",
+          "Per-step goal membership and continuous settled duration cannot be reconstructed from episode aggregates.",
+          "Final hold checks necessary terminal conditions; absence of hold cannot be inferred from terminal speed alone.",
+          "Metadata checkpoint/config identities are checked for format, not rehashed from remote referenced files.",
+          "Historical missing fields remain not_available; no values are imputed."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+          "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "git_status": "",
+          "scene": "hurdle_crouch",
+          "seed": 20261019
+        },
+        "recomputed": {
+          "duration_seconds": {
+            "count": 1000,
+            "mean": 5.3455,
+            "median": 5.3,
+            "p95": 6.12
+          },
+          "episode_sum_totals": {
+            "goal_hold": 0.0,
+            "pre_goal_settled_stop": 0.0,
+            "pre_goal_steps": 267275.0,
+            "pre_goal_stop_command": 5666.0,
+            "reward": 43427.75200637476,
+            "root_speed": 136693.94661851926,
+            "settled_stop": 0.0,
+            "stop_command": 5666.0
+          },
+          "ever_goal_hold_count": 0,
+          "ever_goal_hold_rate": 0.0,
+          "final_goal_distance": {
+            "count": 1000,
+            "mean": 0.7420178378224372,
+            "median": 0.727533221244812,
+            "p95": 0.8403938263654709
+          },
+          "final_goal_hold_count": 0,
+          "final_goal_hold_rate": 0.0,
+          "final_root_angular_speed": {
+            "count": 1000,
+            "mean": 2.4461901197582483,
+            "median": 2.5139471292495728,
+            "p95": 3.6836471199989314
+          },
+          "final_root_speed": {
+            "count": 1000,
+            "mean": 0.24444675512239336,
+            "median": 0.2270602583885193,
+            "p95": 0.4610788360238075
+          },
+          "first_goal_root_speed": {
+            "count": 0,
+            "mean": null,
+            "median": null,
+            "p95": null
+          },
+          "first_goal_seconds": {
+            "count": 0,
+            "mean": null,
+            "median": null,
+            "p95": null
+          },
+          "goal_hold_fraction": 0.0,
+          "included_transitions": 267275,
+          "mean_root_speed": 0.5114355873857236,
+          "mean_step_reward": 0.1624834047568039,
+          "min_goal_distance": {
+            "count": 1000,
+            "mean": 0.7371822876334191,
+            "median": 0.7314093112945557,
+            "p95": 0.7921703845262528
+          },
+          "outcomes": {
+            "collision": 5,
+            "fall": 998,
+            "goal": 0,
+            "invalid": 0,
+            "physical_collision": 1000,
+            "success": 0,
+            "timeout": 0,
+            "timeout_without_goal": 0
+          },
+          "pre_goal_settled_stop_fraction": 0.0,
+          "pre_goal_stop_command_fraction": 0.021199139463099804,
+          "rates": {
+            "collision": 0.005,
+            "fall": 0.998,
+            "goal": 0.0,
+            "invalid": 0.0,
+            "physical_collision": 1.0,
+            "success": 0.0,
+            "timeout": 0.0,
+            "timeout_without_goal": 0.0
+          },
+          "settled_stop_fraction": 0.0,
+          "simulation_steps": 444,
+          "stop_command_fraction": 0.021199139463099804,
+          "successful_first_goal_seconds": {
+            "count": 0,
+            "mean": null,
+            "median": null,
+            "p95": null
+          },
+          "wilson_95": {
+            "collision": [
+              0.0021375355273244613,
+              0.01165095537337511
+            ],
+            "fall": [
+              0.9927371921365078,
+              0.9994513564118792
+            ],
+            "goal": [
+              0.0,
+              0.0038267584855551217
+            ],
+            "invalid": [
+              0.0,
+              0.0038267584855551217
+            ],
+            "physical_collision": [
+              0.9961732415144449,
+              1.0
+            ],
+            "success": [
+              0.0,
+              0.0038267584855551217
+            ],
+            "timeout": [
+              0.0,
+              0.0038267584855551217
+            ],
+            "timeout_without_goal": [
+              0.0,
+              0.0038267584855551217
+            ]
+          }
+        },
+        "record_count": 1000,
+        "status": "passed"
+      },
+      "derived": {
+        "case_directory": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000",
+        "definitions": {
+          "all_arrived": "outcomes.goal=true, including arrivals that did not ultimately succeed.",
+          "distributions": "n is measured finite observations; missing counts explicit nulls. Empty statistics are null; p95 uses linear interpolation.",
+          "early_failure": "timeout=false, steps<1000, and fall/collision/invalid terminal flag.",
+          "hold_outcomes": "Episode-latched physical_collision; terminal fall/invalid flags. Counts may overlap.",
+          "joint_rate_denominator": "All designated episodes, not only successful or holding episodes.",
+          "success": "outcomes.success=true; a subset of all_arrived, not a disjoint group.",
+          "timeout": "timeout=true, including any simultaneous failure flags; terminal time 20 seconds."
+        },
+        "episodes": 1000,
+        "first_arrival_strata": {
+          "all_arrived": {
+            "episode_count": 0,
+            "first_goal_root_speed": {
+              "mean": null,
+              "median": null,
+              "missing": 0,
+              "n": 0,
+              "p95": null
+            }
+          },
+          "success": {
+            "episode_count": 0,
+            "first_goal_root_speed": {
+              "mean": null,
+              "median": null,
+              "missing": 0,
+              "n": 0,
+              "p95": null
+            }
+          }
+        },
+        "hold_outcomes": {
+          "ever_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          },
+          "final_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          }
+        },
+        "input_files": {
+          "episodes.jsonl": {
+            "bytes": 754078,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/episodes.jsonl",
+            "sha256": "bf4b02cc0eaceba486aba41313bdd8f0c0005c14ae83e5ccaf0021f6007908da"
+          },
+          "evaluation.json": {
+            "bytes": 3686,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/evaluation.json",
+            "sha256": "d0c67528e9c85e60cd0e427d63de0c8e5126f89064dc0559a80880304317abd8"
+          },
+          "metadata.json": {
+            "bytes": 909,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/metadata.json",
+            "sha256": "6fc0498d10670122482b96ab18d37129bd2541d73695e28e5a7aefbcf4678585"
+          }
+        },
+        "limitations": [
+          "Descriptive arithmetic from recorded episodes, not simulator truth or causal attribution.",
+          "First-arrival speed is conditional on reaching the goal; terminal strata are conditional on termination type.",
+          "Goal-hold is current goal membership plus continuous low speed; it does not itself exclude earlier collisions.",
+          "No missing field is invented; a missing required field causes an explicit error."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+          "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "scene": "hurdle_crouch",
+          "seed": 20261019
+        },
+        "schema": "cat_derived_episode_strata_v1",
+        "script_sha256": "22df6995cd7211eb6fe95bf68ae59e11bd6a6b63545cc44abce1359389d3372a",
+        "success_and_hold": {
+          "ever_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          },
+          "final_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          }
+        },
+        "terminal_strata": {
+          "early_failure": {
+            "episode_count": 1000,
+            "final_goal_distance": {
+              "mean": 0.7420178378224372,
+              "median": 0.727533221244812,
+              "missing": 0,
+              "n": 1000,
+              "p95": 0.8403938263654709
+            },
+            "final_root_angular_speed": {
+              "mean": 2.4461901197582483,
+              "median": 2.5139471292495728,
+              "missing": 0,
+              "n": 1000,
+              "p95": 3.6836471199989314
+            },
+            "final_root_speed": {
+              "mean": 0.24444675512239336,
+              "median": 0.2270602583885193,
+              "missing": 0,
+              "n": 1000,
+              "p95": 0.4610788360238075
+            }
+          },
+          "timeout": {
+            "episode_count": 0,
+            "final_goal_distance": {
+              "mean": null,
+              "median": null,
+              "missing": 0,
+              "n": 0,
+              "p95": null
+            },
+            "final_root_angular_speed": {
+              "mean": null,
+              "median": null,
+              "missing": 0,
+              "n": 0,
+              "p95": null
+            },
+            "final_root_speed": {
+              "mean": null,
+              "median": null,
+              "missing": 0,
+              "n": 0,
+              "p95": null
+            }
+          }
+        },
+        "validation": {
+          "checks": 18057,
+          "goal_hold_fraction": 0.0,
+          "hold_counts": {
+            "ever_goal_hold": 0,
+            "final_goal_hold": 0
+          },
+          "status": "passed",
+          "summary_counts": {
+            "collision": 5,
+            "fall": 998,
+            "goal": 0,
+            "invalid": 0,
+            "physical_collision": 1000,
+            "success": 0,
+            "timeout": 0,
+            "timeout_without_goal": 0
+          },
+          "terminal_episode_count_sum": 1000
+        }
+      },
+      "files": [
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/metadata.json",
+          "sha256": "6fc0498d10670122482b96ab18d37129bd2541d73695e28e5a7aefbcf4678585",
+          "bytes": 909
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/evaluation.json",
+          "sha256": "d0c67528e9c85e60cd0e427d63de0c8e5126f89064dc0559a80880304317abd8",
+          "bytes": 3686
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/episodes.jsonl",
+          "sha256": "bf4b02cc0eaceba486aba41313bdd8f0c0005c14ae83e5ccaf0021f6007908da",
+          "bytes": 754078
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/audit.json",
+          "sha256": "41cbb3e9e384afc6e8608cee4edbdb0a047258366547c76102a9e2c2452df1d6",
+          "bytes": 8912
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/baseline_hurdle_3000/derived.json",
+          "sha256": "863e1fdfcf4b1f3e59c38c50879c2de4690e1a9c3fa10f16c2d55a0e9eab6b06",
+          "bytes": 5065
+        }
+      ]
+    },
+    "hurdle_recovery_1000": {
+      "metadata": {
+        "started_at": "2026-10-19T10:40:37.099539+00:00",
+        "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/specialists/hurdle_crouch/latest.pt",
+        "checkpoint_sha256": "ae2358d1817fb7e0c35a790a77188f30cbbdbc386744108139315d7be2531108",
+        "config": "/home/sunxun/embodied-learning-recovery-eebaee0/configs/experiments/g1_cat_recovery.yaml",
+        "config_sha256": "ed99ddf97795047c5acef9d4170cefe4f36550a2d7d53e57fcc0e7ef010c2e92",
+        "fields": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/fields",
+        "scene": "hurdle_crouch",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 798502,
+        "elapsed_seconds": 114.96821773611009,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 395,
+          "collision": 28,
+          "invalid": 0,
+          "timeout": 577,
+          "goal": 153,
+          "physical_collision": 232,
+          "success": 129,
+          "timeout_without_goal": 429
+        },
+        "rates": {
+          "fall": 0.395,
+          "collision": 0.028,
+          "invalid": 0.0,
+          "timeout": 0.577,
+          "goal": 0.153,
+          "physical_collision": 0.232,
+          "success": 0.129,
+          "timeout_without_goal": 0.429
+        },
+        "wilson_95": {
+          "fall": [
+            0.3651584457395731,
+            0.4256451735423935
+          ],
+          "collision": [
+            0.019442276812770925,
+            0.04017018319759311
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.546142492951032,
+            0.6072681862421924
+          ],
+          "goal": [
+            0.13201921562431126,
+            0.17663655476466403
+          ],
+          "physical_collision": [
+            0.20689343939858929,
+            0.2591577031496683
+          ],
+          "success": [
+            0.10963544529450506,
+            0.1512040095017769
+          ],
+          "timeout_without_goal": [
+            0.3986535230179055,
+            0.45988987668704334
+          ]
+        },
+        "mean_step_reward": 0.038796574223648614,
+        "mean_root_speed": 0.2774889377663956,
+        "stop_command_fraction": 0.15131458656333985,
+        "settled_stop_fraction": 0.0,
+        "goal_hold_fraction": 0.0,
+        "ever_goal_hold_count": 0,
+        "ever_goal_hold_rate": 0.0,
+        "final_goal_hold_count": 0,
+        "final_goal_hold_rate": 0.0,
+        "pre_goal_stop_command_fraction": 0.11389636014398856,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 15.970040000000001,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 153,
+          "mean": 15.52392156862745,
+          "median": 15.14,
+          "p95": 19.192
+        },
+        "first_goal_root_speed": {
+          "count": 153,
+          "mean": 0.3848118127561083,
+          "median": 0.34775298833847046,
+          "p95": 0.7395544528961183
+        },
+        "final_root_speed": {
+          "count": 1000,
+          "mean": 0.5129573984686285,
+          "median": 0.3880210965871811,
+          "p95": 1.0325132250785827
+        },
+        "final_root_angular_speed": {
+          "count": 1000,
+          "mean": 2.4184700923860074,
+          "median": 1.1746284365653992,
+          "p95": 5.768386840820312
+        },
+        "successful_first_goal_seconds": {
+          "count": 129,
+          "mean": 15.510697674418605,
+          "median": 15.06,
+          "p95": 19.228
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.7826561746634543,
+          "median": 0.8107657134532928,
+          "p95": 1.1863043308258057
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.5677005206474569,
+          "median": 0.7017927467823029,
+          "p95": 1.1468224346637725
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed.",
+          "goal_hold": {
+            "goal_distance_below_m": 0.1,
+            "settled_stop_required": true,
+            "excludes_current_fall_or_invalid": true,
+            "step_fraction_denominator": "all transitions in designated complete episodes",
+            "ever": "At least one qualifying step during the designated episode.",
+            "final": "Qualifies on the terminal step before automatic reset."
+          }
+        },
+        "evaluation_overrides": {}
+      },
+      "audit": {
+        "audited_at": "2026-10-19T10:44:31.900681+00:00",
+        "auditor_sha256": "d35b585b97b5ac96fccb0e2f8d8f2a8d19ff3b070b1d50bf2f8de49f2c7325ac",
+        "availability": {
+          "final_root_angular_speed": "available",
+          "final_root_speed": "available",
+          "first_goal_root_speed": "available",
+          "goal_hold": "available"
+        },
+        "checks": 44713,
+        "error_count": 0,
+        "errors": [],
+        "input_files": {
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/episodes.jsonl": {
+            "bytes": 759237,
+            "sha256": "eb8df9b56283fffd3a357547a330fe24089c71f0a209154aa4af910468c993f2"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/evaluation.json": {
+            "bytes": 3795,
+            "sha256": "c748eb6f157895360437353ea8914231ff39fc4ec9070bceb83f55dfee6bf91b"
+          },
+          "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/metadata.json": {
+            "bytes": 937,
+            "sha256": "8cb317377f2b8396e2a41bef8f7e18363150e84e31aa0788b8ccf21df505b483"
+          }
+        },
+        "limitations": [
+          "Verifies recorded episode/summary arithmetic, not raw simulator truth.",
+          "Per-step goal membership and continuous settled duration cannot be reconstructed from episode aggregates.",
+          "Final hold checks necessary terminal conditions; absence of hold cannot be inferred from terminal speed alone.",
+          "Metadata checkpoint/config identities are checked for format, not rehashed from remote referenced files.",
+          "Historical missing fields remain not_available; no values are imputed."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "ae2358d1817fb7e0c35a790a77188f30cbbdbc386744108139315d7be2531108",
+          "config_sha256": "ed99ddf97795047c5acef9d4170cefe4f36550a2d7d53e57fcc0e7ef010c2e92",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "git_status": "",
+          "scene": "hurdle_crouch",
+          "seed": 20261019
+        },
+        "recomputed": {
+          "duration_seconds": {
+            "count": 1000,
+            "mean": 15.970040000000001,
+            "median": 20.0,
+            "p95": 20.0
+          },
+          "episode_sum_totals": {
+            "goal_hold": 0.0,
+            "pre_goal_settled_stop": 0.0,
+            "pre_goal_steps": 764783.0,
+            "pre_goal_stop_command": 87106.0,
+            "reward": 30979.14211073186,
+            "root_speed": 221575.47178434243,
+            "settled_stop": 0.0,
+            "stop_command": 120825.0
+          },
+          "ever_goal_hold_count": 0,
+          "ever_goal_hold_rate": 0.0,
+          "final_goal_distance": {
+            "count": 1000,
+            "mean": 0.7826561746634543,
+            "median": 0.8107657134532928,
+            "p95": 1.1863043308258057
+          },
+          "final_goal_hold_count": 0,
+          "final_goal_hold_rate": 0.0,
+          "final_root_angular_speed": {
+            "count": 1000,
+            "mean": 2.4184700923860074,
+            "median": 1.1746284365653992,
+            "p95": 5.768386840820312
+          },
+          "final_root_speed": {
+            "count": 1000,
+            "mean": 0.5129573984686285,
+            "median": 0.3880210965871811,
+            "p95": 1.0325132250785827
+          },
+          "first_goal_root_speed": {
+            "count": 153,
+            "mean": 0.3848118127561083,
+            "median": 0.34775298833847046,
+            "p95": 0.7395544528961183
+          },
+          "first_goal_seconds": {
+            "count": 153,
+            "mean": 15.52392156862745,
+            "median": 15.14,
+            "p95": 19.192
+          },
+          "goal_hold_fraction": 0.0,
+          "included_transitions": 798502,
+          "mean_root_speed": 0.2774889377663956,
+          "mean_step_reward": 0.03879657422364861,
+          "min_goal_distance": {
+            "count": 1000,
+            "mean": 0.5677005206474569,
+            "median": 0.7017927467823029,
+            "p95": 1.1468224346637725
+          },
+          "outcomes": {
+            "collision": 28,
+            "fall": 395,
+            "goal": 153,
+            "invalid": 0,
+            "physical_collision": 232,
+            "success": 129,
+            "timeout": 577,
+            "timeout_without_goal": 429
+          },
+          "pre_goal_settled_stop_fraction": 0.0,
+          "pre_goal_stop_command_fraction": 0.11389636014398856,
+          "rates": {
+            "collision": 0.028,
+            "fall": 0.395,
+            "goal": 0.153,
+            "invalid": 0.0,
+            "physical_collision": 0.232,
+            "success": 0.129,
+            "timeout": 0.577,
+            "timeout_without_goal": 0.429
+          },
+          "settled_stop_fraction": 0.0,
+          "simulation_steps": 1000,
+          "stop_command_fraction": 0.15131458656333985,
+          "successful_first_goal_seconds": {
+            "count": 129,
+            "mean": 15.510697674418605,
+            "median": 15.06,
+            "p95": 19.228
+          },
+          "wilson_95": {
+            "collision": [
+              0.01944227681277093,
+              0.04017018319759311
+            ],
+            "fall": [
+              0.3651584457395731,
+              0.4256451735423935
+            ],
+            "goal": [
+              0.13201921562431124,
+              0.176636554764664
+            ],
+            "invalid": [
+              0.0,
+              0.0038267584855551217
+            ],
+            "physical_collision": [
+              0.20689343939858926,
+              0.25915770314966824
+            ],
+            "success": [
+              0.10963544529450504,
+              0.15120400950177687
+            ],
+            "timeout": [
+              0.546142492951032,
+              0.6072681862421924
+            ],
+            "timeout_without_goal": [
+              0.3986535230179055,
+              0.45988987668704334
+            ]
+          }
+        },
+        "record_count": 1000,
+        "status": "passed"
+      },
+      "derived": {
+        "case_directory": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation",
+        "definitions": {
+          "all_arrived": "outcomes.goal=true, including arrivals that did not ultimately succeed.",
+          "distributions": "n is measured finite observations; missing counts explicit nulls. Empty statistics are null; p95 uses linear interpolation.",
+          "early_failure": "timeout=false, steps<1000, and fall/collision/invalid terminal flag.",
+          "hold_outcomes": "Episode-latched physical_collision; terminal fall/invalid flags. Counts may overlap.",
+          "joint_rate_denominator": "All designated episodes, not only successful or holding episodes.",
+          "success": "outcomes.success=true; a subset of all_arrived, not a disjoint group.",
+          "timeout": "timeout=true, including any simultaneous failure flags; terminal time 20 seconds."
+        },
+        "episodes": 1000,
+        "first_arrival_strata": {
+          "all_arrived": {
+            "episode_count": 153,
+            "first_goal_root_speed": {
+              "mean": 0.3848118127561083,
+              "median": 0.34775298833847046,
+              "missing": 0,
+              "n": 153,
+              "p95": 0.7395544528961183
+            }
+          },
+          "success": {
+            "episode_count": 129,
+            "first_goal_root_speed": {
+              "mean": 0.38540003454500393,
+              "median": 0.34813153743743896,
+              "missing": 0,
+              "n": 129,
+              "p95": 0.7254920601844783
+            }
+          }
+        },
+        "hold_outcomes": {
+          "ever_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          },
+          "final_goal_hold": {
+            "episode_count": 0,
+            "outcome_counts": {
+              "fall": 0,
+              "invalid": 0,
+              "physical_collision": 0
+            }
+          }
+        },
+        "input_files": {
+          "episodes.jsonl": {
+            "bytes": 759237,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/episodes.jsonl",
+            "sha256": "eb8df9b56283fffd3a357547a330fe24089c71f0a209154aa4af910468c993f2"
+          },
+          "evaluation.json": {
+            "bytes": 3795,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/evaluation.json",
+            "sha256": "c748eb6f157895360437353ea8914231ff39fc4ec9070bceb83f55dfee6bf91b"
+          },
+          "metadata.json": {
+            "bytes": 937,
+            "path": "/home/sx/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/metadata.json",
+            "sha256": "8cb317377f2b8396e2a41bef8f7e18363150e84e31aa0788b8ccf21df505b483"
+          }
+        },
+        "limitations": [
+          "Descriptive arithmetic from recorded episodes, not simulator truth or causal attribution.",
+          "First-arrival speed is conditional on reaching the goal; terminal strata are conditional on termination type.",
+          "Goal-hold is current goal membership plus continuous low speed; it does not itself exclude earlier collisions.",
+          "No missing field is invented; a missing required field causes an explicit error."
+        ],
+        "provenance": {
+          "checkpoint_sha256": "ae2358d1817fb7e0c35a790a77188f30cbbdbc386744108139315d7be2531108",
+          "config_sha256": "ed99ddf97795047c5acef9d4170cefe4f36550a2d7d53e57fcc0e7ef010c2e92",
+          "git_commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+          "scene": "hurdle_crouch",
+          "seed": 20261019
+        },
+        "schema": "cat_derived_episode_strata_v1",
+        "script_sha256": "22df6995cd7211eb6fe95bf68ae59e11bd6a6b63545cc44abce1359389d3372a",
+        "success_and_hold": {
+          "ever_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          },
+          "final_goal_hold": {
+            "count": 0,
+            "rate": 0.0
+          }
+        },
+        "terminal_strata": {
+          "early_failure": {
+            "episode_count": 423,
+            "final_goal_distance": {
+              "mean": 0.8983211568413615,
+              "median": 0.8553785085678101,
+              "missing": 0,
+              "n": 423,
+              "p95": 1.2898716688156127
+            },
+            "final_root_angular_speed": {
+              "mean": 4.625901200669877,
+              "median": 4.802833080291748,
+              "missing": 0,
+              "n": 423,
+              "p95": 6.138332319259643
+            },
+            "final_root_speed": {
+              "mean": 0.849276849387949,
+              "median": 0.8365423083305359,
+              "missing": 0,
+              "n": 423,
+              "p95": 1.1790220379829406
+            }
+          },
+          "timeout": {
+            "episode_count": 577,
+            "final_goal_distance": {
+              "mean": 0.697861915631817,
+              "median": 0.698882520198822,
+              "missing": 0,
+              "n": 577,
+              "p95": 1.1785350561141967
+            },
+            "final_root_angular_speed": {
+              "mean": 0.800197373488127,
+              "median": 0.7244316935539246,
+              "missing": 0,
+              "n": 577,
+              "p95": 1.5266238927841183
+            },
+            "final_root_speed": {
+              "mean": 0.26640085126087715,
+              "median": 0.2538290321826935,
+              "missing": 0,
+              "n": 577,
+              "p95": 0.47437134981155304
+            }
+          }
+        },
+        "validation": {
+          "checks": 18057,
+          "goal_hold_fraction": 0.0,
+          "hold_counts": {
+            "ever_goal_hold": 0,
+            "final_goal_hold": 0
+          },
+          "status": "passed",
+          "summary_counts": {
+            "collision": 28,
+            "fall": 395,
+            "goal": 153,
+            "invalid": 0,
+            "physical_collision": 232,
+            "success": 129,
+            "timeout": 577,
+            "timeout_without_goal": 429
+          },
+          "terminal_episode_count_sum": 1000
+        }
+      },
+      "files": [
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/metadata.json",
+          "sha256": "8cb317377f2b8396e2a41bef8f7e18363150e84e31aa0788b8ccf21df505b483",
+          "bytes": 937
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/evaluation.json",
+          "sha256": "c748eb6f157895360437353ea8914231ff39fc4ec9070bceb83f55dfee6bf91b",
+          "bytes": 3795
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/episodes.jsonl",
+          "sha256": "eb8df9b56283fffd3a357547a330fe24089c71f0a209154aa4af910468c993f2",
+          "bytes": 759237
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/audit.json",
+          "sha256": "75f21e0a4ae7a1494f67e7e9bac85c073cea1c51cd2c58aed9d3ffe5e73a766e",
+          "bytes": 5146
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/hurdle_crouch/evaluation/derived.json",
+          "sha256": "47fcddf2ce360f6725f2858fa5ebdf29878fadbcfc633a0886861c7271d8003c",
+          "bytes": 5309
+        }
+      ]
+    }
+  },
+  "geometry_evidence": {
+    "path": "docs/benchmarks/cat-recovery-geometry-2026-10-19.json",
+    "sha256": "fc15527a1d6062f7910695ae274821d59cf1f172d09c98938081edc9c5caed0a",
+    "bytes": 106733
+  },
+  "figures": {
+    "clearance": [
+      {
+        "path": "docs/benchmarks/cat-recovery-clearance-2026-10-19.png",
+        "sha256": "9fec0e7a4162ae5fb5529628417211ef68ba2ee6b215326e4504c5e7fe0b9cde",
+        "bytes": 249373
+      },
+      {
+        "path": "docs/benchmarks/cat-recovery-clearance-2026-10-19.svg",
+        "sha256": "8604a633cc9280258a9145c8b42f1e8960a1db984d418ab6df95f35a81643c52",
+        "bytes": 17811
+      }
+    ],
+    "wall-traces": [
+      {
+        "path": "docs/benchmarks/cat-recovery-wall-traces-2026-10-19.png",
+        "sha256": "db0dc956eb195c0c46f14bbd4e7c4cf082fb0eb0a5ccfa362a9b9af4e8d71047",
+        "bytes": 1077706
+      },
+      {
+        "path": "docs/benchmarks/cat-recovery-wall-traces-2026-10-19.svg",
+        "sha256": "f9ebb16d50ce53f33c7e417cfabdfc5fc6be4a02539d1b590f0e18c9d071be8c",
+        "bytes": 215355
+      }
+    ],
+    "settle-probe": [
+      {
+        "path": "docs/benchmarks/cat-recovery-settle-probe-2026-10-19.png",
+        "sha256": "49807fc56f79ab25c9b93efba6a8049843e9017148fd612ec8c64aa084d08a57",
+        "bytes": 682643
+      },
+      {
+        "path": "docs/benchmarks/cat-recovery-settle-probe-2026-10-19.svg",
+        "sha256": "0ba74b9e07416bc6abb4104cfbdeb787170cf43d9da6ef6769bf874975958d28",
+        "bytes": 124690
+      }
+    ]
+  },
+  "wall_diagnostics": {
+    "wall_final_diagnostic": {
+      "metadata": {
+        "commit": "eebaee0acab6138e86de775b1be5e42d06ac47f2",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/specialists/wall_detour/latest.pt",
+        "checkpoint_sha256": "7682085b271f620cef77998c3712374511f137e07bdeffe7f31042545c2ddbde",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": false,
+        "disable_rfi": false,
+        "disable_observation_noise": false,
+        "disable_random_pd": false,
+        "override_timing": "Single-factor diagnostic overrides apply after strict checkpoint load, before the first rollout action; they do not rebuild the initial cached observation. CLI --no-perturbations separately rebuilds initial observations without noise. Controller overrides target the first episode only; later resets are excluded.",
+        "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281"
+      },
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 64000,
+        "elapsed_seconds": 117.98432388203219,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 0,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 64,
+          "goal": 20,
+          "physical_collision": 4,
+          "success": 19,
+          "timeout_without_goal": 44
+        },
+        "rates": {
+          "fall": 0.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 1.0,
+          "goal": 0.3125,
+          "physical_collision": 0.0625,
+          "success": 0.296875,
+          "timeout_without_goal": 0.6875
+        },
+        "wilson_95": {
+          "fall": [
+            0.0,
+            0.05662405979280534
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.9433759402071946,
+            1.0
+          ],
+          "goal": [
+            0.21231066539482046,
+            0.4339233570274815
+          ],
+          "physical_collision": [
+            0.024571201396618017,
+            0.14997485092208662
+          ],
+          "success": [
+            0.19905151325539794,
+            0.41770201103542925
+          ],
+          "timeout_without_goal": [
+            0.5660766429725185,
+            0.7876893346051795
+          ]
+        },
+        "mean_step_reward": 0.06090095205439221,
+        "mean_root_speed": 0.2607999629284277,
+        "stop_command_fraction": 0.468234375,
+        "settled_stop_fraction": 0.0,
+        "goal_hold_fraction": 0.0,
+        "ever_goal_hold_count": 0,
+        "ever_goal_hold_rate": 0.0,
+        "final_goal_hold_count": 0,
+        "final_goal_hold_rate": 0.0,
+        "pre_goal_stop_command_fraction": 0.4032020481885456,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 20.0,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 20,
+          "mean": 13.026000000000002,
+          "median": 12.420000000000002,
+          "p95": 16.219
+        },
+        "first_goal_root_speed": {
+          "count": 20,
+          "mean": 0.3798324503004551,
+          "median": 0.3074156641960144,
+          "p95": 0.8312223285436631
+        },
+        "final_root_speed": {
+          "count": 64,
+          "mean": 0.19022998388390988,
+          "median": 0.1270071417093277,
+          "p95": 0.4250467479228973
+        },
+        "final_root_angular_speed": {
+          "count": 64,
+          "mean": 0.6125570557778701,
+          "median": 0.584961861371994,
+          "p95": 1.147680020332336
+        },
+        "successful_first_goal_seconds": {
+          "count": 19,
+          "mean": 13.026315789473685,
+          "median": 12.38,
+          "p95": 16.258
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.400410667527467,
+          "median": 0.3954170495271683,
+          "p95": 0.6358166247606276
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.11988186302914983,
+          "median": 0.11889008060097694,
+          "p95": 0.1924460925161838
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed.",
+          "goal_hold": {
+            "goal_distance_below_m": 0.1,
+            "settled_stop_required": true,
+            "excludes_current_fall_or_invalid": true,
+            "step_fraction_denominator": "all transitions in designated complete episodes",
+            "ever": "At least one qualifying step during the designated episode.",
+            "final": "Qualifies on the terminal step before automatic reset."
+          }
+        },
+        "first_contact_pairs": {
+          "robot/right_hand_collision | obstacle_0_0/collision": 2,
+          "robot/right_wrist_collision | obstacle_0_0/collision": 1,
+          "robot/torso_collision | obstacle_0_0/collision": 4
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 4,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "diagnostic_disable_rfi": false,
+        "diagnostic_disable_observation_noise": false,
+        "diagnostic_disable_random_pd": false,
+        "evaluation_overrides": {}
+      },
+      "files": [
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_final_diagnostic/metadata.json",
+          "sha256": "7061ca51d4be7ee5e601c594c757e8572c3c4239b3b50b61c3a90b1af03abfaa",
+          "bytes": 924
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_final_diagnostic/evaluation.json",
+          "sha256": "4c9e8d8b2919684d1bef6ce1af2d19261213b83fb8a1c03ad3e4c51d5635caaf",
+          "bytes": 4284
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_final_diagnostic/episodes.jsonl",
+          "sha256": "3dcf627bc6cc8c4df9c3502ff06d30f5dc52d93e65e3a32c4db7a46769c35978",
+          "bytes": 48822
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_final_diagnostic/events.json",
+          "sha256": "a9dc109f3282a22162ffd1f53aa1e628137ef32f05be36a3ea2baf992561c2f5",
+          "bytes": 507693
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_final_diagnostic/trace.npz",
+          "sha256": "a6bcd20d10ac8c9a529b479af37d7d54970411e0f5e95ad672291a9d68369bb1",
+          "bytes": 1342904
+        }
+      ]
+    },
+    "wall_instrumented_baseline": {
+      "metadata": {
+        "commit": "2afd700f314e4aa6b13f7d9a6a0b888ad5bc6924",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/specialists/wall_detour/latest.pt",
+        "checkpoint_sha256": "7682085b271f620cef77998c3712374511f137e07bdeffe7f31042545c2ddbde",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": false,
+        "disable_rfi": false,
+        "disable_observation_noise": false,
+        "disable_random_pd": false,
+        "override_timing": "Single-factor diagnostic overrides apply after strict checkpoint load, before the first rollout action; they do not rebuild the initial cached observation. CLI --no-perturbations separately rebuilds initial observations without noise. Controller overrides target the first episode only; later resets are excluded.",
+        "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281"
+      },
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 62770,
+        "elapsed_seconds": 118.89865561202168,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 1,
+          "collision": 1,
+          "invalid": 0,
+          "timeout": 62,
+          "goal": 21,
+          "physical_collision": 7,
+          "success": 19,
+          "timeout_without_goal": 41
+        },
+        "rates": {
+          "fall": 0.015625,
+          "collision": 0.015625,
+          "invalid": 0.0,
+          "timeout": 0.96875,
+          "goal": 0.328125,
+          "physical_collision": 0.109375,
+          "success": 0.296875,
+          "timeout_without_goal": 0.640625
+        },
+        "wilson_95": {
+          "fall": [
+            0.002763541923337505,
+            0.08334101600094265
+          ],
+          "collision": [
+            0.002763541923337505,
+            0.08334101600094265
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.8930270822904169,
+            0.9913878616538281
+          ],
+          "goal": [
+            0.22570557904469185,
+            0.45000894150908505
+          ],
+          "physical_collision": [
+            0.05400113344416797,
+            0.20898641326896122
+          ],
+          "success": [
+            0.19905151325539794,
+            0.41770201103542925
+          ],
+          "timeout_without_goal": [
+            0.518208506097791,
+            0.7471159770854825
+          ]
+        },
+        "mean_step_reward": 0.059829245157123775,
+        "mean_root_speed": 0.26439076886836976,
+        "stop_command_fraction": 0.47339493388561416,
+        "settled_stop_fraction": 0.0,
+        "goal_hold_fraction": 0.0,
+        "ever_goal_hold_count": 0,
+        "ever_goal_hold_rate": 0.0,
+        "final_goal_hold_count": 0,
+        "final_goal_hold_rate": 0.0,
+        "pre_goal_stop_command_fraction": 0.40116668780231524,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 19.615625,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 21,
+          "mean": 12.789523809523809,
+          "median": 12.780000000000001,
+          "p95": 16.42
+        },
+        "first_goal_root_speed": {
+          "count": 21,
+          "mean": 0.32634659324373516,
+          "median": 0.31044748425483704,
+          "p95": 0.8514240980148315
+        },
+        "final_root_speed": {
+          "count": 64,
+          "mean": 0.23125303746201098,
+          "median": 0.1704026609659195,
+          "p95": 0.4986873179674148
+        },
+        "final_root_angular_speed": {
+          "count": 64,
+          "mean": 0.7069115859922022,
+          "median": 0.5994585454463959,
+          "p95": 1.2449545502662658
+        },
+        "successful_first_goal_seconds": {
+          "count": 19,
+          "mean": 12.630526315789472,
+          "median": 12.1,
+          "p95": 16.755999999999993
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.4818636899581179,
+          "median": 0.44953857362270355,
+          "p95": 0.7395490765571593
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.1672839058419413,
+          "median": 0.12959931790828705,
+          "p95": 0.32164958417415584
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed.",
+          "goal_hold": {
+            "goal_distance_below_m": 0.1,
+            "settled_stop_required": true,
+            "excludes_current_fall_or_invalid": true,
+            "step_fraction_denominator": "all transitions in designated complete episodes",
+            "ever": "At least one qualifying step during the designated episode.",
+            "final": "Qualifies on the terminal step before automatic reset."
+          }
+        },
+        "first_contact_pairs": {
+          "robot/right_hand_collision | obstacle_0_0/collision": 4,
+          "robot/right_wrist_collision | obstacle_0_0/collision": 1,
+          "robot/right_hip_collision | obstacle_0_0/collision": 1,
+          "robot/right_foot4_collision | obstacle_0_0/collision": 1,
+          "robot/torso_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 7,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "diagnostic_disable_rfi": false,
+        "diagnostic_disable_observation_noise": false,
+        "diagnostic_disable_random_pd": false,
+        "evaluation_overrides": {}
+      },
+      "files": [
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_instrumented_baseline/metadata.json",
+          "sha256": "e36d3f25446b4acc3bb6e4509fc006eb5a0751843dc4cfac02a764888240e81e",
+          "bytes": 924
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_instrumented_baseline/evaluation.json",
+          "sha256": "8247ed3dcec97c4eea8665e4c8dac3e86a1499a6fe324c2104c3daa0548211d8",
+          "bytes": 4508
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_instrumented_baseline/episodes.jsonl",
+          "sha256": "9875fcaa9ac9ffc48e89f5170b4b5e591558abb49faf9d432ec11bb39e0a1fac",
+          "bytes": 48843
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_instrumented_baseline/events.json",
+          "sha256": "8b68d2996c8979f0a9c30e583e25e6b1db91fa73f371095666e4162b6c3891f0",
+          "bytes": 566430
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_instrumented_baseline/trace.npz",
+          "sha256": "abd86ebb8949b50f67b82d2324ee6e52d079c845b33bf778461b7a15e17a0742",
+          "bytes": 1413025
+        }
+      ]
+    },
+    "wall_settle_without_support": {
+      "metadata": {
+        "commit": "2afd700f314e4aa6b13f7d9a6a0b888ad5bc6924",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/wall_detour/specialists/wall_detour/latest.pt",
+        "checkpoint_sha256": "7682085b271f620cef77998c3712374511f137e07bdeffe7f31042545c2ddbde",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "settle_without_support",
+        "no_perturbations": false,
+        "disable_push": false,
+        "disable_rfi": false,
+        "disable_observation_noise": false,
+        "disable_random_pd": false,
+        "override_timing": "Single-factor diagnostic overrides apply after strict checkpoint load, before the first rollout action; they do not rebuild the initial cached observation. CLI --no-perturbations separately rebuilds initial observations without noise. Controller overrides target the first episode only; later resets are excluded.",
+        "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+        "navigator_override": {
+          "purpose": "Inference counterfactual of the SETTLE entry support gate.",
+          "required_task_profile": "cat_recovery_v1",
+          "eligibility": "Designated active slots only: current mode=BRAKE, previous reference norm<1e-6, current 3D speed<settle_entry_speed.",
+          "intervention": "Copy feet_contact passed to navigator.advance and set eligible rows to ones only for that call. Real feet_contact payload, contact telemetry and foot-contact reward inputs are not replaced. Termination/success formulas are unchanged. Commands, states and reward values may change as a result of the control intervention.",
+          "scope": "Tests one gate; not a production fix or evidence of true support. Other modes and slots receive their original contact values."
+        }
+      },
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 64000,
+        "elapsed_seconds": 119.19925105618313,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 0,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 64,
+          "goal": 26,
+          "physical_collision": 7,
+          "success": 23,
+          "timeout_without_goal": 38
+        },
+        "rates": {
+          "fall": 0.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 1.0,
+          "goal": 0.40625,
+          "physical_collision": 0.109375,
+          "success": 0.359375,
+          "timeout_without_goal": 0.59375
+        },
+        "wilson_95": {
+          "fall": [
+            0.0,
+            0.05662405979280534
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.9433759402071946,
+            1.0
+          ],
+          "goal": [
+            0.2945690924971961,
+            0.5285479187139549
+          ],
+          "physical_collision": [
+            0.05400113344416797,
+            0.20898641326896122
+          ],
+          "success": [
+            0.25288402291451745,
+            0.48179149390220904
+          ],
+          "timeout_without_goal": [
+            0.4714520812860451,
+            0.7054309075028039
+          ]
+        },
+        "mean_step_reward": 0.058299585400346104,
+        "mean_root_speed": 0.21866246342184786,
+        "stop_command_fraction": 0.4681875,
+        "settled_stop_fraction": 0.0,
+        "goal_hold_fraction": 0.0,
+        "ever_goal_hold_count": 0,
+        "ever_goal_hold_rate": 0.0,
+        "final_goal_hold_count": 0,
+        "final_goal_hold_rate": 0.0,
+        "pre_goal_stop_command_fraction": 0.40141749177819597,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 20.0,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 26,
+          "mean": 14.508461538461537,
+          "median": 14.39,
+          "p95": 19.11
+        },
+        "first_goal_root_speed": {
+          "count": 26,
+          "mean": 0.386152652450479,
+          "median": 0.3158121705055237,
+          "p95": 0.6961146891117096
+        },
+        "final_root_speed": {
+          "count": 64,
+          "mean": 0.07189928411389701,
+          "median": 0.046040790155529976,
+          "p95": 0.22743517905473695
+        },
+        "final_root_angular_speed": {
+          "count": 64,
+          "mean": 0.4090629175771028,
+          "median": 0.35914909839630127,
+          "p95": 0.7635261654853819
+        },
+        "successful_first_goal_seconds": {
+          "count": 23,
+          "mean": 14.737391304347828,
+          "median": 14.82,
+          "p95": 19.368
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.2787278352188878,
+          "median": 0.24400974065065384,
+          "p95": 0.5808887988328931
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.12009742452937644,
+          "median": 0.12327328696846962,
+          "p95": 0.21484507396817198
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed.",
+          "goal_hold": {
+            "goal_distance_below_m": 0.1,
+            "settled_stop_required": true,
+            "excludes_current_fall_or_invalid": true,
+            "step_fraction_denominator": "all transitions in designated complete episodes",
+            "ever": "At least one qualifying step during the designated episode.",
+            "final": "Qualifies on the terminal step before automatic reset."
+          }
+        },
+        "first_contact_pairs": {
+          "robot/right_hand_collision | obstacle_0_0/collision": 4,
+          "robot/right_wrist_collision | obstacle_0_0/collision": 1,
+          "robot/torso_collision | obstacle_0_0/collision": 3,
+          "robot/right_foot3_collision | obstacle_0_0/collision": 1,
+          "robot/right_foot4_collision | obstacle_0_0/collision": 1,
+          "robot/right_foot5_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 7,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "settle_without_support",
+        "diagnostic_disable_push": false,
+        "diagnostic_disable_rfi": false,
+        "diagnostic_disable_observation_noise": false,
+        "diagnostic_disable_random_pd": false,
+        "evaluation_overrides": {}
+      },
+      "files": [
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_settle_without_support/metadata.json",
+          "sha256": "05f74273f5b23802a7d78f2b4620fac7099bd49a9201ceae251908a63cc9fc97",
+          "bytes": 1719
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_settle_without_support/evaluation.json",
+          "sha256": "91899304f7044009ad4e3d405a9d200d0807f876823abb1a36f831b973ef8ed0",
+          "bytes": 4484
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_settle_without_support/episodes.jsonl",
+          "sha256": "4e9cab106a3967d3bd0823cdb5a0ce48858e9b6df7cc8a434848f90c53f9783c",
+          "bytes": 48967
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_settle_without_support/events.json",
+          "sha256": "09c80dfd279f27d7ae00ba482ca9d163b6d8dc317a3e7cc32ffc7794a2e03708",
+          "bytes": 596854
+        },
+        {
+          "path": "runs/cat-recovery-20261019-eebaee0/wall_settle_without_support/trace.npz",
+          "sha256": "408192fb2095e817b6180b436948db07701fe7082a45278a434b7ffd838bfcd2",
+          "bytes": 1408735
+        }
+      ]
+    }
+  },
+  "wall_diagnostic_findings": {
+    "cases": [
+      "wall_instrumented_baseline",
+      "wall_settle_without_support"
+    ],
+    "original_entry_terminal_modes": {
+      "DRIVE": 2,
+      "BRAKE": 62,
+      "SETTLE": 0,
+      "HOLD": 0
+    },
+    "counterfactual_terminal_modes": {
+      "DRIVE": 0,
+      "BRAKE": 0,
+      "SETTLE": 64,
+      "HOLD": 0
+    },
+    "both_cases_ever_goal_hold_count": 0,
+    "both_cases_physical_contact_episodes": 7,
+    "geometry": "All 14 first-contact events have negative new envelope clearance while old eleven-point SDF remains positive; advance warning time was not measured.",
+    "entry_bottleneck": "Sampled zero-reference BRAKE states do not simultaneously meet speed<0.15 m/s and real dual support. The support-gate counterfactual permits stance but does not establish physical settling or recovery.",
+    "causal_limit": "Trajectories diverge before observed SETTLE entry. The two early baseline failures occur in DRIVE, so their absence in the probe is not attributed to the settling gate.",
+    "not_production_fix": "The probe changes a navigator input, not physical support. It may credit a dwell counter for one call and does not relax physical success metrics."
+  },
+  "wall_independent_analysis": {
+    "fsm": {
+      "path": "runs/cat-recovery-20261019-eebaee0/probe-analysis.json",
+      "sha256": "b55af0094a836a85fb011a021e8b8d63068c4572e167a99e57b4a976cf22e0ad",
+      "bytes": 117276
+    },
+    "contacts_and_paths": {
+      "path": "runs/cat-recovery-20261019-eebaee0/wall-probe-contact-analysis.json",
+      "sha256": "4e95570be170b281301471795dee64c2fdda64e9cdb227c6a7145d4d3a6c541d",
+      "bytes": 85672
+    }
+  },
+  "hurdle_diagnostic": {
+    "metadata": {
+      "commit": "2afd700f314e4aa6b13f7d9a6a0b888ad5bc6924",
+      "checkpoint": "/home/sunxun/embodied-learning/runs/cat-recovery-20261019-eebaee0/hurdle_crouch/specialists/hurdle_crouch/latest.pt",
+      "checkpoint_sha256": "ae2358d1817fb7e0c35a790a77188f30cbbdbc386744108139315d7be2531108",
+      "scene": "hurdle_crouch",
+      "num_envs": 64,
+      "seed": 20261019,
+      "variant": "baseline",
+      "no_perturbations": false,
+      "disable_push": false,
+      "disable_rfi": false,
+      "disable_observation_noise": false,
+      "disable_random_pd": false,
+      "override_timing": "Single-factor diagnostic overrides apply after strict checkpoint load, before the first rollout action; they do not rebuild the initial cached observation. CLI --no-perturbations separately rebuilds initial observations without noise. Controller overrides target the first episode only; later resets are excluded.",
+      "cuda_visible_devices": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281"
+    },
+    "evaluation": {
+      "episodes": 64,
+      "envs": 64,
+      "simulation_steps": 1000,
+      "included_transitions": 52805,
+      "elapsed_seconds": 78.84919027006254,
+      "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+      "outcomes": {
+        "fall": 18,
+        "collision": 4,
+        "invalid": 0,
+        "timeout": 42,
+        "goal": 5,
+        "physical_collision": 10,
+        "success": 4,
+        "timeout_without_goal": 37
+      },
+      "rates": {
+        "fall": 0.28125,
+        "collision": 0.0625,
+        "invalid": 0.0,
+        "timeout": 0.65625,
+        "goal": 0.078125,
+        "physical_collision": 0.15625,
+        "success": 0.0625,
+        "timeout_without_goal": 0.578125
+      },
+      "wilson_95": {
+        "fall": [
+          0.18593372333727837,
+          0.40133930282207403
+        ],
+        "collision": [
+          0.024571201396618017,
+          0.14997485092208662
+        ],
+        "invalid": [
+          0.0,
+          0.05662405979280534
+        ],
+        "timeout": [
+          0.5340364020991819,
+          0.7607685792155665
+        ],
+        "goal": [
+          0.03383117690855046,
+          0.17019537354162906
+        ],
+        "physical_collision": [
+          0.08714842338206585,
+          0.2642806177254878
+        ],
+        "success": [
+          0.024571201396618017,
+          0.14997485092208662
+        ],
+        "timeout_without_goal": [
+          0.456100315400829,
+          0.6913021752565451
+        ]
+      },
+      "mean_step_reward": 0.04074161545980393,
+      "mean_root_speed": 0.2786480272502016,
+      "stop_command_fraction": 0.15687908342013068,
+      "settled_stop_fraction": 0.0,
+      "goal_hold_fraction": 0.0,
+      "ever_goal_hold_count": 0,
+      "ever_goal_hold_rate": 0.0,
+      "final_goal_hold_count": 0,
+      "final_goal_hold_rate": 0.0,
+      "pre_goal_stop_command_fraction": 0.13650381116778837,
+      "pre_goal_settled_stop_fraction": 0.0,
+      "duration_seconds": {
+        "count": 64,
+        "mean": 16.5015625,
+        "median": 20.0,
+        "p95": 20.0
+      },
+      "first_goal_seconds": {
+        "count": 5,
+        "mean": 15.016000000000002,
+        "median": 14.18,
+        "p95": 17.968
+      },
+      "first_goal_root_speed": {
+        "count": 5,
+        "mean": 0.33195597529411314,
+        "median": 0.3282248377799988,
+        "p95": 0.46179483532905574
+      },
+      "final_root_speed": {
+        "count": 64,
+        "mean": 0.4593838668661192,
+        "median": 0.33191370964050293,
+        "p95": 0.9698519736528395
+      },
+      "final_root_angular_speed": {
+        "count": 64,
+        "mean": 2.0392001876607537,
+        "median": 0.9575519263744354,
+        "p95": 5.690242385864257
+      },
+      "successful_first_goal_seconds": {
+        "count": 4,
+        "mean": 15.49,
+        "median": 14.530000000000001,
+        "p95": 18.161
+      },
+      "final_goal_distance": {
+        "count": 64,
+        "mean": 0.7686854372732341,
+        "median": 0.8042535185813904,
+        "p95": 1.1804022431373595
+      },
+      "min_goal_distance": {
+        "count": 64,
+        "mean": 0.5302969561889768,
+        "median": 0.4461575746536255,
+        "p95": 1.1555559933185577
+      },
+      "metric_definitions": {
+        "settled_stop": {
+          "linear_speed_below_m_s": 0.1,
+          "angular_speed_below_rad_s": 0.1,
+          "continuous_seconds": 0.5,
+          "control_dt_seconds": 0.02
+        },
+        "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+        "physical_collision": "Any observed obstacle contact during the episode.",
+        "stop_command": "Source command vector norm below 0.2; not actual speed.",
+        "goal_hold": {
+          "goal_distance_below_m": 0.1,
+          "settled_stop_required": true,
+          "excludes_current_fall_or_invalid": true,
+          "step_fraction_denominator": "all transitions in designated complete episodes",
+          "ever": "At least one qualifying step during the designated episode.",
+          "final": "Qualifies on the terminal step before automatic reset."
+        }
+      },
+      "first_contact_pairs": {
+        "robot/head_collision | obstacle_2_0/collision": 6,
+        "robot/right_hand_collision | obstacle_2_1/collision": 1,
+        "robot/left_foot3_collision | obstacle_2_1/collision": 1,
+        "robot/left_foot2_collision | obstacle_2_1/collision": 2,
+        "robot/right_foot5_collision | obstacle_2_1/collision": 1,
+        "robot/left_foot4_collision | obstacle_2_1/collision": 1,
+        "robot/left_foot5_collision | obstacle_2_1/collision": 1
+      },
+      "episodes_with_contact_by_obstacle": {
+        "cat_obstacle_0_0": 0,
+        "cat_obstacle_1_0": 0,
+        "cat_obstacle_1_1": 0,
+        "cat_obstacle_2_0": 6,
+        "cat_obstacle_2_1": 5
+      },
+      "diagnostic_variant": "baseline",
+      "diagnostic_disable_push": false,
+      "diagnostic_disable_rfi": false,
+      "diagnostic_disable_observation_noise": false,
+      "diagnostic_disable_random_pd": false,
+      "evaluation_overrides": {}
+    },
+    "files": [
+      {
+        "path": "runs/cat-recovery-20261019-eebaee0/hurdle_final_diagnostic/metadata.json",
+        "sha256": "85a4e32432ae4d55cc51af08bcafb2a099525bcc75d0af7d88fe9b4ef93d34cd",
+        "bytes": 930
+      },
+      {
+        "path": "runs/cat-recovery-20261019-eebaee0/hurdle_final_diagnostic/evaluation.json",
+        "sha256": "60764bd90cfeb31a707413eb162e8a7c857fa912c37009d96d377ea5ba3f808d",
+        "bytes": 4592
+      },
+      {
+        "path": "runs/cat-recovery-20261019-eebaee0/hurdle_final_diagnostic/episodes.jsonl",
+        "sha256": "1177656440a84e6cfe04746ad76ed807d183f7d5639bbffb6bd36705fed18513",
+        "bytes": 48509
+      },
+      {
+        "path": "runs/cat-recovery-20261019-eebaee0/hurdle_final_diagnostic/events.json",
+        "sha256": "96cee6f1de9f85b848b7dd7fca9a97f89e7f5a86cb89455131a6730f354354cc",
+        "bytes": 494950
+      },
+      {
+        "path": "runs/cat-recovery-20261019-eebaee0/hurdle_final_diagnostic/trace.npz",
+        "sha256": "709396a01ae8675021ef12b034075b214569f31dc4f25cb1945fe6e7a9248f25",
+        "bytes": 1455726
+      }
+    ],
+    "scope": "Additional 64-episode failure-mechanism diagnostic; separate from the formal 1000-episode recovery cohort",
+    "analysis": {
+      "path": "runs/cat-recovery-20261019-eebaee0/hurdle-contact-analysis.json",
+      "sha256": "02fbdd471e9280be0e4a19c56880f5c0d9a968262e026489b0619fe232c3b4c2",
+      "bytes": 138954
+    },
+    "findings": [
+      "All 18 fall flags in this 64-episode diagnostic trigger the head-height branch while up_z remains positive; pronounced body inclination, high angular speed and downward motion support dynamic loss of balance rather than stable crouching alone.",
+      "12 of those 18 episodes contain no recorded obstacle contact; control-step sampling cannot rule out missed physics-substep contact or other external forces.",
+      "Recorded first contacts include the head at the upper obstacle and hands/feet at the lower obstacle. Negative conservative envelope clearance is not itself a measured contact."
+    ]
+  },
+  "protocol": {
+    "cohort": "1000 designated first complete episodes per checkpoint, including early failures; no completion-order selection",
+    "maximum_horizon_seconds": 20,
+    "training": "1000 PPO updates x 4096 environments x 20 rollout steps per specialist; fresh optimizer, source weights warmstart",
+    "evaluation_seed": 20261019,
+    "training_seed": 42,
+    "observations": "Known static offline scene geometry, not online sensor observations",
+    "perturbations": "Original noise, pushes, RFI and random PD retained",
+    "success": "Reached goal at least once with no recorded obstacle contact, monitored self-contact, or source collision, and no fall/invalid termination; original definitions retained",
+    "goal_hold": "Current position inside goal plus preceding 0.5 s below 0.1 m/s linear and 0.1 rad/s angular speed; excludes current fall/invalid; does not require dual support, entire interval inside goal, or absence of earlier contact. This physical metric differs from navigator HOLD mode",
+    "arrival_speed": "Conditional on goal arrival; non-arrivals are excluded and sample count is reported",
+    "final_speed": "Early failures and full-horizon timeouts reported separately in derived terminal_strata"
+  },
+  "validation": {
+    "implementation_cpu": {
+      "passed": 308,
+      "skipped": 31,
+      "deselected": 1,
+      "excluded_file": "tests/test_scan.py",
+      "reason": "Local CUDA unavailable; deselected existing CUDA-status assertion"
+    },
+    "server_native_gpu_tests_passed": 3,
+    "diagnostic_related_cpu_tests_passed": 42,
+    "smoke": "4096 environments x 3 updates, excluded from formal budget and evaluation",
+    "server_sync": "Git bundles, isolated detached worktrees; frozen experiment eebaee0, diagnostic-only 2afd700"
+  },
+  "limitations": [
+    "One training seed and one evaluation seed, static training scenes only; no held-out or online occlusion claim.",
+    "Same seed is not a paired trial after changed observations, models, RNG consumption and early resets.",
+    "Comparison is source parent vs combined geometry/navigation/reward/observation intervention plus 1000 updates; not a component ablation or matched-training baseline.",
+    "Observed control-step contacts may omit contacts occurring only within physics substeps.",
+    "Conservative body-envelope overlap is not measured physical collision.",
+    "Reference deceleration is a configured assumption, not a certified robot braking bound.",
+    "64-episode counterfactual diagnostics are separate from formal 1000-episode evaluations and are not production fixes."
+  ]
+}
