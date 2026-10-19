@@ -1,0 +1,607 @@
+{
+  "date": "2026-10-19",
+  "code_commit": "da73d210244e5cbf8dd96d8b4727cf00379d8908",
+  "task": "Re-evaluate existing CAT experts; no optimization updates",
+  "status": "complete",
+  "episodes_total": 4000,
+  "protocol": {
+    "episodes_per_checkpoint": 1000,
+    "num_envs": 1000,
+    "seed": 20261019,
+    "cohort": "First complete episode of every slot; no completion-order selection",
+    "observations": "Original offline complete fields, not online sensor maps",
+    "perturbations": "Original training noise/push/PD/RFI retained",
+    "horizon_seconds": 20,
+    "control_dt_seconds": 0.02,
+    "success_definition": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+    "arrival_time": "First goal latch; null for non-arrivals; successful subset reported separately",
+    "pre_goal_metrics": "Include the first arrival control step",
+    "stopping_definition": "3D linear speed <0.1 m/s and 3D angular speed <0.1 rad/s continuously for 0.5s",
+    "rate_intervals": "95% Wilson binomial intervals, conditional on this seed/setup",
+    "outcome_overlap": "Goal does not end an episode; successful runs usually also have timeout=true. Outcomes are not mutually exclusive.",
+    "collision_distinction": "physical_collision is any sampled obstacle contact over the episode; collision is the terminal source-task criterion with penetration threshold/self-contact and grace period. Their difference is not a measured missed-contact count."
+  },
+  "validation": {
+    "local_tests": "38 passed, 2 GPU tests skipped",
+    "server_tests": "40 passed",
+    "pilot": "4 complete episodes, excluded from formal results",
+    "independent_data_checks": "1000 unique slots per case, first episode only, counts/fractions/durations recomputed, checkpoint SHA256 unchanged",
+    "server_main_head": "c06dd8f",
+    "server_main_clean": true
+  },
+  "limitations": [
+    "Original three static training scenes and candidate starts/goals; no held-out scene or occlusion generalization claim.",
+    "One evaluation seed and one checkpoint per run; not a controlled training-iteration ablation.",
+    "Physical contacts sampled at control steps; contacts occurring only within physics substeps may be absent.",
+    "Reached-once success does not certify staying at the goal or settling.",
+    "Zero settled-stop fraction refers to the stated strict threshold, not proof of zero deceleration.",
+    "Hurdle/crouch failure cause has not been diagnosed by this evaluation."
+  ],
+  "findings_zh": [
+    "跨越与下蹲专家在本次设置中1000回合均未成功且均发生物理接触，999回合跌倒，不适合作为当前蒸馏教师。",
+    "绕墙15800检查点达到过目标的比例为89.2%，全回合无碰撞成功率为83.5%；旧绕墙与窄通道分别为67.3%和76.0%。",
+    "前三组停止指令占比约77%–80%，但均未满足连续0.5秒实际停稳判据；到达后的目标保持值得优先检查。"
+  ],
+  "cases": {
+    "wall_15800": {
+      "metadata": {
+        "started_at": "2026-10-19T05:11:16.717251+00:00",
+        "git_commit": "da73d210244e5cbf8dd96d8b4727cf00379d8908",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "config": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/config.yaml",
+        "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+        "fields": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/fields",
+        "scene": "wall_detour",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 1000000,
+        "elapsed_seconds": 37.700683617033064,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 0,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 1000,
+          "goal": 892,
+          "physical_collision": 59,
+          "success": 835,
+          "timeout_without_goal": 108
+        },
+        "rates": {
+          "fall": 0.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 1.0,
+          "goal": 0.892,
+          "physical_collision": 0.059,
+          "success": 0.835,
+          "timeout_without_goal": 0.108
+        },
+        "wilson_95": {
+          "fall": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "collision": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.996173241514445,
+            1.0
+          ],
+          "goal": [
+            0.8712410199098767,
+            0.9097588014374481
+          ],
+          "physical_collision": [
+            0.04601429821280047,
+            0.07536090277145915
+          ],
+          "success": [
+            0.8107207516702334,
+            0.8567153201444447
+          ],
+          "timeout_without_goal": [
+            0.09024119856255189,
+            0.12875898009012332
+          ]
+        },
+        "mean_step_reward": 0.2839191676528629,
+        "mean_root_speed": 0.27408115666467003,
+        "stop_command_fraction": 0.770187,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.2699296656098506,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 20.0,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 892,
+          "mean": 4.636367713004485,
+          "median": 4.58,
+          "p95": 5.6000000000000005
+        },
+        "successful_first_goal_seconds": {
+          "count": 835,
+          "mean": 4.646922155688623,
+          "median": 4.6000000000000005,
+          "p95": 5.6000000000000005
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.76235025889799,
+          "median": 0.7665214240550995,
+          "p95": 1.1876839399337769
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.05895231891708681,
+          "median": 0.04821977950632572,
+          "p95": 0.11397334672510621
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "evaluation_overrides": {}
+      },
+      "terminal_distance_below_counts": {
+        "0.1": 5,
+        "0.3": 47,
+        "0.5": 144
+      },
+      "reached_episode_mean_final_distance": 0.7578127165137051,
+      "post_goal_stop_command_fraction": 1.0,
+      "raw_episode_file": "/home/sx/embodied-learning/runs/cat-expert-eval-20261019-da73d21/wall_15800/episodes.jsonl",
+      "checkpoint_hash_unchanged": true
+    },
+    "wall_3000": {
+      "metadata": {
+        "started_at": "2026-10-19T05:12:07.085184+00:00",
+        "git_commit": "da73d210244e5cbf8dd96d8b4727cf00379d8908",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/wall_detour/model_2999.pt",
+        "checkpoint_sha256": "a1259c44f846bc493c0ab938c3843364ce819b7bb316ac1dab479155d9fc8683",
+        "config": "/home/sunxun/embodied-learning-eval-da73d21/configs/experiments/g1_cat_source.yaml",
+        "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+        "fields": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/fields",
+        "scene": "wall_detour",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 996334,
+        "elapsed_seconds": 35.813926751259714,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 6,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 994,
+          "goal": 799,
+          "physical_collision": 187,
+          "success": 673,
+          "timeout_without_goal": 198
+        },
+        "rates": {
+          "fall": 0.006,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 0.994,
+          "goal": 0.799,
+          "physical_collision": 0.187,
+          "success": 0.673,
+          "timeout_without_goal": 0.198
+        },
+        "wilson_95": {
+          "fall": [
+            0.0027526691418763745,
+            0.01302816824185209
+          ],
+          "collision": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.9869718317581478,
+            0.9972473308581237
+          ],
+          "goal": [
+            0.7730388134679094,
+            0.8226727849577289
+          ],
+          "physical_collision": [
+            0.1640478150490631,
+            0.21234773576289442
+          ],
+          "success": [
+            0.6433104519531344,
+            0.7013654896108635
+          ],
+          "timeout_without_goal": [
+            0.1744775624311303,
+            0.22383379969414505
+          ]
+        },
+        "mean_step_reward": 0.27512668612670405,
+        "mean_root_speed": 0.2861403137862593,
+        "stop_command_fraction": 0.7741610744991138,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.4185927531775583,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 19.92668,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 799,
+          "mean": 4.7018773466833546,
+          "median": 4.7,
+          "p95": 5.6000000000000005
+        },
+        "successful_first_goal_seconds": {
+          "count": 673,
+          "mean": 4.684754829123329,
+          "median": 4.7,
+          "p95": 5.54
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.8409942381642759,
+          "median": 0.8433785438537598,
+          "p95": 1.3885926187038418
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.10283045343414415,
+          "median": 0.047549646347761154,
+          "p95": 0.22917665839195242
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "evaluation_overrides": {}
+      },
+      "terminal_distance_below_counts": {
+        "0.1": 8,
+        "0.3": 65,
+        "0.5": 173
+      },
+      "reached_episode_mean_final_distance": 0.8254311315864511,
+      "post_goal_stop_command_fraction": 1.0,
+      "raw_episode_file": "/home/sx/embodied-learning/runs/cat-expert-eval-20261019-da73d21/wall_3000/episodes.jsonl",
+      "checkpoint_hash_unchanged": true
+    },
+    "passage_3000": {
+      "metadata": {
+        "started_at": "2026-10-19T05:12:55.597355+00:00",
+        "git_commit": "da73d210244e5cbf8dd96d8b4727cf00379d8908",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/passage/model_2999.pt",
+        "checkpoint_sha256": "655be45b57efab9cf8b91ee309a27cb92549945f7135e20eb5976b72d4d85d2f",
+        "config": "/home/sunxun/embodied-learning-eval-da73d21/configs/experiments/g1_cat_source.yaml",
+        "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+        "fields": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/fields",
+        "scene": "passage",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 997362,
+        "elapsed_seconds": 36.25299224443734,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 4,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 996,
+          "goal": 761,
+          "physical_collision": 1,
+          "success": 760,
+          "timeout_without_goal": 236
+        },
+        "rates": {
+          "fall": 0.004,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 0.996,
+          "goal": 0.761,
+          "physical_collision": 0.001,
+          "success": 0.76,
+          "timeout_without_goal": 0.236
+        },
+        "wilson_95": {
+          "fall": [
+            0.0015565881404084308,
+            0.010239556277262253
+          ],
+          "collision": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.9897604437227377,
+            0.9984434118595916
+          ],
+          "goal": [
+            0.7336003718062974,
+            0.7864020602642429
+          ],
+          "physical_collision": [
+            0.00017654637062607809,
+            0.0056425585979579355
+          ],
+          "success": [
+            0.7325666107750539,
+            0.7854434748124575
+          ],
+          "timeout_without_goal": [
+            0.2107233759531616,
+            0.26329715252721153
+          ]
+        },
+        "mean_step_reward": 0.29072822826188244,
+        "mean_root_speed": 0.2653502524662465,
+        "stop_command_fraction": 0.795166649621702,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.48934154547590597,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 19.947239999999997,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 761,
+          "mean": 4.284021024967149,
+          "median": 4.18,
+          "p95": 5.08
+        },
+        "successful_first_goal_seconds": {
+          "count": 760,
+          "mean": 4.284368421052632,
+          "median": 4.18,
+          "p95": 5.08
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.5891863358579577,
+          "median": 0.55535888671875,
+          "p95": 1.1197244882583612
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.06694082013110164,
+          "median": 0.05571260303258896,
+          "p95": 0.1493218973278999
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "evaluation_overrides": {}
+      },
+      "terminal_distance_below_counts": {
+        "0.1": 24,
+        "0.3": 191,
+        "0.5": 443
+      },
+      "reached_episode_mean_final_distance": 0.5762494825335824,
+      "post_goal_stop_command_fraction": 1.0,
+      "raw_episode_file": "/home/sx/embodied-learning/runs/cat-expert-eval-20261019-da73d21/passage_3000/episodes.jsonl",
+      "checkpoint_hash_unchanged": true
+    },
+    "hurdle_crouch_3000": {
+      "metadata": {
+        "started_at": "2026-10-19T05:13:44.559992+00:00",
+        "git_commit": "da73d210244e5cbf8dd96d8b4727cf00379d8908",
+        "git_status": "",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/hurdle_crouch/model_2999.pt",
+        "checkpoint_sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+        "config": "/home/sunxun/embodied-learning-eval-da73d21/configs/experiments/g1_cat_source.yaml",
+        "config_sha256": "707650fb4c512a902502548528287833ff2cb6800781b8274af32feac809e26b",
+        "fields": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/fields",
+        "scene": "hurdle_crouch",
+        "seed": 20261019,
+        "episodes": 1000,
+        "num_envs": 1000,
+        "perturbations": "training settings retained",
+        "python": "3.11.15",
+        "torch": "2.7.1+cu126",
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430",
+        "device": "NVIDIA GeForce RTX 4090"
+      },
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 401,
+        "included_transitions": 266788,
+        "elapsed_seconds": 17.77399981720373,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 999,
+          "collision": 2,
+          "invalid": 0,
+          "timeout": 0,
+          "goal": 0,
+          "physical_collision": 1000,
+          "success": 0,
+          "timeout_without_goal": 0
+        },
+        "rates": {
+          "fall": 0.999,
+          "collision": 0.002,
+          "invalid": 0.0,
+          "timeout": 0.0,
+          "goal": 0.0,
+          "physical_collision": 1.0,
+          "success": 0.0,
+          "timeout_without_goal": 0.0
+        },
+        "wilson_95": {
+          "fall": [
+            0.9943574414020421,
+            0.9998234536293739
+          ],
+          "collision": [
+            0.000548643588120728,
+            0.007262807863492177
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "goal": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "physical_collision": [
+            0.996173241514445,
+            1.0
+          ],
+          "success": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout_without_goal": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ]
+        },
+        "mean_step_reward": 0.16259820527047875,
+        "mean_root_speed": 0.5126870917642932,
+        "stop_command_fraction": 0.01989219904943251,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.01989219904943251,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 5.3357600000000005,
+          "median": 5.3,
+          "p95": 6.141
+        },
+        "first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "successful_first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.7388609599471092,
+          "median": 0.722650945186615,
+          "p95": 0.8455456852912903
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.7350317441821098,
+          "median": 0.7285608053207397,
+          "p95": 0.7922219872474671
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "evaluation_overrides": {}
+      },
+      "terminal_distance_below_counts": {
+        "0.1": 0,
+        "0.3": 0,
+        "0.5": 0
+      },
+      "reached_episode_mean_final_distance": null,
+      "post_goal_stop_command_fraction": null,
+      "raw_episode_file": "/home/sx/embodied-learning/runs/cat-expert-eval-20261019-da73d21/hurdle_crouch_3000/episodes.jsonl",
+      "checkpoint_hash_unchanged": true
+    }
+  }
+}
