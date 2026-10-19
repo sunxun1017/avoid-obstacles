@@ -97,6 +97,7 @@ def main(argv=None):
                 env,
                 contract.hidden_dims,
                 critic_hidden_dims=contract.critic_hidden_dims,
+                normalization=contract.normalization,
             )
             policy = load_online_policy(
                 args.checkpoint, online_contract=expected, device=args.device

@@ -23,6 +23,7 @@ def test_source_action_transform_reaches_environment_once(monkeypatch):
     env.cat_state = SimpleNamespace(
         saved_outcomes={},
         last_metrics={},
+        metric_definitions={},
         saved_terms={},
         saved_reward_diagnostics={},
         scales={},

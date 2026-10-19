@@ -115,11 +115,13 @@ class AsyncFieldMap(OnlineFieldMap):
             )
 
     @torch.no_grad()
-    def update(self, rays, goals, *, timestamp):
+    def update(self, rays, goals, *, timestamp, apply_cadence=True):
         self._check_worker()
         if timestamp > time.monotonic():
             raise ValueError("Measurement timestamp cannot be in the future.")
         due = self.due(timestamp, goals)
+        if not apply_cadence:
+            due = torch.ones_like(due)
         validate_rays(rays)
         b, n = rays.valid_mask.shape
         if (

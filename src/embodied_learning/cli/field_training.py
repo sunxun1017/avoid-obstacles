@@ -325,6 +325,7 @@ def main(argv: list[str] | None = None) -> int:
                     env,
                     saved_contract.hidden_dims,
                     critic_hidden_dims=saved_contract.critic_hidden_dims,
+                    normalization=saved_contract.normalization,
                 )
                 experts[scene_names.index(name)] = load_teacher(
                     path, expected_contract=expected, device=args.device
@@ -335,6 +336,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.hidden_dims
                     or settings.get("ppo", {}).get("hidden_dims", [512, 256, 128])
                 ),
+                normalization=settings.get("ppo", {}).get("normalization"),
             )
             student = FieldStudent(contract, args.device)
             checkpoint = train_dagger(
@@ -353,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
                 env,
                 contract.hidden_dims,
                 critic_hidden_dims=contract.critic_hidden_dims,
+                normalization=contract.normalization,
             )
             loader = load_student if "student" in saved else load_teacher
             policy = loader(

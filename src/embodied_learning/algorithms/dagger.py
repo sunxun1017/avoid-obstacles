@@ -82,7 +82,10 @@ def train_dagger(
         raise ValueError("Cannot train an inference-only environment.")
     contract = student.contract
     contract.require(
-        PolicyContract.from_env(env, contract.hidden_dims), network=False
+        PolicyContract.from_env(
+            env, contract.hidden_dims, normalization=contract.normalization
+        ),
+        network=False,
     )
     allowed = set(
         getattr(getattr(env, "field_state", None), "allowed", env.scene_ids.tolist())
@@ -225,7 +228,10 @@ def evaluate_student(
     obs = env.get_observations()
     reward_sum, episodes = 0.0, 0
     counts: dict[str, int] = {}
-    final_distance, min_distance, stopped, metric_steps = 0.0, 0.0, 0, 0
+    final_distance, min_distance = 0.0, 0.0
+    stop_sums = {"stop_command": 0, "settled_stop": 0}
+    stop_counts = dict.fromkeys(stop_sums, 0)
+    metric_definitions = {}
     final_count, min_count = 0, 0
     for _ in range(steps):
         obs, rewards, dones, extras = env.step(student.predict(obs))
@@ -241,14 +247,23 @@ def evaluate_student(
             min_distance += float(minimum[torch.isfinite(minimum)].sum())
             final_count += int(torch.isfinite(final).sum())
             min_count += int(torch.isfinite(minimum).sum())
-            stopped += int(metrics["stopped"].sum())
-            metric_steps += env.num_envs
+            for name in stop_sums:
+                if name in metrics:
+                    stop_sums[name] += int(metrics[name].sum())
+                    stop_counts[name] += env.num_envs
+        metric_definitions.update(extras.get("cat_metric_definitions", {}))
     return dict(
         mean_final_goal_distance=final_distance / final_count
         if final_count
         else None,
         mean_min_goal_distance=min_distance / min_count if min_count else None,
-        stopped_step_fraction=stopped / metric_steps if metric_steps else None,
+        **{
+            name + "_fraction": stop_sums[name] / stop_counts[name]
+            if stop_counts[name]
+            else None
+            for name in stop_sums
+        },
+        metric_definitions=metric_definitions,
         steps=steps,
         envs=env.num_envs,
         episodes=episodes,

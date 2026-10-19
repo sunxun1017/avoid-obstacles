@@ -22,7 +22,7 @@ mjlab 的 G1 模型和 RSL-RL 的优化器与作者 MJX/Brax 实现不同，不�
 | actor / critic / action | 162 / 250 / 12 |
 | 物理关节 / 观测关节 / 身体点 | 29 / 23 / 11，按名字映射 |
 | actor / critic 网络 | 256,128,64 / 512,256,128，ELU |
-| 观测归一化 | 关闭 |
+| 观测归一化 | 默认关闭；可设 `ppo.normalization: true` |
 | 控制 / 仿真周期 | 0.02 / 0.002 秒 |
 | 动作 | 12 个腿关节目标增量，上帧目标 + 0.5 × action，再裁剪 |
 | 执行 | 每个物理步显式 PD、随机 RFI、源码力矩限制；上身保持默认姿态 |
@@ -146,7 +146,13 @@ python -m embodied_learning.cli.field_training evaluate \
   --device cuda:0 --num-envs 128 --steps 2000 --no-perturbations
 ```
 
-`--no-perturbations` 在 play/evaluate 中关闭观测噪声、push、PD/RFI 随机化，不改变检查点的训练契约。evaluate 在输出中记录 override。评估记录已完成回合的 ever-goal、最终/最小 XY 距离以及逐步停步比例。未完成任何回合时回合成功率为 null，不能把逐帧 goal 布尔值当成成功率。
+`--no-perturbations` 在 play/evaluate 中关闭观测噪声、push、PD/RFI 随机化，不改变检查点的训练契约。evaluate 在输出中记录 override。播放、评估和 DAgger 教师加载从检查点恢复观测归一化设置及统计量；新 DAgger 学生读取 `ppo.normalization`，恢复时仍严格检查契约。
+
+评估的 `rates` 只统计已完成回合，未完成任何回合时为 null。`goal` 是回合内曾到达 XY 距离 < 0.1 米；`physical_collision` 是回合内任一控制步观测到障碍物接触，即使之后脱离也保留，包含前 50 步终止豁免期。`success` 额外要求整个回合没有观测到障碍物接触、受监测自接触或源码碰撞，且没有跌倒/非法状态终止。仍使用源码的 20 秒回合，不能直接当作论文 5 秒协议下的成功率。接触来自控制步采样，不保证覆盖每个物理子步的瞬时接触。
+
+最终/最小 XY 距离按已完成回合汇总。逐步指标改为 `stop_command_fraction`（指令向量范数 < 0.2）与 `settled_stop_fraction`（实际根部三维线速度 < 0.1 m/s、角速度 < 0.1 rad/s，连续保持 0.5 秒，且未跌倒/非法）。两者的分母都是全部评估环境步，包含尚未结束的回合；停稳不要求已到达目标。旧字段 `stopped_step_fraction` 已移除。阈值随结果写入 `metric_definitions`；这些诊断不改变训练奖励或终止条件，历史 JSON 保留原值。
+
+训练日志同步将 `Cat/stopped` 改为 `Cat/stop_command`，并新增 `Cat/settled_stop`、`Cat/root_speed` 和 `Cat/root_angular_speed`。旧日志中的 `Cat/stopped` 只能解释为停止指令比例。
 
 源码的停止指令阈值是 0.2；额外评估 goal 判据是 XY 距离 < 0.1 米。策略可能提前停止而达不到该判据，goal 不是训练奖励也不终止回合。
 
@@ -173,6 +179,8 @@ python -m embodied_learning.cli.field_training evaluate \
 源版采样保留作者 X/Z corner-weight 排列与索引裁剪行为，即使它不同于标准三线性插值。空障碍地图以 +inf SDF、零 BF 处理，属于明确的工程扩展。旧论文场采样函数保持原语义，不能与 source 缓存混用。
 
 ## 验证与限制
+
+2026-10-19 审查修复验证：在 `zjut` 的独立临时副本、GPU 6 和基于 mjlab 的项目 `.venv-field` 中运行 `python -m pytest tests --ignore=tests/test_scan.py -q`，**249 项通过（171.38 秒）**。覆盖回合碰撞累计、停稳计时、归一化检查点各入口、真实深度/LiDAR 采集节流、PPO/DAgger 短测及恢复；没有恢复正式训练。`test_scan.py` 是收集时运行 CUDA 并写文件的演示脚本，沿用已有排除约定。本机无 CUDA，218 项通过、30 项跳过，已有 `test_register_gpu_status` 的 CUDA 必须可用断言失败；该项在服务器通过。改动文件的 Ruff 与空白检查通过。
 
 开发期 `tools/generate_cat_reference.py` 直接抽取并执行固定提交的作者函数，生成奖励、指令、60+步停步过程、观测和场参考；fixture 记录文件 SHA256。运行时不依赖 JAX。原作者 Apache-2.0 许可保留在 `third_party/licenses/Click-and-Traverse-LICENSE`。
 

@@ -28,7 +28,7 @@ python -m embodied_learning.cli.cat_online \
 默认配置为 `configs/experiments/g1_cat_source.yaml`，默认一个环境、CUDA、无窗口。
 可以用 `--sensor depth` 切换来源，或用 `--viewer viser --port 8765` 打开本地网页视图。
 CLI 默认 `--execution async --field-backend cuda --mapping-backend warp`。
-`--update-period 0.1` 按单调墙钟每 0.1 秒提交扫描，后台进程处理最新请求；
+`--update-period 0.1` 按单调墙钟限制实际扫描采集，正常情况下每 0.1 秒采集并尝试提交一次，后台进程处理最新请求；
 无窗口控制循环以 0.02 秒为目标周期，并报告错过周期次数。异步不等于硬实时。
 `--max-age 0.3` 从**原始传感器采集时间**计算有效期，建图完成不会重置年龄。
 结束时输出有效射线数、测量/占据体素数、场版本、真正重建次数、丢弃的旧扫描、
@@ -45,13 +45,18 @@ Python 工厂 `make_cat_online_env` 仍默认 `sync/source/torch`，保持原调
 使用 `execution="async", field_backend="cuda", mapping_backend="warp"` 启用新路径。
 同步路径沿用仿真时钟，异步路径使用墙钟；两者的周期/年龄不能混着解释。
 
+CAT 的奖励/终止读取和 mjlab 步末读取共用同一采集调度，同一状态不重复渲染或射线扫描。
+物理前向计算与接触检查仍每个控制步执行。重置或目标变化会立即补采一次；
+原生传感器按整批执行，但只有到期/变化槽位的测量进入地图，其他槽位保持原周期。
+采集时间戳保留在提交和发布过程中；后台忙导致丢帧不会让采集退化为每个控制步执行。
+
 `--checkpoint` 与 `--smoke` 必选其一。Smoke 使用零潜动作，只验证链路；没有提供
 训练好的策略，也没有通过短 smoke 测试验证避障成功率。
 
 在线加载只放行“离线场 → 测量场”和传感器附件的显式变化。机器人、物理参数、
 场景哈希、身体点、关节/动作顺序、162/250 维观测仍严格比较。为避免相机改变
 编译模型哈希导致误判，额外编译不含新增传感器的基准模型进行检查。检查通过后，
-推理关闭观测噪声、增益/力矩扰动和推扰。原训练/恢复加载器没有放宽。
+推理关闭观测噪声、增益/力矩扰动和推扰，并使用检查点保存的观测归一化设置及统计量。原训练/恢复加载器没有放宽。
 本入口不直接加载作者硬件部署 ONNX。
 
 ## 模块边界
@@ -137,7 +142,8 @@ heap-FMM，也不是逐位等价实现**。每次新场重新初始化，包含�
 ```bash
 python -m pytest tests/test_cat_deployment.py tests/test_online_field.py \
   tests/test_cat_online_sensors.py tests/test_cat_online_policy.py \
-  tests/test_cat_online_native.py tests/test_cat_online_task.py tests/test_occupancy.py -q
+  tests/test_cat_online_native.py tests/test_cat_sensor_schedule.py \
+  tests/test_cat_online_task.py tests/test_occupancy.py -q
 ```
 
 原生测试需要 CUDA；覆盖两个传感器、禁止离线场加载/体素化、单环境复位隔离和

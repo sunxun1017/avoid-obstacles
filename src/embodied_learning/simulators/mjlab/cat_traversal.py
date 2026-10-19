@@ -4,7 +4,6 @@ Robot model/contact geometry remain mjlab assets; source-name mappings are expli
 """
 
 import hashlib
-import time
 from dataclasses import replace
 
 import numpy as np
@@ -262,14 +261,14 @@ def _refresh(env):
             env.sim.data.nefc,
             njmax=env.sim.wp_data.njmax,
         )
-        capture_timestamp = time.monotonic()
-        env.sim.sense()
         if env.cat_sensor_config is not None:
             from embodied_learning.simulators.mjlab.cat_online import (
                 refresh_online_fields,
             )
 
-            refresh_online_fields(env, capture_timestamp=capture_timestamp)
+            refresh_online_fields(env)
+        else:
+            env.sim.sense()
         state.refresh(
             read_cat_reward_inputs(env, state),
             env.cat_controller,
@@ -301,6 +300,8 @@ def _source_reset(env, env_ids):
     env.cat_state.reset(env_ids)
     if env.cat_sensor_config is not None:
         env.cat_state.bank.reset(env_ids, env.cat_state.scene_ids)
+        if env.cat_sensor_schedule is not None:
+            env.cat_sensor_schedule.reset(env_ids)
 
 
 def make_cat_env(
@@ -424,8 +425,23 @@ def make_cat_env(
             self.cat_obstacle_contacts = obstacle_contacts
             self.cat_sensor_config = online_sensor
             self.cat_sensor_reader = None
+            self.cat_sensor_schedule = None
             self.cat_baseline_identity = baseline_identity
             super().__init__(cfg=cfg, device=device)
+
+        def load_managers(self):
+            if online_sensor is not None:
+                from embodied_learning.simulators.mjlab.cat_online import (
+                    install_sensor_schedule,
+                )
+
+                install_sensor_schedule(self)
+            super().load_managers()
+
+        def close(self):
+            if self.cat_sensor_schedule is not None:
+                self.cat_sensor_schedule.close()
+            super().close()
 
         def step(self, actions):
             state.advance_before_physics(actions)
@@ -519,6 +535,7 @@ class CatEnv(RslRlVecEnvWrapper):
         state = self.cat_state
         result[3]["field_outcomes"] = state.saved_outcomes
         result[3]["cat_metrics"] = state.last_metrics
+        result[3]["cat_metric_definitions"] = state.metric_definitions
         log = result[3].setdefault("log", {})
         for name, v in state.saved_terms.items():
             log["CatReward/" + name] = v.mean()

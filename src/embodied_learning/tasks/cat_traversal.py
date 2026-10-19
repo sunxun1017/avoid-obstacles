@@ -19,6 +19,23 @@ from embodied_learning.tasks.cat_reward import (
 
 
 class CatTaskState:
+    # Reporting only: these thresholds do not change rewards or termination.
+    metric_definitions = {
+        "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02,
+        },
+        "success": (
+            "Reached within 0.1 m at least once, with no observed obstacle or "
+            "monitored self contact or source collision during the episode, "
+            "and no fall/invalid termination. Uses the source 20 s horizon."
+        ),
+        "physical_collision": "Any observed obstacle contact during the episode.",
+        "stop_command": "Source command vector norm below 0.2; not actual speed.",
+    }
+
     def __init__(self, manifest, bank, allowed, num_envs, device, options):
         if bank.source_profile != {"version": "cat_source_v1"}:
             raise ValueError("Source task requires source-profile cache.")
@@ -61,6 +78,9 @@ class CatTaskState:
         self.odom_rotation = torch.eye(3, device=device).repeat(num_envs, 1, 1)
         self.initial = torch.ones(num_envs, device=device, dtype=torch.bool)
         self.ever_goal = torch.zeros_like(self.initial)
+        self.ever_physical_collision = torch.zeros_like(self.initial)
+        self.ever_collision = torch.zeros_like(self.initial)
+        self.settled_steps = torch.zeros_like(self.scene_ids)
         self.min_goal_distance = torch.full((num_envs,), math.inf, device=device)
         self.push_interval = torch.ones_like(self.scene_ids) * 250
         self.generation = 0
@@ -91,6 +111,9 @@ class CatTaskState:
         self.previous_vel[env_ids] = 0
         self.initial[env_ids] = True
         self.ever_goal[env_ids] = False
+        self.ever_physical_collision[env_ids] = False
+        self.ever_collision[env_ids] = False
+        self.settled_steps[env_ids] = 0
         self.min_goal_distance[env_ids] = math.inf
         self.push_interval[env_ids] = torch.round(
             (5 + 5 * torch.rand(n, device=env_ids.device)) / 0.02
@@ -281,6 +304,30 @@ class CatTaskState:
         )
         self._outcomes = flags
         if not same_step and not self.initial.all():
+            # Accumulate only executed control steps, before auto-reset. A second
+            # observation refresh after reset must preserve the terminal report.
+            self.ever_physical_collision |= (
+                payload["physical_collision"] & continuing
+            )
+            self.ever_collision |= (
+                payload["physical_collision"]
+                | payload["self_contact"]
+                | flags["collision"]
+            ) & continuing
+            stop = self.metric_definitions["settled_stop"]
+            root_speed = payload["root_local_vel"].norm(dim=-1)
+            angular_speed = payload["gyro"].norm(dim=-1)
+            slow = (
+                (root_speed < stop["linear_speed_below_m_s"])
+                & (angular_speed < stop["angular_speed_below_rad_s"])
+                & ~flags["fall"]
+                & ~invalid
+                & continuing
+            )
+            self.settled_steps = torch.where(slow, self.settled_steps + 1, 0)
+            required_steps = math.ceil(
+                stop["continuous_seconds"] / stop["control_dt_seconds"]
+            )
             self.saved_reward_diagnostics = {
                 k: v.clone() for k, v in diagnostics.items()
             }
@@ -288,12 +335,21 @@ class CatTaskState:
             self.saved_outcomes = {
                 **{k: v.clone() for k, v in flags.items()},
                 "goal": self.ever_goal.clone(),
-                "physical_collision": payload["physical_collision"].clone(),
+                "physical_collision": self.ever_physical_collision.clone(),
+                "success": (
+                    self.ever_goal
+                    & ~self.ever_collision
+                    & ~flags["fall"]
+                    & ~flags["invalid"]
+                ),
             }
             self.last_metrics = dict(
                 goal_distance=self.goal_distance.clone(),
                 min_goal_distance=self.min_goal_distance.clone(),
-                stopped=(command[:, 1:].norm(dim=-1) < 0.2),
+                stop_command=(command[:, 1:].norm(dim=-1) < 0.2),
+                settled_stop=(self.settled_steps >= required_steps),
+                root_speed=root_speed,
+                root_angular_speed=angular_speed,
             )
         self._obs = build_cat_observations(
             gyro=payload["gyro"],

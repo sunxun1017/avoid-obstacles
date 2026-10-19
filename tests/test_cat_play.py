@@ -49,7 +49,8 @@ class PlayEnv:
                 "cat_metrics": {
                     "goal_distance": torch.tensor([0.3]),
                     "min_goal_distance": torch.tensor([0.05]),
-                    "stopped": torch.tensor([True]),
+                    "stop_command": torch.tensor([True]),
+                    "settled_stop": torch.tensor([False]),
                 },
             },
         )
@@ -131,7 +132,8 @@ def test_evaluation_reports_ever_goal_and_final_distances():
     assert metrics["rates"]["goal"] == 1.0
     assert metrics["mean_final_goal_distance"] == pytest.approx(0.3)
     assert metrics["mean_min_goal_distance"] == pytest.approx(0.05)
-    assert metrics["stopped_step_fraction"] == 1.0
+    assert metrics["stop_command_fraction"] == 1.0
+    assert metrics["settled_stop_fraction"] == 0.0
     empty = evaluate_student(PlayEnv(), policy, steps=1)
     assert (
         empty["rates"]["goal"] is None and empty["mean_final_goal_distance"] is None

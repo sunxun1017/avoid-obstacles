@@ -93,17 +93,35 @@ class CatOnlineFields:
         self.ray_counts[env_ids] = 0
         self.query_available[env_ids] = False
 
-    def update(self, rays, goals, *, timestamp, env_origins):
-        """Convert simulator world rays to the task's stable per-scene frame."""
+    def update(self, rays, goals, *, timestamp, env_origins, capture_mask=None):
+        """Convert world rays; an explicit capture mask owns scan admission.
+
+        The simulator already schedules acquisition. Reapplying map cadence can
+        discard fresh scans after a rejected mailbox submission or partial reset.
+        Callers without a capture mask retain the map's original admission policy.
+        """
         started = time.perf_counter()
-        due = self.online.due(timestamp, goals)
+        valid = rays.valid_mask
+        if capture_mask is None:
+            due = self.online.due(timestamp, goals)
+        else:
+            if (
+                capture_mask.shape != valid.shape[:1]
+                or capture_mask.dtype != torch.bool
+                or capture_mask.device != valid.device
+            ):
+                raise ValueError("capture_mask must be boolean [B] on ray device.")
+            due = capture_mask
+            valid = valid & capture_mask[:, None]
         local = RayMeasurements(
             rays.origins - env_origins[:, None],
             rays.endpoints - env_origins[:, None],
-            rays.valid_mask,
+            valid,
             rays.hit_mask,
         )
-        accepted = self.online.update(local, goals, timestamp=timestamp)
+        accepted = self.online.update(
+            local, goals, timestamp=timestamp, apply_cadence=capture_mask is None
+        )
         if accepted is not False:
             self.ray_counts[due] = rays.valid_mask.sum(-1)[due]
         self.timestamp = timestamp
