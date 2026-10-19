@@ -4,7 +4,7 @@ Robot model/contact geometry remain mjlab assets; source-name mappings are expli
 """
 
 import hashlib
-from dataclasses import replace
+from dataclasses import asdict, replace
 
 import numpy as np
 import torch
@@ -151,6 +151,25 @@ def rpy(rotation):
     )
 
 
+def _read_body_envelope(env, state):
+    """Read full compiled geom poses and query the known-scene research cover."""
+    from embodied_learning.simulators.mjlab.cat_geometry import BoxEnvelopeQuery
+
+    envelope = env.cat_collision_envelope
+    positions = env.sim.data.geom_xpos
+    rotations = env.sim.data.geom_xmat.reshape(*positions.shape[:2], 3, 3)
+    centers = envelope.world_centers(
+        positions, rotations, env.scene.env_origins.to(positions)
+    )
+    query = getattr(env, "cat_collision_query", None)
+    if query is None:
+        # Supports standalone native-payload readers; real envs cache at startup.
+        query = env.cat_collision_query = BoxEnvelopeQuery(
+            state.manifest, envelope, dtype=positions.dtype
+        )
+    return query.sample(centers, state.scene_ids)
+
+
 def read_cat_reward_inputs(env, state):
     robot = env.scene["robot"]
     data = robot.data
@@ -233,7 +252,7 @@ def read_cat_reward_inputs(env, state):
         navigation_rotation=nav,
         body_velocities=zeros,
     )
-    return dict(
+    payload = dict(
         reward_inputs=x,
         body_positions=positions,
         root_position=data.root_link_pos_w - env.scene.env_origins,
@@ -250,6 +269,9 @@ def read_cat_reward_inputs(env, state):
             | ~torch.isfinite(data.root_link_vel_w).all(-1)
         ),
     )
+    if env.cat_collision_envelope is not None:
+        payload["body_envelope"] = _read_body_envelope(env, state)
+    return payload
 
 
 def _refresh(env):
@@ -305,8 +327,22 @@ def _source_reset(env, env_ids):
 
 
 def make_cat_env(
-    manifest, bank, *, scene_ids, num_envs, device, seed, options, online_sensor=None
+    manifest,
+    bank,
+    *,
+    scene_ids,
+    num_envs,
+    device,
+    seed,
+    options,
+    online_sensor=None,
+    task_profile="cat_source_v1",
+    recovery_options=None,
 ):
+    if task_profile == "cat_recovery_v1" and online_sensor is not None:
+        raise ValueError(
+            "Online sensors do not support the known-scene recovery task."
+        )
     if online_sensor is not None:
         from embodied_learning.tasks.cat_online import CatOnlineFields
 
@@ -324,6 +360,8 @@ def make_cat_env(
         num_envs,
         device,
         options,
+        task_profile=task_profile,
+        recovery_options=recovery_options,
     )
     cfg = build_cat_cfg(
         num_envs=num_envs,
@@ -427,9 +465,25 @@ def make_cat_env(
             self.cat_sensor_reader = None
             self.cat_sensor_schedule = None
             self.cat_baseline_identity = baseline_identity
+            self.cat_collision_envelope = None
+            self.cat_collision_query = None
             super().__init__(cfg=cfg, device=device)
 
         def load_managers(self):
+            if task_profile == "cat_recovery_v1":
+                from embodied_learning.simulators.mjlab.cat_geometry import (
+                    BoxEnvelopeQuery,
+                    CollisionEnvelope,
+                )
+
+                self.cat_collision_envelope = CollisionEnvelope.from_model(
+                    self.sim.mj_model, device
+                )
+                self.cat_collision_query = BoxEnvelopeQuery(
+                    state.manifest,
+                    self.cat_collision_envelope,
+                    dtype=self.sim.data.geom_xpos.dtype,
+                )
             if online_sensor is not None:
                 from embodied_learning.simulators.mjlab.cat_online import (
                     install_sensor_schedule,
@@ -494,6 +548,15 @@ class CatEnv(RslRlVecEnvWrapper):
             observation="cat_source_actor162_critic250_v1",
             normalization=False,
         )
+        if state.task_profile == "cat_recovery_v1":
+            self.schema.update(
+                task_profile="cat_recovery_v1",
+                observation="cat_recovery_actor171_critic256_v1",
+                recovery=dict(
+                    config=asdict(state.recovery.config),
+                    envelope=native.cat_collision_envelope.schema(),
+                ),
+            )
         if native.cat_sensor_config is not None:
             self.schema["online_perception"] = dict(
                 source=native.cat_sensor_config.source,

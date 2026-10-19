@@ -118,12 +118,15 @@ def train_specialist(
     output_dir: Path,
     *,
     resume: Path | None = None,
+    warmstart: Path | None = None,
 ) -> Path:
-    """Train or strictly resume an official PPO specialist and return latest.pt.
+    """Train, strictly resume, or explicitly warmstart a research specialist.
 
     Torch checkpoints contain Python training state: load trusted files only.
     The last checkpoint and each periodic checkpoint embed their full contract.
     """
+    if resume is not None and warmstart is not None:
+        raise ValueError("PPO resume and warmstart are mutually exclusive.")
     if getattr(env, "inference_only", False):
         raise ValueError("Cannot train an inference-only environment.")
     if env.num_envs * config.rollout_steps < config.mini_batches:
@@ -138,7 +141,7 @@ def train_specialist(
     # Native scene allow-list is stable even when not every scene is sampled.
     if hasattr(env, "field_state"):
         training_scenes = list(env.field_state.allowed)
-    restored = None
+    restored, initialization, provenance = None, None, None
     if resume:
         restored = torch.load(resume, map_location=env.device, weights_only=False)
         contract.require(PolicyContract.from_dict(restored["field_contract"]))
@@ -154,9 +157,26 @@ def train_specialist(
             actual["critic_hidden_dims"] = tuple(actual["critic_hidden_dims"])
         if expected != actual or restored["training_scenes"] != training_scenes:
             raise ValueError("PPO training configuration/scene contract mismatch.")
+        provenance = restored.get("warmstart")
+    if warmstart is not None:
+        from embodied_learning.policies.cat_warmstart import load_cat_warmstart
+
+        initialization, provenance = load_cat_warmstart(
+            warmstart,
+            expected_contract=contract,
+            training_scenes=training_scenes,
+            device=env.device,
+        )
     output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
     configuration_path = output_dir / "config.json"
+    if warmstart is not None and (
+        configuration_path.exists()
+        or output_dir.resolve() == Path(warmstart).resolve().parent
+    ):
+        raise ValueError(
+            "Warmstart requires a new output directory; use resume later."
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
     serial_config = json.loads(json.dumps(asdict(config)))
     if configuration_path.exists():
         old = json.loads(configuration_path.read_text())
@@ -199,6 +219,8 @@ def train_specialist(
                 if torch.cuda.is_available()
                 else [],
             )
+            if provenance is not None:
+                state["warmstart"] = provenance
             temporary = Path(path).with_suffix(".tmp")
             torch.save(state, temporary)
             temporary.replace(path)
@@ -219,6 +241,12 @@ def train_specialist(
         torch.set_rng_state(restored["torch_rng"].cpu())
         if restored["cuda_rng"]:
             torch.cuda.set_rng_state_all([r.cpu() for r in restored["cuda_rng"]])
+    elif initialization is not None:
+        from embodied_learning.policies.cat_warmstart import initialize_cat_warmstart
+
+        initialize_cat_warmstart(runner.alg.actor, runner.alg.critic, initialization)
+        if hasattr(env, "training_step"):
+            env.training_step = 0
     initial.append(
         torch.nn.utils.parameters_to_vector(runner.alg.actor.parameters())
         .detach()

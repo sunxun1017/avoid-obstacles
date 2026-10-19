@@ -59,6 +59,10 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
     completed = torch.zeros_like(quota)
     age = torch.zeros_like(quota)
     first_goal = torch.zeros_like(quota)
+    first_goal_speed = torch.full(
+        (env.num_envs,), math.nan, device=device, dtype=torch.float64
+    )
+    ever_goal_hold = torch.zeros(env.num_envs, device=device, dtype=torch.bool)
     sums = {
         name: torch.zeros(env.num_envs, device=device, dtype=torch.float64)
         for name in (
@@ -66,6 +70,7 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
             "stop_command",
             "settled_stop",
             "root_speed",
+            "goal_hold",
             "pre_goal_steps",
             "pre_goal_stop_command",
             "pre_goal_settled_stop",
@@ -86,7 +91,16 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
             definitions.update(extras["cat_metric_definitions"])
             reached = active & (first_goal == 0) & outcomes["goal"]
             first_goal[reached] = age[reached]
+            first_goal_speed[reached] = metrics["root_speed"][reached].double()
+            goal_hold = (
+                (metrics["goal_distance"] < 0.1)
+                & metrics["settled_stop"].bool()
+                & ~outcomes["fall"].bool()
+                & ~outcomes["invalid"].bool()
+            )
+            ever_goal_hold |= active & goal_hold
             sums["reward"][active] += rewards[active]
+            sums["goal_hold"][active] += goal_hold[active].double()
             for name in ("stop_command", "settled_stop", "root_speed"):
                 sums[name][active] += metrics[name][active].double()
             sums["pre_goal_steps"][pre_goal] += 1
@@ -106,14 +120,29 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
                     first_goal_seconds=float(first_goal[slot]) * 0.02
                     if first_goal[slot]
                     else None,
+                    first_goal_root_speed=float(first_goal_speed[slot])
+                    if first_goal[slot]
+                    else None,
+                    ever_goal_hold=bool(ever_goal_hold[slot]),
+                    final_goal_hold=bool(goal_hold[slot]),
+                    final_root_speed=float(metrics["root_speed"][slot]),
+                    final_root_angular_speed=float(
+                        metrics["root_angular_speed"][slot]
+                    ),
                     outcomes=flags,
                     timeout_without_goal=flags["timeout"] and not flags["goal"],
                     final_goal_distance=float(metrics["goal_distance"][slot]),
                     min_goal_distance=float(metrics["min_goal_distance"][slot]),
                     sums={name: float(value[slot]) for name, value in sums.items()},
                 )
-                for name in ("final_goal_distance", "min_goal_distance"):
-                    if not math.isfinite(record[name]):
+                for name in (
+                    "final_goal_distance",
+                    "min_goal_distance",
+                    "first_goal_root_speed",
+                    "final_root_speed",
+                    "final_root_angular_speed",
+                ):
+                    if record[name] is not None and not math.isfinite(record[name]):
                         record[name] = None
                 if not all(math.isfinite(x) for x in record["sums"].values()):
                     raise ValueError("Nonfinite episode metric; investigate physics")
@@ -122,6 +151,8 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
                     stream.write(json.dumps(record, allow_nan=False) + "\n")
             completed[done] += 1
             age[done] = first_goal[done] = 0
+            first_goal_speed[done] = math.nan
+            ever_goal_hold[done] = False
             for value in sums.values():
                 value[done] = 0
             step += 1
@@ -155,6 +186,16 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
     total_steps = sum(r["steps"] for r in records)
     pre_steps = sum(r["sums"]["pre_goal_steps"] for r in records)
     totals = {name: sum(r["sums"][name] for r in records) for name in sums}
+    ever_hold_count = sum(r["ever_goal_hold"] for r in records)
+    final_hold_count = sum(r["final_goal_hold"] for r in records)
+    definitions["goal_hold"] = dict(
+        goal_distance_below_m=0.1,
+        settled_stop_required=True,
+        excludes_current_fall_or_invalid=True,
+        step_fraction_denominator="all transitions in designated complete episodes",
+        ever="At least one qualifying step during the designated episode.",
+        final="Qualifies on the terminal step before automatic reset.",
+    )
     return dict(
         episodes=episodes,
         envs=env.num_envs,
@@ -172,6 +213,11 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
         mean_root_speed=totals["root_speed"] / total_steps,
         stop_command_fraction=totals["stop_command"] / total_steps,
         settled_stop_fraction=totals["settled_stop"] / total_steps,
+        goal_hold_fraction=totals["goal_hold"] / total_steps,
+        ever_goal_hold_count=ever_hold_count,
+        ever_goal_hold_rate=ever_hold_count / episodes,
+        final_goal_hold_count=final_hold_count,
+        final_goal_hold_rate=final_hold_count / episodes,
         pre_goal_stop_command_fraction=totals["pre_goal_stop_command"] / pre_steps
         if pre_steps
         else None,
@@ -180,6 +226,13 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
         else None,
         duration_seconds=distribution([r["duration_seconds"] for r in records]),
         first_goal_seconds=distribution([r["first_goal_seconds"] for r in records]),
+        first_goal_root_speed=distribution(
+            [r["first_goal_root_speed"] for r in records]
+        ),
+        final_root_speed=distribution([r["final_root_speed"] for r in records]),
+        final_root_angular_speed=distribution(
+            [r["final_root_angular_speed"] for r in records]
+        ),
         successful_first_goal_seconds=distribution(
             [r["first_goal_seconds"] for r in records if r["outcomes"]["success"]]
         ),

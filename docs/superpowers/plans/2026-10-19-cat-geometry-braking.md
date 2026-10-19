@@ -43,7 +43,10 @@ velocity decreases continuously near the goal; a fixed one-second stop latch is
 not used. Actual low velocity, angular velocity and foot support gate settling
 and recovery, with distance hysteresis and dwell time. Recovery ramps commands
 and restarts opposing foot phases; it cannot rearm while the robot is moving
-rapidly away from the goal.
+rapidly away from the goal. After drift, safe recovery waits 0.4 s beyond
+0.25 m and 1 s for smaller drift outside the 0.1 m goal radius. This avoids a
+permanent stationary band between the goal and the larger recovery threshold.
+The velocity reference must ramp down before entering stationary stance.
 
 Actor and critic receive the same navigation velocity command. Append actual
 local root velocity, local goal XY and four mode indicators to the actor
@@ -54,6 +57,9 @@ Research rewards replace fixed world-X/stopped GF bonuses with command-consisten
 progress, add non-saturating velocity errors and near-goal physical settling and
 position costs, and use body-envelope clearance penalties. Research aggregation
 allows negative values; termination costs discourage ending a bad episode early.
+The first measured obstacle contact costs 5 reward units per episode even when
+the old point-distance termination misses it; a failure termination costs 10.
+Neither conservative overlap nor native contact changes the original horizon.
 Original reward formulas and fixtures remain unchanged in source mode.
 
 ### Checkpoints
@@ -95,3 +101,20 @@ checkpoint SHA256 and contract in every output checkpoint.
   tests before implementation, then relevant regression tests and review.
 - Local full-suite CUDA collection limitations are known; native checks run on
   zjut. No dependency installation is part of this task.
+- Implementation and CPU behavioral tests are in place. Independent review
+  caught and corrected a stationary dead band, a reference discontinuity on
+  entering stance, missing pelvis/torso clearance costs, and nonfinite reward
+  overflow. Invalid research transitions now return a finite failure cost.
+- Native envelope queries cache scene boxes and grouping indices for the GPU
+  hot path; the standalone checked query remains a CPU/reference oracle.
+- Evaluation adds ever/final goal holding and first-arrival/final speeds without
+  changing the historical success or contact definitions.
+- Server parent checkpoints were checked read-only: wall15800 and hurdle3000
+  share field identity `ef3177329abbff5b9c7b8d111696af9b22cdd3ba5a7880dbaec60439f852379b`
+  and native model identity `5d86b8d275276e3bce6178f69943f1a2a064b493e865096dd6ffc465721e24e3`.
+- GPU testing and training/evaluation results are pending; unit tests do not
+  establish recovered robot behavior.
+- CPU regression sweep: 305 passed, 31 CUDA skipped, 1 CUDA-status assertion
+  deselected; the unconditional CUDA demo `test_scan.py` was excluded. The later
+  native-first-contact cost passed its red/green regression and a 38-test
+  task/navigation/source regression run (2 CUDA skipped).

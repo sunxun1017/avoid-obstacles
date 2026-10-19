@@ -44,6 +44,14 @@ def preflight_teachers(
 
     records = {}
     first = None
+    dimensions = {
+        None: (173, 173, 29),
+        "cat_source_v1": (162, 250, 12),
+        "cat_recovery_v1": (171, 256, 12),
+    }
+    if task_profile not in dimensions:
+        raise ValueError("Unknown teacher task profile.")
+    actor_dim, critic_dim, action_dim = dimensions[task_profile]
     for name, path in paths.items():
         saved = torch.load(path, map_location="cpu", weights_only=False)
         try:
@@ -53,12 +61,9 @@ def preflight_teachers(
                 schema["scene_hash"] != scene_hash
                 or tuple(schema["body_sites"]) != G1_BODY_SCHEMA
                 or schema["scene_names"] != list(scene_names)
-                or contract.actor_dim
-                != (162 if task_profile == "cat_source_v1" else 173)
-                or contract.critic_dim
-                != (250 if task_profile == "cat_source_v1" else 173)
-                or contract.action_dim
-                != (12 if task_profile == "cat_source_v1" else 29)
+                or contract.actor_dim != actor_dim
+                or contract.critic_dim != critic_dim
+                or contract.action_dim != action_dim
                 or schema.get("task_profile") != task_profile
                 or scene_names.index(name) not in saved["training_scenes"]
             ):
@@ -117,7 +122,14 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument(
                 "--rollout-steps", type=int, default=None if stage == "ppo" else 64
             )
-            command.add_argument("--resume", type=Path)
+            initialization = command.add_mutually_exclusive_group()
+            initialization.add_argument("--resume", type=Path)
+            if stage == "ppo":
+                initialization.add_argument(
+                    "--warmstart",
+                    type=Path,
+                    help="Initialize research weights from a source checkpoint.",
+                )
         if stage == "ppo":
             command.add_argument("--epochs", type=int)
             command.add_argument("--mini-batches", type=int, default=None)
@@ -169,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     from embodied_learning.tasks.field_traversal import parse_task_options
 
     profile = settings.get("task_profile")
-    if profile not in (None, "cat_source_v1"):
+    if profile not in (None, "cat_source_v1", "cat_recovery_v1"):
         raise ValueError("Unknown task profile.")
     source_profile = settings.get("source_profile") if profile else None
     if profile and source_profile != {"version": "cat_source_v1"}:
@@ -178,10 +190,14 @@ def main(argv: list[str] | None = None) -> int:
         parse_task_options(settings.get("task", {}))
     scene_names = tuple(s.id for s in manifest.scenes)
     output = args.output_dir or Path(
-        "runs/g1-cat-source" if profile else "runs/g1-field"
+        "runs/g1-cat-recovery"
+        if profile == "cat_recovery_v1"
+        else "runs/g1-cat-source"
+        if profile
+        else "runs/g1-field"
     )
     cache_path = output / "fields" / "manifest.json"
-    if args.stage == "prepare":# 也就是在准备离线地图和障碍是吗
+    if args.stage == "prepare":  # 也就是在准备离线地图和障碍是吗
         from embodied_learning.simulators.mjlab.field_traversal import (
             validate_g1_clearance,
         )
@@ -250,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
             learning_rate=ppo.get("learning_rate", 0.001),
             epochs=args.epochs or ppo.get("epochs", 5),
             mini_batches=args.mini_batches,
+            save_interval=ppo.get("save_interval", 100),
             seed=args.seed,
         )
     elif args.stage == "dagger":
@@ -278,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     if getattr(args, "resume", None) and not args.resume.is_file():
         raise ValueError("Resume checkpoint does not exist.")
+    if getattr(args, "warmstart", None) and not args.warmstart.is_file():
+        raise ValueError("Warmstart checkpoint does not exist.")
     bank = load_field_cache(
         cache_path, manifest, device=args.device, source_profile=source_profile
     )
@@ -289,6 +308,11 @@ def main(argv: list[str] | None = None) -> int:
         factory = make_cat_env
     else:
         factory = make_field_env
+    research = (
+        dict(task_profile=profile, recovery_options=settings.get("recovery", {}))
+        if profile == "cat_recovery_v1"
+        else {}
+    )
     env = factory(
         manifest,
         bank,
@@ -297,12 +321,17 @@ def main(argv: list[str] | None = None) -> int:
         device=args.device,
         seed=args.seed,
         options=settings.get("task", {}),
+        **research,
     )
     playback_owns_env = False
     try:
         if args.stage == "ppo":
             checkpoint = train_specialist(
-                env, config, output / "specialists" / scenes[0], resume=args.resume
+                env,
+                config,
+                output / "specialists" / scenes[0],
+                resume=args.resume,
+                warmstart=args.warmstart,
             )
             teacher_manifest = output / "teachers.json"
             values = (

@@ -10,6 +10,12 @@ import torch
 from embodied_learning.tasks.cat_command import compute_cat_command
 from embodied_learning.tasks.cat_gait import CatGaitState
 from embodied_learning.tasks.cat_observation import build_cat_observations
+from embodied_learning.tasks.cat_recovery import (
+    RecoveryConfig,
+    RecoveryNavigator,
+    aggregate_recovery_reward,
+    research_reward_terms,
+)
 from embodied_learning.tasks.cat_reward import (
     SOURCE_SCALES,
     CatRewardParameters,
@@ -36,9 +42,36 @@ class CatTaskState:
         "stop_command": "Source command vector norm below 0.2; not actual speed.",
     }
 
-    def __init__(self, manifest, bank, allowed, num_envs, device, options):
+    def __init__(
+        self,
+        manifest,
+        bank,
+        allowed,
+        num_envs,
+        device,
+        options,
+        *,
+        task_profile="cat_source_v1",
+        recovery_options=None,
+    ):
         if bank.source_profile != {"version": "cat_source_v1"}:
             raise ValueError("Source task requires source-profile cache.")
+        if task_profile not in ("cat_source_v1", "cat_recovery_v1"):
+            raise ValueError("Unsupported CAT task profile.")
+        if task_profile == "cat_source_v1" and recovery_options:
+            raise ValueError("Recovery options require the research task profile.")
+        self.task_profile = task_profile
+        self.recovery = (
+            RecoveryNavigator(
+                num_envs, device, RecoveryConfig(**(recovery_options or {}))
+            )
+            if task_profile == "cat_recovery_v1"
+            else None
+        )
+        if self.recovery is not None and getattr(bank, "deployment", False):
+            raise ValueError(
+                "Recovery profile requires explicit offline scene geometry."
+            )
         self.manifest, self.bank, self.allowed = manifest, bank, allowed
         defaults = dict(
             noise_level=1.0,
@@ -108,6 +141,8 @@ class CatTaskState:
             [[0.0, math.pi], [math.pi, 0.0]], device=env_ids.device
         )[torch.randint(2, (n,), device=env_ids.device)]
         self.gait.reset(env_ids, freq, phase)
+        if self.recovery is not None:
+            self.recovery.reset(env_ids)
         self.previous_vel[env_ids] = 0
         self.initial[env_ids] = True
         self.ever_goal[env_ids] = False
@@ -155,6 +190,13 @@ class CatTaskState:
             | ~torch.isfinite(root).all(1)
             | ~torch.isfinite(rotation).all((1, 2))
         )
+        if self.recovery is not None:
+            envelope = payload["body_envelope"]
+            invalid |= (
+                ~envelope.valid
+                | ~torch.isfinite(payload["reward_inputs"].root_vel).all(-1)
+                | ~torch.isfinite(payload["gyro"]).all(-1)
+            )
         # Nonfinite physics is a terminal state, not a valid mapping query.
         # Finite placeholders protect indexing only; original kinematics and
         # the explicit invalid flag still reach rewards/termination/observations.
@@ -187,21 +229,58 @@ class CatTaskState:
             normalized_gf[:, [0, 3, 4, 5, 6]],
             bf[:, [0, 3, 4, 5, 6]],
         )
-        old_phase = self.gait.phase.clone()
-        old_mask = self.gait.gait_mask.clone()
-        old_last = self.gait.last_command.clone()
-        old_stop = self.gait.stop_timestep.clone()
-        command = self.gait.advance(command)
-        # Reset observations do not advance the source phase or stop state.
-        restored = (
-            torch.arange(len(steps), device=steps.device) if same_step else ids
-        )
-        self.gait.phase[restored] = old_phase[restored]
-        self.gait.gait_mask[restored] = old_mask[restored]
-        self.gait.last_command[restored] = old_last[restored]
-        self.gait.stop_timestep[restored] = old_stop[restored]
-        command[ids] = initial_command[ids]
-        self.gait.last_command[ids] = initial_command[ids]
+        if self.recovery is None:
+            old_phase = self.gait.phase.clone()
+            old_mask = self.gait.gait_mask.clone()
+            old_last = self.gait.last_command.clone()
+            old_stop = self.gait.stop_timestep.clone()
+            command = self.gait.advance(command)
+            # Reset observations do not advance the source phase or stop state.
+            restored = (
+                torch.arange(len(steps), device=steps.device) if same_step else ids
+            )
+            self.gait.phase[restored] = old_phase[restored]
+            self.gait.gait_mask[restored] = old_mask[restored]
+            self.gait.last_command[restored] = old_last[restored]
+            self.gait.stop_timestep[restored] = old_stop[restored]
+            command[ids] = initial_command[ids]
+            self.gait.last_command[ids] = initial_command[ids]
+        else:
+            active = continuing & ~invalid & (not same_step)
+            # Preserve field direction below the source command deadband. The
+            # navigator applies its own continuous arrival speed cap.
+            deadband = command[:, 1:3].norm(dim=-1) < 1e-6
+            command[deadband, 1:3] = 0.525 * sample.guidance[deadband, 1, :2]
+            command, restart = self.recovery.advance(
+                goal_delta=self.goals[:, :2] - root[:, :2],
+                velocity=payload["reward_inputs"].root_vel,
+                angular_velocity=payload["gyro"],
+                guidance_command=command,
+                feet_contact=payload["reward_inputs"].feet_contact,
+                active=active,
+            )
+            self.gait.phase[restart] = torch.tensor(
+                [0.0, math.pi], device=root.device
+            )
+            next_phase = (
+                torch.remainder(
+                    self.gait.phase + self.gait.phase_dt[:, None] + math.pi,
+                    2 * math.pi,
+                )
+                - math.pi
+            )
+            next_phase = torch.where(command[:, :1] > 0.5, next_phase, 0.0)
+            self.gait.phase[active] = next_phase[active]
+            cosine = torch.cos(self.gait.phase)
+            mask = torch.where(
+                cosine > 0.6, 1.0, torch.where(cosine < -0.6, -1.0, 0.0)
+            )
+            self.gait.gait_mask[active] = mask[active]
+            self.gait.stop_timestep[active] = torch.where(
+                command[active, 0] > 0.5, 100, 0
+            )
+            command[invalid] = 0
+            self.gait.last_command = command.clone()
         gf = (
             sample.guidance
             * (command[:, 0, None, None] > 0.5)
@@ -238,6 +317,20 @@ class CatTaskState:
             delayed_gf[:, [0, 3, 4, 5, 6]],
             delayed_bf[:, [0, 3, 4, 5, 6]],
         )
+        observation_sdf, delayed_sdf = sample.sdf, delayed_sample.sdf
+        if self.recovery is not None:
+            # Exact known-box envelope is an offline research input. It is not
+            # presented as delayed/noisy perception or proof of native contact.
+            observation_sdf = torch.nan_to_num(
+                envelope.clearance, posinf=10.0, neginf=0.0
+            )
+            bf = torch.nan_to_num(envelope.gradient)
+            delayed_sdf, delayed_bf = observation_sdf, bf
+            gf = normalized_gf
+            delayed_gf = delayed_sample.guidance / (
+                delayed_sample.guidance.norm(dim=-1, keepdim=True) + 1e-6
+            )
+            delayed_command = command
         if getattr(self.bank, "deployment", False):
             # The actor uses delayed odometry, while the critic uses the current
             # pose. Either query can leave the measured grid independently.
@@ -259,7 +352,7 @@ class CatTaskState:
         x = payload["reward_inputs"]
         x.gf = gf
         x.bf = bf
-        x.sdf = sample.sdf
+        x.sdf = observation_sdf
         x.move_flag = command[:, 0]
         x.cmd_vel = command[:, 1:]
         x.gait_mask = self.gait.gait_mask
@@ -272,7 +365,8 @@ class CatTaskState:
         params = CatRewardParameters(controller.lower, controller.upper)
         diagnostics = {}
         self.terms = cat_reward_terms(x, parameters=params, diagnostics=diagnostics)
-        self._reward = aggregate_cat_reward(self.terms, self.scales, dt=0.02)
+        if self.recovery is None:
+            self._reward = aggregate_cat_reward(self.terms, self.scales, dt=0.02)
         flags = self.classify(
             up_z=payload["up_z"],
             head_z=positions[:, 0, 2],
@@ -288,6 +382,55 @@ class CatTaskState:
             flags["collision"] = (
                 payload["physical_collision"] | payload["self_contact"]
             ) & (steps >= 50)
+        if self.recovery is not None:
+            # The helper receives only source scales; research additions are
+            # regenerated every step, rather than recursively accumulating.
+            source_scales = {k: self.scales[k] for k in SOURCE_SCALES}
+            self.terms, self.scales = research_reward_terms(
+                self.terms,
+                inputs=x,
+                goal_delta=self.goals[:, :2] - root[:, :2],
+                angular_velocity=payload["gyro"],
+                mode=self.recovery.mode,
+                source_scales=source_scales,
+                config=self.recovery.config,
+            )
+            # Finite physics may still overflow squared reward errors. Such a
+            # transition is invalid, rather than an infinite PPO target.
+            invalid |= ~torch.stack(
+                [torch.isfinite(term) for term in self.terms.values()]
+            ).all(0)
+            invalid |= ~torch.isfinite(
+                aggregate_recovery_reward(self.terms, self.scales, dt=0.02)
+            )
+            command[invalid] = 0
+            self.gait.last_command[invalid] = 0
+            self.terms = {
+                name: torch.where(invalid, 0.0, term)
+                for name, term in self.terms.items()
+            }
+            failed = flags["fall"] | flags["collision"] | invalid
+            # One terminal transition costs 10 reward units at 50 Hz. Keeping
+            # signed rewards must not make immediate falling a cheap shortcut.
+            self.terms["recovery_failure"] = -500.0 * failed.to(root.dtype)
+            self.scales["recovery_failure"] = 1.0
+            # Native contact can be real while all source point SDFs stay
+            # positive. Penalize its first occurrence without changing the
+            # historical episode horizon or treating cover overlap as contact.
+            first_contact = (
+                payload["physical_collision"]
+                & ~self.ever_physical_collision
+                & continuing
+                & ~invalid
+                & (not same_step)
+            )
+            self.terms["recovery_first_contact"] = -250.0 * first_contact.to(
+                root.dtype
+            )
+            self.scales["recovery_first_contact"] = 1.0
+            self._reward = aggregate_recovery_reward(
+                self.terms, self.scales, dt=0.02
+            )
         self.goal_distance = (root[:, :2] - self.goals[:, :2]).norm(dim=-1)
         self.goal_distance = torch.where(invalid, torch.nan, self.goal_distance)
         self.record_goal(
@@ -351,6 +494,13 @@ class CatTaskState:
                 root_speed=root_speed,
                 root_angular_speed=angular_speed,
             )
+            if self.recovery is not None:
+                self.last_metrics.update(
+                    goal_hold=(self.goal_distance < 0.1)
+                    & (self.settled_steps >= required_steps),
+                    envelope_clearance=envelope.minimum.clone(),
+                    navigation_mode=self.recovery.mode.clone(),
+                )
         self._obs = build_cat_observations(
             gyro=payload["gyro"],
             gravity=payload["gravity"],
@@ -365,7 +515,7 @@ class CatTaskState:
             root_local_vel=payload["root_local_vel"],
             gf=gf,
             bf=bf,
-            sdf=sample.sdf,
+            sdf=observation_sdf,
             body_positions=positions,
             body_velocities=velocity,
             torso_rpy=x.torso_rpy,
@@ -377,10 +527,27 @@ class CatTaskState:
             navigation_rotation=x.navigation_rotation,
             gf_delayed=delayed_gf,
             bf_delayed=delayed_bf,
-            sdf_delayed=delayed_sample.sdf,
+            sdf_delayed=delayed_sdf,
             command_delayed=delayed_command,
             noise_level=self.options["noise_level"],
         )
+        if self.recovery is not None:
+            delta = torch.cat(
+                (self.goals[:, :2] - root[:, :2], torch.zeros_like(root[:, :1])), -1
+            )
+            goal_local = (rotation.transpose(-1, -2) @ delta[..., None]).squeeze(-1)[
+                :, :2
+            ]
+            mode = torch.nn.functional.one_hot(self.recovery.mode, 4).to(root)
+            extra = torch.cat((goal_local, mode), -1)
+            self._obs["actor"] = torch.nan_to_num(
+                torch.cat((self._obs["actor"], payload["root_local_vel"], extra), -1)
+            )
+            self._obs["critic"] = torch.nan_to_num(
+                torch.cat((self._obs["critic"], extra), -1)
+            )
+            self._obs["actor"][invalid] = 0
+            self._obs["critic"][invalid] = 0
         if same_step and previous_obs is not None:
             for group in ("actor", "critic"):
                 self._obs[group][continuing] = previous_obs[group][continuing]
