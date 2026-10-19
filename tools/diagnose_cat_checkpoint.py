@@ -31,6 +31,9 @@ def main():
     parser.add_argument("--seed", type=int, default=20261019)
     parser.add_argument("--no-perturbations", action="store_true")
     parser.add_argument("--disable-push", action="store_true")
+    parser.add_argument("--disable-rfi", action="store_true")
+    parser.add_argument("--disable-observation-noise", action="store_true")
+    parser.add_argument("--disable-random-pd", action="store_true")
     parser.add_argument(
         "--variant",
         choices=("baseline", "coherent_stop", "rearm"),
@@ -52,6 +55,14 @@ def main():
         variant=args.variant,
         no_perturbations=args.no_perturbations,
         disable_push=args.disable_push,
+        disable_rfi=args.disable_rfi,
+        disable_observation_noise=args.disable_observation_noise,
+        disable_random_pd=args.disable_random_pd,
+        override_timing=(
+            "After strict checkpoint load, before first rollout action; initial "
+            "cached observation retains the original noise. Controller overrides "
+            "apply to the designated first episode only; later resets are excluded."
+        ),
         cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES"),
     )
     (args.result_dir / "metadata.json").write_text(
@@ -63,6 +74,13 @@ def main():
         state, native = env.cat_state, env.unwrapped
         if args.disable_push:
             state.options = {**state.options, "push": False}
+        if args.disable_observation_noise:
+            state.options = {**state.options, "noise_level": 0.0}
+        if args.disable_rfi:
+            native.cat_controller.rfi_scale.zero_()
+        if args.disable_random_pd:
+            native.cat_controller.kp_scale.fill_(1.0)
+            native.cat_controller.kd_scale.fill_(1.0)
         active = torch.ones(env.num_envs, device=env.device, dtype=torch.bool)
         contact_seen = torch.zeros_like(active)
         goal_seen = torch.zeros_like(active)
@@ -220,6 +238,11 @@ def main():
         }
         result["diagnostic_variant"] = args.variant
         result["diagnostic_disable_push"] = args.disable_push
+        result["diagnostic_disable_rfi"] = args.disable_rfi
+        result["diagnostic_disable_observation_noise"] = (
+            args.disable_observation_noise
+        )
+        result["diagnostic_disable_random_pd"] = args.disable_random_pd
         return result
 
     command = [
