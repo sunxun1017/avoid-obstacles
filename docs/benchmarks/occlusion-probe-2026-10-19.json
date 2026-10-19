@@ -1,0 +1,5098 @@
+{
+  "claim_scope": "finite_grid_probe_not_cmpc_or_g1",
+  "seed": 17,
+  "provenance": {
+    "code_sha256": "f4fda09386dc973f9b8e77d4678998ccd1003cb409aa0651adfb18671521c62c",
+    "python": "3.11.15",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1"
+  },
+  "experiment_type": "paired fixed-observation snapshots, not closed-loop episodes",
+  "defaults": {
+    "dt": 0.2,
+    "steps": 10,
+    "prefix_steps": 2,
+    "max_speed": 0.8,
+    "acceleration": 0.8,
+    "braking": 0.8,
+    "robot_radius": 0.18,
+    "hidden_radius": 0.15,
+    "max_age": 0.6,
+    "latency": 0.1,
+    "substeps": 4
+  },
+  "hidden_speed_bounds_mps": [
+    0.0,
+    0.15,
+    0.3
+  ],
+  "fairness": "Identical raw scan and near scan within each pair; identical angular-bin budget, height layers, candidate library and cost. Adaptive compression uses current raw scan edges; it saves representation entries, not raw acquisition work.",
+  "risk_model": "Unknown/free frontiers, per-cell observation age, 4-neighbor Dijkstra through unknown cells and around observed walls. No ground-truth walls in planning. No probabilities, ADMM, recursive feasibility, or continuous-space guarantee. Center reachability respects walls; Euclidean collision-volume inflation can conservatively mark cells on the far side of thin walls.",
+  "planning_baselines": {
+    "visible_only": "Same candidate library and measured-free geometry; no future hidden-agent risk.",
+    "single_worst": "Same library, one maximum-speed reachable-risk configuration.",
+    "shared_prefix": "Three speed configurations, equal-weight sum of best suffix costs, a 0.4 s common control prefix, and checked braking tails. Only the first target control may execute."
+  },
+  "nested_branch_interpretation": "The three speed-bound risk sets are nested. With the same finite candidate library, every feasible worst-case suffix can serve all branches, so shared-prefix feasibility must equal single-worst feasibility. This experiment tests consensus consistency and cost selection, not a larger safety-feasible set.",
+  "sampling_interpretation": "The 32 rows are parameter combinations over 4 geometric scenes, not independent scenarios or success-rate trials. Age changes planning/freshness but repeats the same compression evidence.",
+  "published_formula_reference": {
+    "source": "https://arxiv.org/html/2503.04563v5",
+    "scope": "Equations 7/8 only, canonical visible disk fixture; not a full CMPC performance baseline.",
+    "risk_centers_m": [
+      [
+        2.916666666666667,
+        -0.4930066485916347
+      ],
+      [
+        3.4096733152583014,
+        -0.5763399819249679
+      ],
+      [
+        2.916666666666667,
+        0.4930066485916347
+      ],
+      [
+        3.4096733152583014,
+        0.5763399819249679
+      ]
+    ],
+    "risk_radii_m": [
+      1.3873232351414284,
+      1.5373082366412782,
+      1.3873232351414284,
+      1.5373082366412782
+    ],
+    "stationary_radii_m": [
+      8874.619674649424,
+      10374.619674649424,
+      8874.619674649424,
+      10374.619674649424
+    ],
+    "caution": "The published speed denominator becomes very conservative near zero speed; no silent denominator modification was made."
+  },
+  "summary": {
+    "paired_cases": 32,
+    "independent_geometry_scenes": 4,
+    "unique_compression_settings": 16,
+    "shared_vs_single_first_action_changes": {
+      "uniform": 4,
+      "adaptive": 6
+    },
+    "adaptive_lower_range_mae": 18,
+    "adaptive_higher_range_mae": 6,
+    "adaptive_lower_edge_error": 22,
+    "adaptive_higher_edge_error": 2,
+    "false_free_voxels": 0,
+    "feasible_counts": {
+      "uniform": {
+        "visible_only": 28,
+        "single_worst": 18,
+        "shared_prefix": 18
+      },
+      "adaptive": {
+        "visible_only": 28,
+        "single_worst": 18,
+        "shared_prefix": 18
+      }
+    }
+  },
+  "counterexamples": [
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "finding": "Adaptive binning increases full-circle display range reconstruction error.",
+      "uniform_mae_m": 0.871693424314062,
+      "adaptive_mae_m": 1.2860628046959361
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "finding": "Adaptive binning increases full-circle display range reconstruction error.",
+      "uniform_mae_m": 0.871693424314062,
+      "adaptive_mae_m": 1.2860628046959361
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "finding": "Adaptive binning increases full-circle display range reconstruction error.",
+      "uniform_mae_m": 0.871693424314062,
+      "adaptive_mae_m": 1.8314523072696065
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "finding": "Adaptive binning increases full-circle display range reconstruction error.",
+      "uniform_mae_m": 0.5240157956642035,
+      "adaptive_mae_m": 0.550396571140489
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "finding": "Adaptive binning increases full-circle display range reconstruction error.",
+      "uniform_mae_m": 0.871693424314062,
+      "adaptive_mae_m": 1.8314523072696065
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "finding": "Adaptive binning increases full-circle display range reconstruction error.",
+      "uniform_mae_m": 0.5240157956642035,
+      "adaptive_mae_m": 0.550396571140489
+    }
+  ],
+  "limitations": [
+    "No G1/MuJoCo/CAT policy integration, learned locomotion, or closed-loop collision/success statistics.",
+    "The near grid uses 0.25 m voxels: fine only relative to far angular compression. It supports no centimeter-level foot placement or body-clearance claims; a finer grid and full body collision envelope are required before integration.",
+    "Navigation uses an upright column body and excludes the lowest ground layer. It does not model feet, articulated legs, stepping or crouching.",
+    "Zero-width rays certify uniform finite voxels only, never angular sectors or unsampled height gaps.",
+    "Near geometry is an ideal dense center-targeted 3-D scanner; its ray count grows with radius and its runtime is included.",
+    "Unknown is not safe ego space; conservative beam/height gaps can make every candidate infeasible.",
+    "All hypothetical agents follow the declared 4-neighbor grid. Continuous diagonal motion can be faster and is outside this guarantee.",
+    "No source beyond the finite map boundary; world extent is an explicit closed test domain.",
+    "All surfaces in the mapping fixture are static. Stale occupied cells stay blocked; stale free cells become unknown.",
+    "Branch score weights are heuristics, not probabilities. A feasible finite horizon does not establish recursive safety.",
+    "Display reconstruction error is a compression diagnostic; the planner uses retained rays, never fills a bin's whole wedge."
+  ],
+  "cases": [
+    {
+      "scene": "corner",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.30917335867251955,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 113.47576600019238,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1773,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            336,
+            484
+          ],
+          "compression_ms": 0.5688159999408526,
+          "mapping_ms": 114.3177089998062,
+          "risk_ms": 10.719623000113643,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 7.475353999325307
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.007595999108162
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.460036998760188
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2005
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.13321901649559664,
+          "occlusion_edge_bin_error_rad": 0.023130242309163124,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 113.47576600019238,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1783,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            253,
+            332,
+            480
+          ],
+          "compression_ms": 1.214818999869749,
+          "mapping_ms": 114.45425000056275,
+          "risk_ms": 10.474992999661481,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.54553499953181
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.072906999179395
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.374534001224674
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 1990
+          }
+        }
+      }
+    },
+    {
+      "scene": "corner",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.12661663509298277,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 113.47576600019238,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2103,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            336,
+            484
+          ],
+          "compression_ms": 0.6828160003351513,
+          "mapping_ms": 119.46432500008086,
+          "risk_ms": 10.476179999386659,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.380471000738908
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.057470000087051
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.373346999680507
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2005
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.04285430315093718,
+          "occlusion_edge_bin_error_rad": 0.023130242309163124,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 113.47576600019238,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2063,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            244,
+            321,
+            466
+          ],
+          "compression_ms": 1.3252569988253526,
+          "mapping_ms": 119.28501200054598,
+          "risk_ms": 10.431056000015815,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.517034998978488
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.0515320001286454
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.37809600084438
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 1971
+          }
+        }
+      }
+    },
+    {
+      "scene": "corner",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.30917335867251955,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 112.61360100070306,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1773,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            336,
+            484
+          ],
+          "compression_ms": 0.5795029992441414,
+          "mapping_ms": 114.3319220009289,
+          "risk_ms": 10.535555999013013,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.460035001509823
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.057470000087051
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.375720999130863
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2157
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.13321901649559664,
+          "occlusion_edge_bin_error_rad": 0.023130242309163124,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 112.61360100070306,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1783,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            253,
+            332,
+            480
+          ],
+          "compression_ms": 1.1613820006459719,
+          "mapping_ms": 113.68116899939196,
+          "risk_ms": 10.401368001112132,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.601346998650115
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.062219001250924
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.369783999616629
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2142
+          }
+        }
+      }
+    },
+    {
+      "scene": "corner",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.12661663509298277,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 112.61360100070306,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2103,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            336,
+            484
+          ],
+          "compression_ms": 0.6590659995708847,
+          "mapping_ms": 120.8133310010453,
+          "risk_ms": 10.581868998997379,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.503972999780672
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.097845000113011
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.4434100004291395
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2157
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.04285430315093718,
+          "occlusion_edge_bin_error_rad": 0.023130242309163124,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 112.61360100070306,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2063,
+          "measured_free_body_columns": 196,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 1,
+          "risk_cell_counts_final_by_speed": [
+            244,
+            321,
+            466
+          ],
+          "compression_ms": 1.3739450005232356,
+          "mapping_ms": 118.17466299908119,
+          "risk_ms": 10.382365000623395,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.224906001079944
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.120526000609971
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.493402000865899
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2125
+          }
+        }
+      }
+    },
+    {
+      "scene": "corner",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.30917335867251955,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 144.22972400097933,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2084,
+          "measured_free_body_columns": 234,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            228,
+            396,
+            560
+          ],
+          "compression_ms": 0.5296279996400699,
+          "mapping_ms": 141.10539499961305,
+          "risk_ms": 10.622241001328803,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.566667998820776
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 7.595287999720313
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.577356000387226
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3123
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.15892896036739376,
+          "occlusion_edge_bin_error_rad": 0.1105781710903544,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 144.22972400097933,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2040,
+          "measured_free_body_columns": 234,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            229,
+            397,
+            561
+          ],
+          "compression_ms": 1.140005999332061,
+          "mapping_ms": 143.51959499981604,
+          "risk_ms": 10.712490999139845,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.683043000928592
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.0631649998395
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.468104999337811
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3123
+          }
+        }
+      }
+    },
+    {
+      "scene": "corner",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.12661663509298277,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 144.22972400097933,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2378,
+          "measured_free_body_columns": 234,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            228,
+            396,
+            560
+          ],
+          "compression_ms": 0.6222530009836191,
+          "mapping_ms": 149.3573749994539,
+          "risk_ms": 10.714866999478545,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.570230000259471
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.217540998884942
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.533418000297388
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3123
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.051463622499168374,
+          "occlusion_edge_bin_error_rad": 0.04016561053177292,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 144.22972400097933,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2262,
+          "measured_free_body_columns": 234,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            217,
+            380,
+            545
+          ],
+          "compression_ms": 1.2670689993683482,
+          "mapping_ms": 148.7410589998035,
+          "risk_ms": 10.663803999705124,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.506104999469244
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.076227999481489
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.445539999229368
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3055
+          }
+        }
+      }
+    },
+    {
+      "scene": "corner",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.30917335867251955,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 256.79452099939226,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2824,
+          "measured_free_body_columns": 330,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 13,
+          "risk_cell_counts_final_by_speed": [
+            230,
+            403,
+            695
+          ],
+          "compression_ms": 0.483314999655704,
+          "mapping_ms": 254.24138299968035,
+          "risk_ms": 10.879927000132739,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.409794000021066
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.696103001057054
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.163979999357252
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3465
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.15892896036739376,
+          "occlusion_edge_bin_error_rad": 0.1105781710903544,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 256.79452099939226,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2783,
+          "measured_free_body_columns": 330,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 13,
+          "risk_cell_counts_final_by_speed": [
+            230,
+            403,
+            695
+          ],
+          "compression_ms": 1.1221929999010172,
+          "mapping_ms": 259.2300940013956,
+          "risk_ms": 10.82648900046479,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.054730999196181
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.09997499891324
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.495415000652429
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3465
+          }
+        }
+      }
+    },
+    {
+      "scene": "corner",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.12661663509298277,
+          "occlusion_edge_bin_error_rad": 0.05235987755982988,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 256.79452099939226,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3033,
+          "measured_free_body_columns": 330,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 13,
+          "risk_cell_counts_final_by_speed": [
+            223,
+            395,
+            681
+          ],
+          "compression_ms": 0.6543159997818293,
+          "mapping_ms": 261.90787900122814,
+          "risk_ms": 10.801546999573475,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.956163999755518
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.257789999537636
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.789912999418448
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3463
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.051463622499168374,
+          "occlusion_edge_bin_error_rad": 0.04016561053177292,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "278963edacfa4db38b6f40a3e3310477d0a66f460155232d831405d3abe2d587",
+          "far_scan_fixture_ms": 99.77668799911044,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 256.79452099939226,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2956,
+          "measured_free_body_columns": 330,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 13,
+          "risk_cell_counts_final_by_speed": [
+            230,
+            403,
+            695
+          ],
+          "compression_ms": 1.2825049998355098,
+          "mapping_ms": 261.7225869998947,
+          "risk_ms": 10.839546999704908,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.280353000576724
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.12728600067203
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.539349999409751
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3465
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.691650030295353,
+          "occlusion_edge_bin_error_rad": 0.11344640137963147,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.03316599979007,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1792,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            485
+          ],
+          "compression_ms": 0.5153780002729036,
+          "mapping_ms": 110.31685899979493,
+          "risk_ms": 10.162669999772334,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.178589999763062
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.937526000707294
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.253401999856578
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2020
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.49320173361075736,
+          "occlusion_edge_bin_error_rad": 0.08759799684996394,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.03316599979007,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1807,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            486
+          ],
+          "compression_ms": 1.2551929994515376,
+          "mapping_ms": 111.01392500131624,
+          "risk_ms": 10.127044999535428,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.279528000959544
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.974339001113549
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.254590000025928
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2020
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.35791393874605226,
+          "occlusion_edge_bin_error_rad": 0.052359877559829626,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.03316599979007,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2128,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            485
+          ],
+          "compression_ms": 0.6471909982792567,
+          "mapping_ms": 115.47298400000727,
+          "risk_ms": 10.051040999314864,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.146525000076508
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.892399000003934
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.22965099864814
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2020
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.11169016613339078,
+          "occlusion_edge_bin_error_rad": 0.03929556862270367,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.03316599979007,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2191,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            485
+          ],
+          "compression_ms": 1.381067999318475,
+          "mapping_ms": 116.14866200034157,
+          "risk_ms": 10.027291000369587,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.094275000577909
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.871023999134195
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.138212998848758
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2020
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.691650030295353,
+          "occlusion_edge_bin_error_rad": 0.11344640137963147,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.93563599913614,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1792,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            485
+          ],
+          "compression_ms": 0.5046890000812709,
+          "mapping_ms": 111.58270499981882,
+          "risk_ms": 10.187604000748252,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.34008800079755
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.9493989992915886
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.260526000914979
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2172
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.49320173361075736,
+          "occlusion_edge_bin_error_rad": 0.08759799684996394,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.93563599913614,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1807,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            486
+          ],
+          "compression_ms": 1.1993799998890609,
+          "mapping_ms": 110.62557600052969,
+          "risk_ms": 10.162665999814635,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.287837999479962
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.897149001611979
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.1773999987053685
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2172
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.35791393874605226,
+          "occlusion_edge_bin_error_rad": 0.052359877559829626,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.93563599913614,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2128,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            485
+          ],
+          "compression_ms": 0.619877999270102,
+          "mapping_ms": 116.18784900019818,
+          "risk_ms": 10.047477999250987,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.179774998599896
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.954148999080644
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.252212999243056
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2172
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.11169016613339078,
+          "occlusion_edge_bin_error_rad": 0.03929556862270367,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.93563599913614,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2191,
+          "measured_free_body_columns": 197,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            485
+          ],
+          "compression_ms": 1.3608799999929033,
+          "mapping_ms": 116.44672500005981,
+          "risk_ms": 10.080729000037536,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.347213999106316
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.990961999486899
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.220151000889018
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 2172
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.691650030295353,
+          "occlusion_edge_bin_error_rad": 0.11344640137963147,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.62642600078834,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2094,
+          "measured_free_body_columns": 241,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            428,
+            584
+          ],
+          "compression_ms": 0.5700019992218586,
+          "mapping_ms": 144.13573099955101,
+          "risk_ms": 10.811040998305543,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.871845999237848
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.162905998688075
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.565470001485664
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3412
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.17766776040444676,
+          "occlusion_edge_bin_error_rad": 0.04119664487266328,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.62642600078834,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2160,
+          "measured_free_body_columns": 241,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            430,
+            586
+          ],
+          "compression_ms": 1.2219420004839776,
+          "mapping_ms": 144.5525439994526,
+          "risk_ms": 10.730291000072611,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.7887209992914
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.082156000455143
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.485907001158921
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3412
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.35791393874605226,
+          "occlusion_edge_bin_error_rad": 0.052359877559829626,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.62642600078834,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2397,
+          "measured_free_body_columns": 241,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            428,
+            584
+          ],
+          "compression_ms": 0.6281900004978525,
+          "mapping_ms": 149.86425200004305,
+          "risk_ms": 10.706540000683162,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.719845000086934
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.18784299917752
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.444345001407783
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3412
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.10734450627126162,
+          "occlusion_edge_bin_error_rad": 0.03898822624382736,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.62642600078834,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2494,
+          "measured_free_body_columns": 241,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 0,
+          "risk_cell_counts_final_by_speed": [
+            256,
+            428,
+            584
+          ],
+          "compression_ms": 1.3965050002298085,
+          "mapping_ms": 150.9223180000845,
+          "risk_ms": 10.911977999057854,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.989408999696025
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.274531001006835
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.003658999063191
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 0,
+            "risk_recall_on_free_cells": null,
+            "extra_risk_free_cell_times_for_this_actor": 3412
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.691650030295353,
+          "occlusion_edge_bin_error_rad": 0.11344640137963147,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 252.61066899838625,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3001,
+          "measured_free_body_columns": 360,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            291,
+            482,
+            776
+          ],
+          "compression_ms": 0.594940000155475,
+          "mapping_ms": 256.6255749989068,
+          "risk_ms": 11.191039000550518,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.8754059997882
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.211590999053442
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.578529001169954
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 61,
+            "risk_recall_on_free_cells": 1.0,
+            "extra_risk_free_cell_times_for_this_actor": 4117
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.17766776040444676,
+          "occlusion_edge_bin_error_rad": 0.04119664487266328,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 252.61066899838625,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3058,
+          "measured_free_body_columns": 360,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            289,
+            480,
+            774
+          ],
+          "compression_ms": 1.2587540004460607,
+          "mapping_ms": 257.6100149999547,
+          "risk_ms": 11.105538998890552,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.79109300149139
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.179528000255232
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.529841999916243
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 61,
+            "risk_recall_on_free_cells": 1.0,
+            "extra_risk_free_cell_times_for_this_actor": 4117
+          }
+        }
+      }
+    },
+    {
+      "scene": "door",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.35791393874605226,
+          "occlusion_edge_bin_error_rad": 0.052359877559829626,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 252.61066899838625,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3201,
+          "measured_free_body_columns": 360,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            287,
+            479,
+            773
+          ],
+          "compression_ms": 0.6650020004599355,
+          "mapping_ms": 262.63790799930575,
+          "risk_ms": 11.082975999670452,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.797030001005623
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.180715998605592
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.509654000590672
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 61,
+            "risk_recall_on_free_cells": 1.0,
+            "extra_risk_free_cell_times_for_this_actor": 4048
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.10734450627126162,
+          "occlusion_edge_bin_error_rad": 0.03898822624382736,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2c1316bbb9283db916df55343dc38a73491014a0b4621252560a33697369366a",
+          "far_scan_fixture_ms": 82.26561099945684,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 252.61066899838625,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3320,
+          "measured_free_body_columns": 360,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 7,
+          "risk_cell_counts_final_by_speed": [
+            289,
+            480,
+            774
+          ],
+          "compression_ms": 1.4119419993221527,
+          "mapping_ms": 265.0318350006273,
+          "risk_ms": 11.117410000224481,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.808902999589918
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.181900999261416
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.5690270007035
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": true,
+            "reachable_free_cell_times": 61,
+            "risk_recall_on_free_cells": 1.0,
+            "extra_risk_free_cell_times_for_this_actor": 4117
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.871693424314062,
+          "occlusion_edge_bin_error_rad": 0.0974475499030169,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.61609500009217,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1930,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 0.5058760016254382,
+          "mapping_ms": 111.66335199959576,
+          "risk_ms": 10.258844999043504,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.115643998782616
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.808079999042093
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.176205999508966
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 1.2860628046959361,
+          "occlusion_edge_bin_error_rad": 0.08664431201008527,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.61609500009217,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1910,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 1.3193169997975929,
+          "mapping_ms": 111.4864139999554,
+          "risk_ms": 10.163844999624416,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.2320199995156145
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.894768000871409
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.196395001097699
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.5240157956642035,
+          "occlusion_edge_bin_error_rad": 0.06617706747145173,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.61609500009217,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2379,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 0.661439000396058,
+          "mapping_ms": 118.43331099953502,
+          "risk_ms": 10.131782000826206,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.367394998960663
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.846080999617698
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.167894000100205
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.33852597422492103,
+          "occlusion_edge_bin_error_rad": 0.03636769131755602,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.61609500009217,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2353,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 1.5128799986996455,
+          "mapping_ms": 117.69703599929926,
+          "risk_ms": 10.024904000601964,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.251017999602482
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.914954999752808
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.203516999448766
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.871693424314062,
+          "occlusion_edge_bin_error_rad": 0.0974475499030169,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.2099360012071,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1930,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 0.5913770000915974,
+          "mapping_ms": 111.32962800002133,
+          "risk_ms": 10.129403999599162,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.279518000155804
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.87101699966297
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.148892000055639
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 1.2860628046959361,
+          "occlusion_edge_bin_error_rad": 0.08664431201008527,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.2099360012071,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 1910,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 1.321691001066938,
+          "mapping_ms": 110.99119000027713,
+          "risk_ms": 10.169778999625123,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.296142999417498
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.890016000194009
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.19995499982906
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.5240157956642035,
+          "occlusion_edge_bin_error_rad": 0.06617706747145173,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.2099360012071,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2379,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 0.640064999970491,
+          "mapping_ms": 117.9606480000075,
+          "risk_ms": 10.085466999953496,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.304455999270431
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.842516999109648
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.151266999950167
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.33852597422492103,
+          "occlusion_edge_bin_error_rad": 0.03636769131755602,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 109.2099360012071,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2353,
+          "measured_free_body_columns": 195,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            259,
+            339,
+            488
+          ],
+          "compression_ms": 1.5045669988467125,
+          "mapping_ms": 118.0544609997014,
+          "risk_ms": 10.041527999419486,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.5835189998324495
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.906640999455703
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.1868929988122545
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.871693424314062,
+          "occlusion_edge_bin_error_rad": 0.0974475499030169,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.1239669998613,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2223,
+          "measured_free_body_columns": 236,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            261,
+            434,
+            590
+          ],
+          "compression_ms": 0.6127510005171644,
+          "mapping_ms": 145.05232499868725,
+          "risk_ms": 10.821715000929544,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.117648000028566
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.173582999006612
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.510834000844625
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 1.8314523072696065,
+          "occlusion_edge_bin_error_rad": 0.07272205216643052,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.1239669998613,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2247,
+          "measured_free_body_columns": 236,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            261,
+            434,
+            590
+          ],
+          "compression_ms": 1.2955660004081437,
+          "mapping_ms": 144.8492420004186,
+          "risk_ms": 10.838340000191238,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.655709998492966
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.113021000099252
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.497770999383647
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.5240157956642035,
+          "occlusion_edge_bin_error_rad": 0.06617706747145173,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.1239669998613,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2639,
+          "measured_free_body_columns": 236,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            261,
+            434,
+            590
+          ],
+          "compression_ms": 0.6626260001212358,
+          "mapping_ms": 152.23432400125603,
+          "risk_ms": 10.93096600015997,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.552397001039935
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.87683000069228
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 7.271080999998958
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.550396571140489,
+          "occlusion_edge_bin_error_rad": 0.059810997366744,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 142.1239669998613,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2667,
+          "measured_free_body_columns": 236,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            261,
+            434,
+            590
+          ],
+          "compression_ms": 1.5188170000328682,
+          "mapping_ms": 152.40057399932994,
+          "risk_ms": 10.853777999727754,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.0,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.5759999999999996,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.786334999967949
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.179521000784007
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.48470900018583
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.871693424314062,
+          "occlusion_edge_bin_error_rad": 0.0974475499030169,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.65408300078707,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3148,
+          "measured_free_body_columns": 364,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            316,
+            525,
+            812
+          ],
+          "compression_ms": 0.6626270005654078,
+          "mapping_ms": 305.6204519998573,
+          "risk_ms": 18.16760399924533,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 11.56864999938989
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.340895001514582
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 10.432211000079405
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 1.8314523072696065,
+          "occlusion_edge_bin_error_rad": 0.07272205216643052,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.65408300078707,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3166,
+          "measured_free_body_columns": 364,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            316,
+            525,
+            812
+          ],
+          "compression_ms": 1.9368169996596407,
+          "mapping_ms": 295.12528399936855,
+          "risk_ms": 12.999591001062072,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.560583999700611
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.257769999749144
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 9.28270800068276
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "rear_poles",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 0.5240157956642035,
+          "occlusion_edge_bin_error_rad": 0.06617706747145173,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.65408300078707,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3472,
+          "measured_free_body_columns": 364,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            316,
+            525,
+            812
+          ],
+          "compression_ms": 0.6804389995522797,
+          "mapping_ms": 276.6762419996667,
+          "risk_ms": 11.651775999780511,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.85876900065341
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 7.202202999906149
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 7.622580000315793
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 0.550396571140489,
+          "occlusion_edge_bin_error_rad": 0.059810997366744,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "2b4dff39850c190856a0c1dcf1bb4deee952513c6688228f9970323edce63136",
+          "far_scan_fixture_ms": 95.73773900046945,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.65408300078707,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3504,
+          "measured_free_body_columns": 364,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 2,
+          "risk_cell_counts_final_by_speed": [
+            316,
+            525,
+            812
+          ],
+          "compression_ms": 1.5793789989402285,
+          "mapping_ms": 279.66630600167264,
+          "risk_ms": 11.800210000728839,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                1.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.6400000000000006,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.979891999842948
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.973955000328715
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.95851699897321
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 1.8475467127349934e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 115.08915900049033,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2005,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 0.6982509985391516,
+          "mapping_ms": 117.45110100127931,
+          "risk_ms": 10.336019999158452,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.423199998607743
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.3531369996780995
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.707013000777806
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 3.4577938476875103e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 115.08915900049033,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2066,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 1.0616270010359585,
+          "mapping_ms": 111.85321500124701,
+          "risk_ms": 10.02014500045334,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.36263699925621
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.9196989986958215
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.273574001170346
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 2.576395415924027e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 115.08915900049033,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2494,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 0.6840019996161573,
+          "mapping_ms": 119.02810500032501,
+          "risk_ms": 10.043894000773435,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.272386999626178
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.897136001294712
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.150073999378947
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 2.322145868299946e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 115.08915900049033,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2605,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 1.2160019996372284,
+          "mapping_ms": 118.03771399900143,
+          "risk_ms": 9.945329000402126,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.025385000612005
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.903072000364773
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.204698000146891
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 1.8475467127349934e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 108.16242600049009,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2005,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 0.5035000012867386,
+          "mapping_ms": 110.5077429983794,
+          "risk_ms": 10.05457899918838,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.298509999396629
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.914946999837412
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.186885000715847
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 3.4577938476875103e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 108.16242600049009,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2066,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 1.0640019991114968,
+          "mapping_ms": 113.83393500000238,
+          "risk_ms": 10.52720500047144,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.3661980002507335
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.8579469987307675
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.172635001348681
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 0.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 2.576395415924027e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 108.16242600049009,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2494,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 0.6804389995522797,
+          "mapping_ms": 119.45675700007996,
+          "risk_ms": 9.98095400063903,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.290196999543696
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.874571999811451
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.198760000188486
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 2.322145868299946e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 1576,
+          "near_scan_fixture_ms": 108.16242600049009,
+          "near_radius_m": 2.0,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2605,
+          "measured_free_body_columns": 184,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            243,
+            325,
+            473
+          ],
+          "compression_ms": 1.2409400005708449,
+          "mapping_ms": 118.61363000025449,
+          "risk_ms": 9.7838280016731,
+          "planners": {
+            "visible_only": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.25575999947614
+            },
+            "single_worst": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.3,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.176499999999999,
+              "branch_count": 1,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 5.909010000323178
+            },
+            "shared_prefix": {
+              "feasible": true,
+              "action_target_v_omega": [
+                0.6,
+                0.0
+              ],
+              "prefix_goal_progress_m": 0.2400000000000002,
+              "branch_count": 3,
+              "prefix_equal": true,
+              "terminal_max_speed": 0.0,
+              "reason": "",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.2177599993447075
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 1.8475467127349934e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 140.61922900145873,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2301,
+          "measured_free_body_columns": 222,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            248,
+            421,
+            575
+          ],
+          "compression_ms": 0.6424389994208468,
+          "mapping_ms": 142.9419690011855,
+          "risk_ms": 10.640013999363873,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.940699000959285
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.348135999767692
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.620074000646127
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 1.644147074635728e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 140.61922900145873,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2400,
+          "measured_free_body_columns": 222,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            248,
+            421,
+            575
+          ],
+          "compression_ms": 1.0616270010359585,
+          "mapping_ms": 146.07575599984557,
+          "risk_ms": 10.583014000076219,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.78157400074997
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.12488599876815
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.573761000661761
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.0,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 2.576395415924027e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 140.61922900145873,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2754,
+          "measured_free_body_columns": 222,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            248,
+            421,
+            575
+          ],
+          "compression_ms": 0.6661880015599309,
+          "mapping_ms": 152.00970100158884,
+          "risk_ms": 10.751640000307816,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.517948999724467
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 6.8601969996962
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 7.478885001546587
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 2.1695961397254967e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 1928,
+          "near_scan_fixture_ms": 140.61922900145873,
+          "near_radius_m": 2.16,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 2922,
+          "measured_free_body_columns": 222,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 5,
+          "risk_cell_counts_final_by_speed": [
+            248,
+            421,
+            575
+          ],
+          "compression_ms": 1.2373770005069673,
+          "mapping_ms": 153.59976600120717,
+          "risk_ms": 10.666139000022667,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.691323999300948
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.1652610006131
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.428885999819613
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 12,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 1.8475467127349934e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.23696100006055,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3234,
+          "measured_free_body_columns": 362,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 10,
+          "risk_cell_counts_final_by_speed": [
+            293,
+            489,
+            782
+          ],
+          "compression_ms": 0.7018129999778466,
+          "mapping_ms": 257.2911679999379,
+          "risk_ms": 11.230198999328422,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.772072000283515
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.177134001016384
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.453820999420714
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 1.644147074635728e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 12,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 36,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.23696100006055,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3321,
+          "measured_free_body_columns": 362,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 10,
+          "risk_cell_counts_final_by_speed": [
+            293,
+            489,
+            782
+          ],
+          "compression_ms": 1.0936889993899968,
+          "mapping_ms": 260.65651699900627,
+          "risk_ms": 11.240887000894872,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.731697000257554
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.187821000319673
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.50963399898319
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    },
+    {
+      "scene": "overhang",
+      "robot_speed_mps": 1.6,
+      "observation_age_s": 0.4,
+      "angular_bins": 24,
+      "methods": {
+        "uniform": {
+          "display_range_mae_m": 2.576395415924027e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.23696100006055,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3582,
+          "measured_free_body_columns": 362,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 10,
+          "risk_cell_counts_final_by_speed": [
+            293,
+            489,
+            782
+          ],
+          "compression_ms": 0.6840000005468028,
+          "mapping_ms": 267.49296100024367,
+          "risk_ms": 11.319261999233277,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.845697000651853
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.110634000331629
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.532195999578107
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        },
+        "adaptive": {
+          "display_range_mae_m": 2.1695961397254967e-16,
+          "occlusion_edge_bin_error_rad": null,
+          "unknown_far_bins": 0,
+          "angular_bins": 24,
+          "height_layers": 3,
+          "raw_far_rays": 540,
+          "raw_ray_digest": "93147c087af38e51c4079ddf849b6ae6510692b3b23d35a23db75b79c087ded3",
+          "far_scan_fixture_ms": 103.21532399939315,
+          "retained_far_rays": 72,
+          "near_rays": 2976,
+          "near_scan_fixture_ms": 254.23696100006055,
+          "near_radius_m": 2.8000000000000007,
+          "near_voxel_size_m": 0.25,
+          "observed_voxels": 3748,
+          "measured_free_body_columns": 362,
+          "false_free_voxels": 0,
+          "observed_overhead_voxels": 10,
+          "risk_cell_counts_final_by_speed": [
+            293,
+            489,
+            782
+          ],
+          "compression_ms": 1.240939000126673,
+          "mapping_ms": 270.0413180009491,
+          "risk_ms": 11.207632998775807,
+          "planners": {
+            "visible_only": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.8017559992295
+            },
+            "single_worst": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.365943000171683
+            },
+            "shared_prefix": {
+              "feasible": false,
+              "action_target_v_omega": null,
+              "prefix_goal_progress_m": null,
+              "branch_count": 0,
+              "prefix_equal": null,
+              "terminal_max_speed": null,
+              "reason": "No candidate has a measured-free, risk-feasible branch and braking tail for every configuration.",
+              "candidate_sequences": 729,
+              "elapsed_ms": 8.552380999390152
+            }
+          },
+          "evaluation_only": {
+            "designated_hidden_actor": false,
+            "risk_recall_on_free_cells": null
+          }
+        }
+      }
+    }
+  ]
+}

@@ -20,6 +20,13 @@ import torch
 from evaluate_cat_checkpoint import evaluate_cohort
 
 
+def sample_diagnostic_source(bank, positions, scene_ids, goal_ids, invalid):
+    """Keep invalid terminations reportable; placeholder fields are not evidence."""
+    valid = ~invalid & torch.isfinite(positions).all((1, 2))
+    query = torch.where(valid[:, None, None], positions, 0.0)
+    return bank.sample_source(query, scene_ids, goal_ids), valid
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
@@ -59,9 +66,11 @@ def main():
         disable_observation_noise=args.disable_observation_noise,
         disable_random_pd=args.disable_random_pd,
         override_timing=(
-            "After strict checkpoint load, before first rollout action; initial "
-            "cached observation retains the original noise. Controller overrides "
-            "apply to the designated first episode only; later resets are excluded."
+            "Single-factor diagnostic overrides apply after strict checkpoint "
+            "load, before the first rollout action; they do not rebuild the "
+            "initial cached observation. CLI --no-perturbations separately "
+            "rebuilds initial observations without noise. Controller overrides "
+            "target the first episode only; later resets are excluded."
         ),
         cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES"),
     )
@@ -126,8 +135,12 @@ def main():
                 touching = selected & native.scene[name].data.found.flatten(1).any(1)
                 new_obstacle_contact |= touching & ~contact_by_obstacle[name]
                 contact_by_obstacle[name] |= touching
-            sampled = state.bank.sample_source(
-                payload["body_positions"], state.scene_ids, state.goal_ids
+            sampled, field_valid = sample_diagnostic_source(
+                state.bank,
+                payload["body_positions"],
+                state.scene_ids,
+                state.goal_ids,
+                flags["invalid"],
             )
             values = dict(
                 root=payload["root_position"],
@@ -135,6 +148,7 @@ def main():
                 velocity=payload["reward_inputs"].root_vel,
                 gyro=payload["gyro"],
                 body_positions=payload["body_positions"],
+                diagnostic_field_valid=field_valid,
                 sdf=sampled.sdf,
                 raw_guidance=sampled.guidance,
                 raw_boundary=sampled.sdf_gradient,
