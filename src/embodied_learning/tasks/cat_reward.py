@@ -97,8 +97,16 @@ def cat_reward_terms(
     *,
     parameters: CatRewardParameters,
     diagnostics: dict[str, Tensor] | None = None,
+    feet_progress_gate: Tensor | None = None,
 ) -> dict[str, Tensor]:
     b = x.root_vel.shape[0]
+    if feet_progress_gate is not None and (
+        feet_progress_gate.shape != (b,)
+        or not torch.isfinite(feet_progress_gate).all()
+        or (feet_progress_gate < 0).any()
+        or (feet_progress_gate > 1).any()
+    ):
+        raise ValueError("Feet progress gate must be finite [B] values in [0, 1].")
     expected = {
         "pelvis_rpy": (b, 3),
         "torso_rpy": (b, 3),
@@ -245,6 +253,13 @@ def cat_reward_terms(
             terms[name + "gf"] = torch.where(
                 crossed, 4.0, 5 * cosine * torch.sigmoid(40 * (tau - sdf))
             ).mean(-1)
+    if feet_progress_gate is not None:
+        # Preserve the source stop reward and all negative directional costs.
+        # Only positive feet guidance during commanded travel needs progress.
+        moving = (x.move_flag > 0) & (x.cmd_vel[:, :2].norm(dim=-1) > 1e-6)
+        gate = torch.where(moving, feet_progress_gate, 1.0)
+        feet = terms["feetgf"]
+        terms["feetgf"] = feet.clamp_max(0) + feet.clamp_min(0) * gate
     if diagnostics is not None:
         diagnostics["nonfinite_terms"] = torch.stack(
             [~torch.isfinite(v) for v in terms.values()]

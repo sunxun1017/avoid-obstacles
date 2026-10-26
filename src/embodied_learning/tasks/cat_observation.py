@@ -57,6 +57,12 @@ def build_cat_observations(
     command_delayed,
     noise_level=1.0,
 ):
+    # The empty-map extension represents absent obstacles by +inf. Encode this
+    # as free space at the actor's existing distance horizon, rather than
+    # letting nan_to_num turn the Critic input into float32's maximum value.
+    # Every finite SDF (including the unbounded source Critic distances) is kept.
+    sdf = torch.where(torch.isposinf(sdf), 0.5, sdf)
+
     def noisy(x, scale):
         return (
             x + (2 * torch.rand_like(x) - 1) * noise_level * scale

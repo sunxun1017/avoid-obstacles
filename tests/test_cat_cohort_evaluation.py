@@ -98,6 +98,117 @@ def test_wilson_interval_does_not_claim_certainty_at_zero_events():
     assert 0 < high < 0.004
 
 
+class DeadlineEnv:
+    num_envs, device = 4, "cpu"
+
+    def __init__(self):
+        self.age = 0
+
+    def get_observations(self):
+        return {}
+
+    def step(self, actions):
+        self.age += 1
+        # Clean entry at the deadline, late entry, collision before entry,
+        # clean entry followed by collision after entry.
+        reached = torch.tensor(
+            [self.age >= 250, self.age >= 251, self.age >= 100, self.age >= 100]
+        )
+        hit = torch.tensor([False, False, self.age >= 99, self.age >= 101])
+        z = torch.zeros(4, dtype=torch.bool)
+        flags = dict(
+            goal=reached,
+            success=reached & ~hit,
+            physical_collision=hit,
+            collision=z,
+            fall=z,
+            invalid=z,
+            timeout=torch.full((4,), self.age == 252),
+        )
+        distance = torch.where(reached, 0.05, 1.0)
+        metrics = dict(
+            goal_distance=distance,
+            min_goal_distance=distance,
+            stop_command=z,
+            settled_stop=z,
+            root_speed=torch.ones(4),
+            root_angular_speed=torch.zeros(4),
+        )
+        return (
+            {},
+            torch.ones(4),
+            torch.full((4,), self.age == 252),
+            dict(
+                field_outcomes=flags, cat_metrics=metrics, cat_metric_definitions={}
+            ),
+        )
+
+
+def test_paper_success_uses_5_seconds_and_contact_history_only_until_arrival(
+    tmp_path,
+):
+    path = tmp_path / "episodes.jsonl"
+    result = cohort.evaluate_cohort(
+        DeadlineEnv(),
+        SimpleNamespace(predict=lambda obs: None),
+        episodes=4,
+        episode_path=path,
+    )
+    assert result["paper_success_count"] == 2
+    assert result["paper_success_rate"] == 0.5
+    assert result["outcomes"]["success"] == 2
+    rows = [json.loads(s) for s in path.read_text().splitlines()]
+    assert [r["paper_success"] for r in rows] == [True, False, False, True]
+
+
+def test_paper_obstacle_contact_criterion_is_separate_from_source_collision_flags():
+    class Env:
+        num_envs, device = 1, "cpu"
+        age = 0
+
+        def get_observations(self):
+            return {}
+
+        def step(self, action):
+            self.age += 1
+            goal = torch.tensor([self.age == 2])
+            no = torch.tensor([False])
+            flags = dict(
+                goal=goal,
+                success=no,
+                physical_collision=no,
+                collision=~goal,
+                fall=no,
+                invalid=no,
+                timeout=goal,
+            )
+            distance = torch.tensor([0.05 if self.age == 2 else 1.0])
+            metrics = dict(
+                goal_distance=distance,
+                min_goal_distance=distance,
+                stop_command=no,
+                settled_stop=no,
+                root_speed=torch.zeros(1),
+                root_angular_speed=torch.zeros(1),
+            )
+            return (
+                {},
+                torch.zeros(1),
+                goal,
+                dict(
+                    field_outcomes=flags,
+                    cat_metrics=metrics,
+                    cat_metric_definitions={},
+                ),
+            )
+
+    result = cohort.evaluate_cohort(
+        Env(), SimpleNamespace(predict=lambda obs: None), episodes=1
+    )
+    assert result["paper_success_count"] == 1
+    assert result["outcomes"]["success"] == 0
+
+
 class HoldThenLeaveEnv:
     """Two designated short episodes finish while a slow slot is still active."""
 

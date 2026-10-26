@@ -27,14 +27,49 @@ def test_source_observation_fixture_162_250():
     assert obs["actor"].shape == (16, 162) and obs["critic"].shape == (16, 250)
 
 
-def test_reward_history_matches_author_step_sequence():
+def test_reward_history_keeps_the_two_preceding_executed_actions():
     c = CatJointController(
         CAT_JOINT_NAMES, torch.full((29,), -2.0), torch.full((29,), 2.0), 1, "cpu"
     )
     c.process_action(torch.ones(1, 12))
     c.process_action(torch.ones(1, 12) * 2)
+    c.process_action(torch.ones(1, 12) * 4)
+    torch.testing.assert_close(c.actions, torch.full((1, 12), 4.0))
     torch.testing.assert_close(c.last_actions, torch.full((1, 12), 2.0))
     torch.testing.assert_close(c.last_last_actions, torch.ones(1, 12))
+
+
+def test_action_smoothness_uses_real_history_and_observation_keeps_latest_action():
+    from test_cat_review_regressions import task_case
+
+    state, controller, payload, _ = task_case()
+    state.refresh(payload, controller, torch.zeros(16, dtype=torch.long), 0)
+    for step, value in enumerate((0.2, -0.1, 0.3), start=1):
+        action = torch.zeros(16, 12)
+        action[:, 0] = value
+        controller.process_action(action)
+        state.refresh(payload, controller, torch.full((16,), step), step)
+    # .3^2 + (.3-(-.1))^2 + (.3-2*(-.1)+.2)^2 = .74.
+    torch.testing.assert_close(
+        state.terms["smoothness_action"], torch.full((16,), 0.74)
+    )
+    # At the next policy decision, the previous executed action is still .3.
+    for group in ("actor", "critic"):
+        torch.testing.assert_close(state.observations()[group][:, 52:64], action)
+
+
+def test_action_history_partial_reset_does_not_leak_between_episodes():
+    c = CatJointController(
+        CAT_JOINT_NAMES, torch.full((29,), -2.0), torch.full((29,), 2.0), 2, "cpu"
+    )
+    c.process_action(torch.full((2, 12), 0.1))
+    c.process_action(torch.full((2, 12), 0.2))
+    c.reset(torch.tensor([0]))
+    c.process_action(torch.full((2, 12), 0.3))
+    torch.testing.assert_close(c.last_actions[0], torch.zeros(12))
+    torch.testing.assert_close(c.last_last_actions[0], torch.zeros(12))
+    torch.testing.assert_close(c.last_actions[1], torch.full((12,), 0.2))
+    torch.testing.assert_close(c.last_last_actions[1], torch.full((12,), 0.1))
 
 
 def test_source_collision_grace_49_50():

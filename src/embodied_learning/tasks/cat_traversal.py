@@ -7,8 +7,12 @@ import math
 
 import torch
 
-from embodied_learning.tasks.cat_command import compute_cat_command
-from embodied_learning.tasks.cat_gait import CatGaitState
+from embodied_learning.tasks.cat_command import (
+    compute_cat_command,
+    retime_cat_arrival,
+)
+from embodied_learning.tasks.cat_foot_progress import RootProgressWindow
+from embodied_learning.tasks.cat_gait import CatGaitState, CatPlaybackGaitState
 from embodied_learning.tasks.cat_observation import build_cat_observations
 from embodied_learning.tasks.cat_recovery import (
     RecoveryConfig,
@@ -53,11 +57,20 @@ class CatTaskState:
         *,
         task_profile="cat_source_v1",
         recovery_options=None,
+        execution_profile="source_train",
     ):
         if bank.source_profile != {"version": "cat_source_v1"}:
             raise ValueError("Source task requires source-profile cache.")
         if task_profile not in ("cat_source_v1", "cat_recovery_v1"):
             raise ValueError("Unsupported CAT task profile.")
+        if execution_profile not in ("source_train", "author_playback"):
+            raise ValueError("Unknown CAT execution profile.")
+        if (
+            execution_profile == "author_playback"
+            and task_profile != "cat_source_v1"
+        ):
+            raise ValueError("Author playback only supports the source task.")
+        self.execution_profile = execution_profile
         if task_profile == "cat_source_v1" and recovery_options:
             raise ValueError("Recovery options require the research task profile.")
         self.task_profile = task_profile
@@ -88,9 +101,74 @@ class CatTaskState:
             overhead=1.0,
             term_collision_threshold=0.04,
         )
-        if set(options) - set(defaults):
+        if (
+            set(options)
+            - set(defaults)
+            - {
+                "command_deadband_m_s",
+                "arrival_control",
+                "root_tracking_weight",
+                "feetgf_progress_gate",
+                "training_initialization",
+            }
+        ):
             raise ValueError("Unknown source task option.")
         self.options = {**defaults, **options}
+        progress_profile = self.options.get("feetgf_progress_gate")
+        if progress_profile not in (None, "root_displacement_0p5s_v1"):
+            raise ValueError("Unknown feet guidance progress gate profile.")
+        if progress_profile and self.recovery is not None:
+            raise ValueError("Feet progress gate requires the source task profile.")
+        self.feet_progress = (
+            RootProgressWindow(num_envs, device) if progress_profile else None
+        )
+        self.training_initialization = self.options.get(
+            "training_initialization", "fixed_v1"
+        )
+        if self.training_initialization not in ("fixed_v1", "author_random_v1"):
+            raise ValueError("Unknown training initialization profile.")
+        if (
+            self.training_initialization == "author_random_v1"
+            and task_profile != "cat_source_v1"
+        ):
+            raise ValueError("Author initialization requires the source task.")
+        tracking_weight = self.options.get("root_tracking_weight", 1.0)
+        if (
+            type(tracking_weight) not in (int, float)
+            or not math.isfinite(tracking_weight)
+            or not 0 < tracking_weight <= torch.finfo(torch.float32).max
+        ):
+            raise ValueError("Root tracking weight must be positive and finite.")
+        if "root_tracking_weight" in options and self.recovery is not None:
+            raise ValueError(
+                "Root tracking weight requires the source task profile."
+            )
+        self.arrival_control = self.options.get("arrival_control")
+        if self.arrival_control not in (None, "root_linear_v1"):
+            raise ValueError("Unknown arrival control profile.")
+        if self.arrival_control and self.recovery is not None:
+            raise ValueError("Arrival control requires the source task profile.")
+        self.command_deadband = self.options.get("command_deadband_m_s", 0.2)
+        if (
+            type(self.command_deadband) not in (int, float)
+            or not math.isfinite(self.command_deadband)
+            or self.command_deadband <= 0
+        ):
+            raise ValueError("Task command deadband must be positive and finite.")
+        if self.arrival_control and self.command_deadband >= 0.08:
+            raise ValueError("Arrival control requires command deadband < 0.08 m/s.")
+        if "command_deadband_m_s" in options:
+            self.metric_definitions = {
+                **self.metric_definitions,
+                "stop_command": (
+                    f"Command vector norm below {self.command_deadband} m/s; "
+                    "not actual speed. Explicit arrival-threshold experiment."
+                ),
+            }
+        if execution_profile == "author_playback":
+            self.options.update(
+                noise_level=0.0, random_pd=False, random_rfi=False, push=False
+            )
         for k in (
             "noise_level",
             "ground",
@@ -115,7 +193,16 @@ class CatTaskState:
         )
         self.goal_ids = torch.zeros_like(self.scene_ids)
         self.goals = torch.zeros(num_envs, 3, device=device)
-        self.gait = CatGaitState(num_envs, device)
+        gait_type = (
+            CatPlaybackGaitState
+            if execution_profile == "author_playback" or self.arrival_control
+            else CatGaitState
+        )
+        self.gait = (
+            gait_type(num_envs, device, command_deadband=self.command_deadband)
+            if gait_type is CatPlaybackGaitState
+            else gait_type(num_envs, device)
+        )
         self.foot_height = torch.full((num_envs,), 0.07, device=device)
         self.previous_vel = torch.zeros(num_envs, 29, device=device)
         self.last_positions = torch.zeros(num_envs, 11, 3, device=device)
@@ -138,6 +225,9 @@ class CatTaskState:
         self.saved_reward_diagnostics = {}
         self.last_metrics = {}
         self.scales = SOURCE_SCALES.copy()
+        # Explicit experiment: prioritize following the requested velocity,
+        # including zero velocity, keeping original posture/contact coefficients.
+        self.scales["tracking_root_field"] = tracking_weight
         for names, coef in [
             (("feetgf", "feetdf"), "ground"),
             (("handsgf", "handsdf", "kneesdf", "shldsdf"), "lateral"),
@@ -152,6 +242,9 @@ class CatTaskState:
         phase = torch.tensor(
             [[0.0, math.pi], [math.pi, 0.0]], device=env_ids.device
         )[torch.randint(2, (n,), device=env_ids.device)]
+        if self.execution_profile == "author_playback":
+            freq.fill_(1.5)
+            phase[:] = torch.tensor([0.0, math.pi], device=env_ids.device)
         self.gait.reset(env_ids, freq, phase)
         if self.recovery is not None:
             self.recovery.reset(env_ids)
@@ -232,7 +325,15 @@ class CatTaskState:
             sample.guidance[:, 1],
             sample.guidance[:, [0, 3, 4, 5, 6]],
             sample.sdf_gradient[:, [0, 3, 4, 5, 6]],
+            deadband=1e-6 if self.arrival_control else self.command_deadband,
         )
+        if self.arrival_control:
+            command = retime_cat_arrival(command, root, self.goals, sample.sdf)
+            command = torch.where(
+                (command[:, 1:].norm(dim=-1) < self.command_deadband)[:, None],
+                0.0,
+                command,
+            )
         normalized_gf = sample.guidance / (
             sample.guidance.norm(dim=-1, keepdim=True) + 1e-6
         )
@@ -240,12 +341,21 @@ class CatTaskState:
             normalized_gf[:, 1],
             normalized_gf[:, [0, 3, 4, 5, 6]],
             bf[:, [0, 3, 4, 5, 6]],
+            deadband=self.command_deadband,
         )
+        if self.arrival_control:
+            initial_command = command.clone()
         if self.recovery is None:
             old_phase = self.gait.phase.clone()
             old_mask = self.gait.gait_mask.clone()
             old_last = self.gait.last_command.clone()
             old_stop = self.gait.stop_timestep.clone()
+            playback = isinstance(self.gait, CatPlaybackGaitState)
+            if playback:
+                old_step = self.gait.step.clone()
+                old_has_velocity = self.gait.has_velocity.clone()
+                initial_command = command.clone()
+                initial_command[:, 0] = 0.0  # Source reset last_flags[1].
             command = self.gait.advance(command)
             # Reset observations do not advance the source phase or stop state.
             restored = (
@@ -255,6 +365,9 @@ class CatTaskState:
             self.gait.gait_mask[restored] = old_mask[restored]
             self.gait.last_command[restored] = old_last[restored]
             self.gait.stop_timestep[restored] = old_stop[restored]
+            if playback:
+                self.gait.step[restored] = old_step[restored]
+                self.gait.has_velocity[restored] = old_has_velocity[restored]
             command[ids] = initial_command[ids]
             self.gait.last_command[ids] = initial_command[ids]
         else:
@@ -328,8 +441,20 @@ class CatTaskState:
             delayed_gf[:, 1],
             delayed_gf[:, [0, 3, 4, 5, 6]],
             delayed_bf[:, [0, 3, 4, 5, 6]],
+            deadband=self.command_deadband,
         )
         observation_sdf, delayed_sdf = sample.sdf, delayed_sample.sdf
+        if self.execution_profile == "author_playback":
+            # Player queries current pose and retains command from raw GF.
+            # Reset uses raw fields; subsequent player steps normalize them.
+            gf[ids] = sample.guidance[ids]
+            bf[ids] = sample.sdf_gradient[ids]
+            delayed_gf, delayed_bf, delayed_sdf = gf, bf, sample.sdf
+            delayed_command = command
+        if self.arrival_control:
+            # Match the Actor's desired speed to the command used by rewards.
+            # Delayed point SDF/BF/GF observations retain their existing semantics.
+            delayed_command = command
         if self.recovery is not None:
             # Exact known-box envelope is an offline research input. It is not
             # presented as delayed/noisy perception or proof of native contact.
@@ -376,7 +501,22 @@ class CatTaskState:
         x.body_velocities = velocity
         params = CatRewardParameters(controller.lower, controller.upper)
         diagnostics = {}
-        self.terms = cat_reward_terms(x, parameters=params, diagnostics=diagnostics)
+        progress_gate = (
+            self.feet_progress.update(
+                root[:, :2],
+                command[:, 1:3],
+                step=common_step,
+                initial=self.initial,
+            )
+            if self.feet_progress is not None
+            else None
+        )
+        self.terms = cat_reward_terms(
+            x,
+            parameters=params,
+            diagnostics=diagnostics,
+            feet_progress_gate=progress_gate,
+        )
         if self.recovery is None:
             self._reward = aggregate_cat_reward(self.terms, self.scales, dt=0.02)
         flags = self.classify(
@@ -501,7 +641,7 @@ class CatTaskState:
             self.last_metrics = dict(
                 goal_distance=self.goal_distance.clone(),
                 min_goal_distance=self.min_goal_distance.clone(),
-                stop_command=(command[:, 1:].norm(dim=-1) < 0.2),
+                stop_command=(command[:, 1:].norm(dim=-1) < self.command_deadband),
                 settled_stop=(self.settled_steps >= required_steps),
                 root_speed=root_speed,
                 root_angular_speed=angular_speed,
@@ -519,7 +659,9 @@ class CatTaskState:
             joint_pos=x.joint_pos,
             joint_vel=x.joint_vel,
             default_joints=controller.default,
-            last_actions=controller.last_actions,
+            # The next decision observes the control just executed. Reward
+            # history is separate and retains the two preceding controls.
+            last_actions=controller.actions,
             targets=controller.targets,
             command=command,
             foot_height=self.foot_height,

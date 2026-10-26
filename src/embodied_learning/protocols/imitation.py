@@ -40,6 +40,7 @@ class PolicyContract:
             obs["critic"].shape[1],
             env.num_actions,
             hidden_dims,
+            activation=env.schema.get("policy_activation", "elu"),
             normalization=env.schema.get("normalization", True)
             if normalization is None
             else normalization,

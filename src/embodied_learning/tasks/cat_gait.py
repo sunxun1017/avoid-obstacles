@@ -64,3 +64,58 @@ class CatGaitState:
         )
         self.last_command = result.clone()
         return result
+
+
+class CatPlaybackGaitState(CatGaitState):
+    """Author play_cat._update_phase, including restart during stop countdown.
+
+    The training countdown above is deliberately unchanged. ``stop_timestep``
+    here is an episode timestamp, as in the source player, not a countdown.
+    """
+
+    def __init__(self, num_envs, device, *, dt=0.02, command_deadband=0.2):
+        if (
+            type(command_deadband) not in (int, float)
+            or not math.isfinite(command_deadband)
+            or command_deadband <= 0
+        ):
+            raise ValueError("Gait command deadband must be positive and finite.")
+        super().__init__(num_envs, device, dt=dt)
+        self.command_deadband = command_deadband
+        self.step = torch.zeros(num_envs, device=device, dtype=torch.long)
+        self.has_velocity = torch.zeros(num_envs, device=device, dtype=torch.bool)
+
+    def reset(self, env_ids, frequency, initial_phase):
+        super().reset(env_ids, frequency, initial_phase)
+        self.step[env_ids] = 0
+        self.has_velocity[env_ids] = False
+
+    def advance(self, command):
+        if command.shape != self.last_command.shape:
+            raise ValueError("Command must be [B,4].")
+        has_vel = command[:, 1:].norm(dim=-1) > self.command_deadband
+        had_vel = self.has_velocity.clone()
+        self.stop_timestep = torch.where(
+            had_vel & ~has_vel, self.step + 50, self.stop_timestep
+        )
+        moving = has_vel | (self.step <= self.stop_timestep)
+        self.phase = (
+            torch.remainder(
+                self.phase + self.phase_dt[:, None] + math.pi, 2 * math.pi
+            )
+            - math.pi
+        )
+        self.phase[~moving] = 0.0
+        self.phase[~had_vel & has_vel] = torch.tensor(
+            [0.0, math.pi], device=command.device
+        )
+        cosine = torch.cos(self.phase)
+        self.gait_mask = torch.where(
+            cosine > 0.6, 1.0, torch.where(cosine < -0.6, -1.0, 0.0)
+        )
+        result = command.clone()
+        result[:, 0] = moving.to(command.dtype)
+        self.last_command = result.clone()
+        self.has_velocity = has_vel.clone()
+        self.step += 1  # Source player increments after _update_phase.
+        return result

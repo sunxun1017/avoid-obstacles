@@ -17,6 +17,11 @@ from embodied_learning.protocols.imitation import PolicyContract
 def _make_model(
     contract: PolicyContract, device: str, *, stochastic: bool
 ) -> MLPModel:
+    if (
+        contract.schema.get("optimization_profile") == "brax_0_12_3_v1"
+        and contract.activation != "swish"
+    ):
+        raise ValueError("Source profile checkpoint has a conflicting activation.")
     obs = TensorDict(
         {
             "actor": torch.zeros(1, contract.actor_dim, device=device),
@@ -35,6 +40,13 @@ def _make_model(
         if stochastic
         else None
     )
+    if (
+        stochastic
+        and contract.schema.get("optimization_profile") == "brax_0_12_3_v1"
+    ):
+        distribution = {
+            "class_name": "embodied_learning.algorithms.brax_ppo:SourceNormalTanh"
+        }
     return MLPModel(
         obs,
         {"actor": ["actor"], "critic": ["critic"]},

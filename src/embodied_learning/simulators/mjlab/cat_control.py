@@ -3,6 +3,7 @@
 Changes: batched PyTorch and native mjlab action term, name-based mapping.
 """
 
+import math
 from dataclasses import dataclass
 
 import torch
@@ -47,9 +48,9 @@ class CatJointController:
         if actions.shape != self.actions.shape or not torch.isfinite(actions).all():
             raise ValueError("Source actions must be finite [B,12].")
         self.last_last_actions.copy_(self.last_actions)
-        self.last_actions.copy_(
-            actions
-        )  # Actual source updates history BEFORE reward.
+        # Shift the executed controls, not the incoming action: rewards need
+        # a[t], a[t-1], a[t-2] even though observations expose a[t].
+        self.last_actions.copy_(self.actions)
         self.actions.copy_(actions)
         self.targets[:, :12] = (self.targets[:, :12] + 0.5 * actions).clamp(
             self.lower[:12], self.upper[:12]
@@ -77,6 +78,16 @@ class CatJointController:
 class CatActionCfg(ActionTermCfg):
     random_pd: bool = True
     random_rfi: bool = True
+    rfi_amplitude_multiplier: float = 1.0
+
+    def __post_init__(self):
+        value = self.rfi_amplitude_multiplier
+        if (
+            type(value) not in (int, float)
+            or not math.isfinite(value)
+            or not 0 <= value <= 1
+        ):
+            raise ValueError("RFI attenuation must be finite and between0and1.")
 
     def build(self, env):
         return CatAction(self, env)
@@ -134,7 +145,10 @@ class CatAction(ActionTerm):
             else 1.0
         )
         c.rfi_scale[env_ids] = (
-            0.1 * (0.5 + torch.rand(n, 29, device=self.device)) * c.limits
+            0.1
+            * (0.5 + torch.rand(n, 29, device=self.device))
+            * c.limits
+            * self.cfg.rfi_amplitude_multiplier
             if self.cfg.random_rfi
             else 0.0
         )

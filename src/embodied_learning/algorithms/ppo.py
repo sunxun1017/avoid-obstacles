@@ -32,8 +32,21 @@ class PpoConfig:
     learning_rate: float = 0.001
     save_interval: int = 100
     seed: int = 42
+    optimization_profile: str = "rsl_v1"
+    source_unroll_steps: int | None = None
 
     def __post_init__(self) -> None:
+        if self.optimization_profile not in ("rsl_v1", "brax_0_12_3_v1"):
+            raise ValueError("Unknown optimization profile.")
+        if self.source_unroll_steps is not None and (
+            self.optimization_profile != "brax_0_12_3_v1"
+            or type(self.source_unroll_steps) is not int
+            or self.source_unroll_steps < 1
+            or self.rollout_steps % self.source_unroll_steps
+        ):
+            raise ValueError(
+                "Source unroll steps must divide the collected rollout."
+            )
         for name in (
             "iterations",
             "rollout_steps",
@@ -73,7 +86,7 @@ class PpoConfig:
             activation="elu",
             obs_normalization=self.normalization,
         )
-        return dict(
+        result = dict(
             actor={
                 **model,
                 "distribution_cfg": {
@@ -110,6 +123,29 @@ class PpoConfig:
             seed=self.seed,
             check_for_nan=True,
         )
+        if self.optimization_profile == "brax_0_12_3_v1":
+            if action_transform != "latent_tanh_v1" or self.normalization:
+                raise ValueError(
+                    "Source profile requires latent tanh actions "
+                    "and no observation normalization."
+                )
+            prefix = "embodied_learning.algorithms.brax_ppo:"
+            for name in ("actor", "critic"):
+                result[name].update(
+                    class_name=prefix + "SourceMLPModel", activation="swish"
+                )
+            result["actor"]["distribution_cfg"] = dict(
+                class_name=prefix + "SourceNormalTanh"
+            )
+            result["algorithm"].update(
+                class_name=prefix + "SourcePPO",
+                schedule="fixed",
+                desired_kl=None,
+                value_loss_coef=0.25,
+                use_clipped_value_loss=False,
+            )
+            result["algorithm"]["source_unroll_steps"] = self.source_unroll_steps
+        return result
 
 
 def train_specialist(
@@ -119,16 +155,28 @@ def train_specialist(
     *,
     resume: Path | None = None,
     warmstart: Path | None = None,
+    warmstart_actor: Path | None = None,
 ) -> Path:
     """Train, strictly resume, or explicitly warmstart a research specialist.
 
     Torch checkpoints contain Python training state: load trusted files only.
     The last checkpoint and each periodic checkpoint embed their full contract.
     """
-    if resume is not None and warmstart is not None:
+    if sum(x is not None for x in (resume, warmstart, warmstart_actor)) > 1:
         raise ValueError("PPO resume and warmstart are mutually exclusive.")
     if getattr(env, "inference_only", False):
         raise ValueError("Cannot train an inference-only environment.")
+    if config.optimization_profile != env.schema.get(
+        "optimization_profile", "rsl_v1"
+    ):
+        raise ValueError("Environment schema and optimization profile disagree.")
+    if (
+        config.optimization_profile == "brax_0_12_3_v1"
+        and env.schema.get("policy_activation") != "swish"
+    ):
+        raise ValueError(
+            "Source optimization profile requires declared swish activation."
+        )
     if env.num_envs * config.rollout_steps < config.mini_batches:
         raise ValueError("Rollout smaller than the number of PPO mini-batches.")
     contract = PolicyContract.from_env(
@@ -142,9 +190,31 @@ def train_specialist(
     if hasattr(env, "field_state"):
         training_scenes = list(env.field_state.allowed)
     restored, initialization, provenance = None, None, None
+    curriculum = getattr(env, "curriculum_metadata", None)
+    curriculum_transition = None
     if resume:
         restored = torch.load(resume, map_location=env.device, weights_only=False)
-        contract.require(PolicyContract.from_dict(restored["field_contract"]))
+        if curriculum is None:
+            contract.require(PolicyContract.from_dict(restored["field_contract"]))
+        else:
+            from embodied_learning.tasks.cat_curriculum import validate_transfer
+            from embodied_learning.tasks.cat_foot_guidance import sha256
+
+            changes = validate_transfer(
+                restored["field_contract"],
+                contract.to_dict(),
+                restored["curriculum"],
+                curriculum,
+            )
+            curriculum_transition = dict(
+                parent_checkpoint=str(resume),
+                parent_sha256=sha256(resume),
+                parent_completed_iterations=restored["completed_iterations"],
+                source=restored["curriculum"],
+                target=curriculum,
+                contract_changes=changes,
+                initialization="actor_critic_optimizer_rng_resume",
+            )
         expected, actual = asdict(config), dict(restored["ppo_config"])
         for key in ("iterations", "save_interval"):
             expected.pop(key)
@@ -153,6 +223,8 @@ def train_specialist(
         actual.setdefault("critic_hidden_dims", None)
         actual.setdefault("normalization", True)
         actual.setdefault("gamma", 0.99)
+        actual.setdefault("optimization_profile", "rsl_v1")
+        actual.setdefault("source_unroll_steps", None)
         if actual["critic_hidden_dims"] is not None:
             actual["critic_hidden_dims"] = tuple(actual["critic_hidden_dims"])
         if expected != actual or restored["training_scenes"] != training_scenes:
@@ -167,11 +239,25 @@ def train_specialist(
             training_scenes=training_scenes,
             device=env.device,
         )
+    actor_initialization = None
+    if warmstart_actor is not None:
+        from embodied_learning.policies.cat_actor_warmstart import (
+            load_actor_warmstart,
+        )
+
+        actor_initialization, provenance = load_actor_warmstart(
+            warmstart_actor,
+            contract=contract,
+            curriculum=curriculum,
+            training_scenes=training_scenes,
+            device=env.device,
+        )
     output_dir = Path(output_dir)
     configuration_path = output_dir / "config.json"
-    if warmstart is not None and (
+    parent = warmstart if warmstart is not None else warmstart_actor
+    if parent is not None and (
         configuration_path.exists()
-        or output_dir.resolve() == Path(warmstart).resolve().parent
+        or output_dir.resolve() == Path(parent).resolve().parent
     ):
         raise ValueError(
             "Warmstart requires a new output directory; use resume later."
@@ -183,6 +269,8 @@ def train_specialist(
         old.setdefault("critic_hidden_dims", None)
         old.setdefault("normalization", True)
         old.setdefault("gamma", 0.99)
+        old.setdefault("optimization_profile", "rsl_v1")
+        old.setdefault("source_unroll_steps", None)
         comparable_old, comparable_new = old.copy(), serial_config.copy()
         for key in ("iterations", "save_interval"):
             comparable_old.pop(key)
@@ -221,6 +309,22 @@ def train_specialist(
             )
             if provenance is not None:
                 state["warmstart"] = provenance
+            state["collected_transitions"] = (
+                state["environment_steps"] * env.num_envs
+            )
+            if hasattr(self.alg, "source_unroll_steps"):
+                state["source_batch"] = dict(
+                    collected_steps_per_world=self.alg.storage.num_transitions_per_env,
+                    source_unroll_steps=self.alg.source_unroll_steps,
+                    actual_minibatch_shapes=self.alg.last_batch_shapes,
+                )
+            if curriculum is not None:
+                state["curriculum"] = copy.deepcopy(curriculum)
+                state["curriculum_transition"] = curriculum_transition
+            if restored and "ablation_initialization" in restored:
+                state["ablation_initialization"] = restored[
+                    "ablation_initialization"
+                ]
             temporary = Path(path).with_suffix(".tmp")
             torch.save(state, temporary)
             temporary.replace(path)
@@ -247,6 +351,15 @@ def train_specialist(
         initialize_cat_warmstart(runner.alg.actor, runner.alg.critic, initialization)
         if hasattr(env, "training_step"):
             env.training_step = 0
+    elif actor_initialization is not None:
+        # Includes the policy's observation normalizer and distribution state;
+        # the new runner's Critic and optimizer are deliberately untouched.
+        runner.alg.actor.load_state_dict(
+            actor_initialization["actor_state_dict"], strict=True
+        )
+        if hasattr(env, "training_step"):
+            env.training_step = 0
+        torch.save(runner.alg.save(), output_dir / "actor-initialization.pt")
     initial.append(
         torch.nn.utils.parameters_to_vector(runner.alg.actor.parameters())
         .detach()

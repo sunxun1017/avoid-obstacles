@@ -81,7 +81,12 @@ def check_physics_buffers(overflow, nefc, *, njmax):
 
 
 def build_cat_cfg(
-    *, num_envs: int, seed: int, random_pd: bool = True, random_rfi: bool = True
+    *,
+    num_envs: int,
+    seed: int,
+    random_pd: bool = True,
+    random_rfi: bool = True,
+    rfi_amplitude_multiplier: float = 1.0,
 ):
     cfg = unitree_g1_flat_env_cfg()
     cfg.scene.num_envs = num_envs
@@ -130,7 +135,10 @@ def build_cat_cfg(
     )
     cfg.actions = {
         "joint_pos": CatActionCfg(
-            entity_name="robot", random_pd=random_pd, random_rfi=random_rfi
+            entity_name="robot",
+            random_pd=random_pd,
+            random_rfi=random_rfi,
+            rfi_amplitude_multiplier=rfi_amplitude_multiplier,
         )
     }
     return cfg
@@ -315,11 +323,41 @@ def _source_done(env, name):
     return env.cat_state.outcomes()[name]
 
 
+def _apply_author_initialization(env, env_ids):
+    """Write source reset samples only to selected native worlds."""
+    from embodied_learning.tasks.cat_initialization import (
+        sample_author_initial_state,
+    )
+
+    robot = env.scene["robot"]
+    controller = env.cat_controller
+    roots = robot.data.default_root_state[env_ids].clone()
+    # Derived xpos/xquat are stale until forward() during a reset. Read the
+    # authoritative qpos just written by _reset_field, including scene offsets.
+    roots[:, :7] = env.sim.data.qpos[env_ids][:, robot.indexing.free_joint_q_adr]
+    roots[:, 2] = env.scene.env_origins[env_ids, 2] + 0.8
+    roots, source_joints, _ = sample_author_initial_state(
+        roots, controller.default, controller.lower, controller.upper
+    )
+    native_joints = torch.empty_like(source_joints)
+    native_joints[:, controller.indices] = source_joints
+    robot.write_root_state_to_sim(roots, env_ids=env_ids)
+    robot.write_joint_state_to_sim(
+        native_joints, torch.zeros_like(native_joints), env_ids=env_ids
+    )
+
+
 def _source_reset(env, env_ids):
     if env_ids is None:
         env_ids = torch.arange(env.num_envs, device=env.device)
     _reset_field(env, env_ids)
-    env.cat_state.reset(env_ids)
+    state = env.cat_state
+    if (
+        getattr(state, "training_initialization", "fixed_v1") == "author_random_v1"
+        and state.execution_profile == "source_train"
+    ):
+        _apply_author_initialization(env, env_ids)
+    state.reset(env_ids)
     if env.cat_sensor_config is not None:
         env.cat_state.bank.reset(env_ids, env.cat_state.scene_ids)
         if env.cat_sensor_schedule is not None:
@@ -338,8 +376,13 @@ def make_cat_env(
     online_sensor=None,
     task_profile="cat_source_v1",
     recovery_options=None,
+    execution_profile="source_train",
+    rfi_amplitude_multiplier=1.0,
 ):
-    if task_profile == "cat_recovery_v1" and online_sensor is not None:
+    if (
+        task_profile == "cat_recovery_v1"  # """ 任务配置类型 """
+        and online_sensor is not None
+    ):  # """ 在线传感器 """
         raise ValueError(
             "Online sensors do not support the known-scene recovery task."
         )
@@ -353,6 +396,8 @@ def make_cat_env(
     names = tuple(s.id for s in manifest.scenes)
     if not scene_ids or any(n not in names for n in scene_ids):
         raise ValueError("Unknown source scene.")
+    # 保存了环境运行所需要的任务信息，
+    # 也就是把前面的整合到一个class中。
     state = CatTaskState(
         manifest,
         bank,
@@ -362,12 +407,14 @@ def make_cat_env(
         options,
         task_profile=task_profile,
         recovery_options=recovery_options,
+        execution_profile=execution_profile,
     )
-    cfg = build_cat_cfg(
+    cfg = build_cat_cfg(  # 生成环境配置对象，并存入cfg中
         num_envs=num_envs,
         seed=seed,
         random_pd=state.options["random_pd"],
         random_rfi=state.options["random_rfi"],
+        rfi_amplitude_multiplier=rfi_amplitude_multiplier,
     )
     cfg.commands = {}
     cfg.curriculum = {}
@@ -470,6 +517,7 @@ def make_cat_env(
             super().__init__(cfg=cfg, device=device)
 
         def load_managers(self):
+            self.cat_rfi_amplitude_multiplier = rfi_amplitude_multiplier
             if task_profile == "cat_recovery_v1":
                 from embodied_learning.simulators.mjlab.cat_geometry import (
                     BoxEnvelopeQuery,
@@ -526,6 +574,9 @@ class CatEnv(RslRlVecEnvWrapper):
     def __init__(self, native):
         super().__init__(native, clip_actions=None)
         self.inference_only = native.cat_sensor_config is not None
+        self.inference_only |= (
+            native.cat_state.execution_profile == "author_playback"
+        )
         self.cat_state = self.field_state = native.cat_state
         self.scene_ids = self.cat_state.scene_ids
         state = self.cat_state
@@ -542,12 +593,18 @@ class CatEnv(RslRlVecEnvWrapper):
             obs_joint_names=list(CAT_OBS_NAMES),
             action_scale=0.5,
             action_transform="latent_tanh_v1",
+            reward_action_history="previous_two_controls_v1",
             task=state.options,
             source_profile=state.bank.source_profile,
             physics={"timestep": 0.002, "decimation": 10},
             observation="cat_source_actor162_critic250_v1",
             normalization=False,
         )
+        multiplier = getattr(native, "cat_rfi_amplitude_multiplier", 1.0)
+        if multiplier != 1.0:
+            self.schema["rfi_amplitude_multiplier"] = multiplier
+        if state.execution_profile != "source_train":
+            self.schema["execution_profile"] = state.execution_profile
         if state.task_profile == "cat_recovery_v1":
             self.schema.update(
                 task_profile="cat_recovery_v1",
@@ -571,7 +628,7 @@ class CatEnv(RslRlVecEnvWrapper):
         try:
             super().close()
         finally:
-            if self.inference_only:
+            if self.unwrapped.cat_sensor_config is not None:
                 self.cat_state.bank.close()
 
     @property

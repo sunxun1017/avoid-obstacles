@@ -63,6 +63,8 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
         (env.num_envs,), math.nan, device=device, dtype=torch.float64
     )
     ever_goal_hold = torch.zeros(env.num_envs, device=device, dtype=torch.bool)
+    paper_success = torch.zeros_like(ever_goal_hold)
+    unsafe_prefix = torch.zeros_like(ever_goal_hold)
     sums = {
         name: torch.zeros(env.num_envs, device=device, dtype=torch.float64)
         for name in (
@@ -89,6 +91,20 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
             outcomes = extras["field_outcomes"]
             metrics = extras["cat_metrics"]
             definitions.update(extras["cat_metric_definitions"])
+            # Prefix safety is latched before testing arrival, so a collision
+            # on the arrival step fails. Collisions after clean arrival do not
+            # retroactively change this independent short-horizon result.
+            unsafe_prefix |= active & (
+                outcomes["physical_collision"].bool()
+                | outcomes["fall"].bool()
+                | outcomes["invalid"].bool()
+            )
+            paper_success |= (
+                active
+                & ~unsafe_prefix
+                & (age <= 250)
+                & (metrics["goal_distance"] < 0.1)
+            )
             reached = active & (first_goal == 0) & outcomes["goal"]
             first_goal[reached] = age[reached]
             first_goal_speed[reached] = metrics["root_speed"][reached].double()
@@ -124,6 +140,7 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
                     if first_goal[slot]
                     else None,
                     ever_goal_hold=bool(ever_goal_hold[slot]),
+                    paper_success=bool(paper_success[slot]),
                     final_goal_hold=bool(goal_hold[slot]),
                     final_root_speed=float(metrics["root_speed"][slot]),
                     final_root_angular_speed=float(
@@ -153,6 +170,7 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
             age[done] = first_goal[done] = 0
             first_goal_speed[done] = math.nan
             ever_goal_hold[done] = False
+            paper_success[done] = unsafe_prefix[done] = False
             for value in sums.values():
                 value[done] = 0
             step += 1
@@ -188,6 +206,23 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
     totals = {name: sum(r["sums"][name] for r in records) for name in sums}
     ever_hold_count = sum(r["ever_goal_hold"] for r in records)
     final_hold_count = sum(r["final_goal_hold"] for r in records)
+    paper_count = sum(r["paper_success"] for r in records)
+    definitions["paper_success"] = dict(
+        horizon_seconds=5.0,
+        goal_xy_distance_below_m=0.1,
+        collision_window="Episode start through first qualifying arrival, inclusive",
+        excludes="Physical obstacle contact, fall or invalid before arrival",
+        independent_self_contact_veto=False,
+        episode_termination=(
+            "Source task termination retained; "
+            "5 seconds is the maximum arrival window"
+        ),
+        later_failures="Reported independently in full-episode outcomes",
+        scope=(
+            "Paper success definition on this local task; "
+            "not a paper benchmark replication"
+        ),
+    )
     definitions["goal_hold"] = dict(
         goal_distance_below_m=0.1,
         settled_stop_required=True,
@@ -209,6 +244,9 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
         outcomes=counts,
         rates={k: v / episodes for k, v in counts.items()},
         wilson_95={k: wilson(v, episodes) for k, v in counts.items()},
+        paper_success_count=paper_count,
+        paper_success_rate=paper_count / episodes,
+        paper_success_wilson_95=wilson(paper_count, episodes),
         mean_step_reward=totals["reward"] / total_steps,
         mean_root_speed=totals["root_speed"] / total_steps,
         stop_command_fraction=totals["stop_command"] / total_steps,

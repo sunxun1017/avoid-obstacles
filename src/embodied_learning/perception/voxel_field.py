@@ -247,7 +247,9 @@ def build_voxel_field(
         ImportError: Install the optional scikit-fmm dependency.
     """
     _positive("voxel_size", voxel_size)
-    occupied = np.asarray(occupied) # 这个[x,y,z]，当它为true时，表示该体素被障碍物占据，机器人不能进入
+    occupied = np.asarray(
+        occupied
+    )  # 这个[x,y,z]，当它为true时，表示该体素被障碍物占据，机器人不能进入
     if occupied.dtype != np.bool_ or occupied.ndim != 3 or min(occupied.shape) < 3:
         raise ValueError("occupied must be a bool XYZ grid with axis sizes >=3.")
     if known_mask is None:
@@ -435,7 +437,7 @@ def build_source_voxel_field(
 
 
 def sample_source_field(
-    field: VoxelPotentialField, positions: Tensor
+    field: VoxelPotentialField, positions: Tensor, *, correct_weights: bool = False
 ) -> FieldSample:
     """Source sample_field, including its corner/weight ordering and clamping.
 
@@ -473,9 +475,12 @@ def sample_source_field(
     wx = torch.stack((1 - frac[..., 0], frac[..., 0]), -1)
     wy = torch.stack((1 - frac[..., 1], frac[..., 1]), -1)
     wz = torch.stack((1 - frac[..., 2], frac[..., 2]), -1)
-    w = (
+    weights = (
         wx[..., :, None, None] * wy[..., None, :, None] * wz[..., None, None, :]
-    ).flatten(-3)
+    )
+    # Isolated experiment: match X-fastest corners without changing clipping,
+    # field grids, point locations or default legacy checkpoint semantics.
+    w = (weights.transpose(-3, -1) if correct_weights else weights).flatten(-3)
     if not field.known[ix, iy, iz].all():
         raise ValueError("Source query contains unknown cells.")
 

@@ -50,6 +50,7 @@ class FieldBank:
     scene_names: tuple[str, ...]
     source_profile: dict | None = None
     cache_identity: str | None = None
+    source_interpolation: str = "legacy_xz"
 
     @property
     def num_scenes(self) -> int:
@@ -75,6 +76,8 @@ class FieldBank:
         source: bool = False,
     ) -> FieldSample:
         """Query scene-local [B,K,3] using independent per-slot scene/goal IDs."""
+        if self.source_interpolation not in ("legacy_xz", "xyz_weights_v1"):
+            raise ValueError("Unknown source interpolation mode.")
         if positions.ndim != 3 or positions.shape[-1] != 3:
             raise ValueError("positions must have shape [B,K,3].")
         for ids in (scene_ids, goal_ids):
@@ -99,7 +102,12 @@ class FieldBank:
                 if selected.numel() == 0:
                     continue
                 sampled = (
-                    sample_source_field(field, positions[selected])
+                    sample_source_field(
+                        field,
+                        positions[selected],
+                        correct_weights=self.source_interpolation
+                        == "xyz_weights_v1",
+                    )
                     if source
                     else field.sample(positions[selected])
                 )
@@ -121,7 +129,9 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare_fields( # 根据场景中的障碍物和目标，离线计算每个场景-目标组合对应的体素场，训练时可以直接加载，不必每次重新计算
+# 根据场景中的障碍物和目标，离线计算每个场景-目标组合对应的体素场，
+# 训练时可以直接加载，不必每次重新计算。
+def prepare_fields(
     manifest: SceneManifest, output_dir: Path, *, source_profile: dict | None = None
 ) -> FieldCacheManifest:
     """Build each scene/goal field once and save pickle-free arrays plus hashes.
@@ -133,18 +143,26 @@ def prepare_fields( # 根据场景中的障碍物和目标，离线计算每个�
         raise ValueError("Unknown source profile.")
     output_dir = Path(output_dir)
     path = output_dir / "manifest.json"
-    if path.exists():   # 如果输出缓存已经存在，那么就校验并复用
+    if path.exists():  # 如果输出缓存已经存在，那么就校验并复用
         load_field_cache(path, manifest, device="cpu", source_profile=source_profile)
         return FieldCacheManifest(path, manifest.identity)
-    output_dir.mkdir(parents=True, exist_ok=True)   # 创建输出目录
+    output_dir.mkdir(parents=True, exist_ok=True)  # 创建输出目录
     entries = []
-    for scene in manifest.scenes:   # 在yaml文件中定义的场景，逐个场景处理，把障碍物转换成体素
-        occupied = voxelize_scene(scene)    # 注意，这里的occupied是固定在世界坐标中的完整场景地图，不是相机看到的地图
-        for goal_id, goal in enumerate(scene.goals):    # 这个就是每个场景的多个目标点的遍历
-            builder = ( # build_source_voxel_field 构建cat_source_v1的体素场，build_voxel_field 构建普通的体素场
+    for (
+        scene
+    ) in manifest.scenes:  # 在yaml文件中定义的场景，逐个场景处理，把障碍物转换成体素
+        occupied = voxelize_scene(
+            scene
+        )  # 注意，这里的occupied是固定在世界坐标中的完整场景地图，不是相机看到的地图
+        for goal_id, goal in enumerate(
+            scene.goals
+        ):  # 这个就是每个场景的多个目标点的遍历
+            # build_source_voxel_field 构建cat_source_v1的体素场，
+            # build_voxel_field 构建普通的体素场。
+            builder = (
                 build_source_voxel_field if source_profile else build_voxel_field
             )
-            field = builder(    # 转成某个目标的导航场
+            field = builder(  # 转成某个目标的导航场
                 occupied,
                 goal=goal,
                 voxel_size=scene.voxel_size,

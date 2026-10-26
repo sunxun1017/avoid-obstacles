@@ -71,6 +71,9 @@ measurements, without loading offline field caches. See
 [CAT online mapping and playback](docs/cat_online.md) for commands, source
 correspondence, GPU boundaries, and current limitations.
 
+For the progress-gated 4 cm hurdle recipe, strict Actor inheritance, detached
+training and no-push evaluation, see [hurdle training](docs/cat_hurdle_training.md).
+
 ## License
 
 The project is currently marked MIT. Verify this choice before distributing
