@@ -187,6 +187,60 @@ def test_invalid_recipe_parent_does_not_create_run(parent, tmp_path):
     assert not root.exists()
 
 
+def test_recipe_accepts_historical_numeric_scene_ids(parent, tmp_path):
+    path, saved = parent
+    saved["training_scenes"] = [2]
+    saved["field_contract"]["schema"]["scene_names"] = [
+        "wall_detour",
+        "passage",
+        "hurdle_crouch",
+    ]
+    torch.save(saved, path)
+    root = tmp_path / "numeric-parent"
+    training_module().initialize(
+        root, recipe="feetgf_progress_stage1_v1", parent_checkpoint=path
+    )
+    assert json.loads((root / "protocol.json").read_text())[
+        "parent_checkpoint"
+    ] == str(path)
+
+
+@pytest.mark.parametrize("ids", [[0], [7], [-1], [True]])
+def test_recipe_rejects_other_or_invalid_scene_ids(parent, tmp_path, ids):
+    path, saved = parent
+    saved["training_scenes"] = ids
+    saved["field_contract"]["schema"]["scene_names"] = [
+        "wall_detour",
+        "passage",
+        "hurdle_crouch",
+    ]
+    torch.save(saved, path)
+    with pytest.raises(ValueError, match="scene"):
+        training_module().initialize(
+            tmp_path / "bad-scenes",
+            recipe="feetgf_progress_stage1_v1",
+            parent_checkpoint=path,
+        )
+
+
+def test_physical_gpu_index_is_resolved_before_setting_cuda_visibility(monkeypatch):
+    sys.path.insert(0, str(Path(__file__).parents[1] / "tools/experiments"))
+    import run_cat_hurdle as driver
+
+    def query(command, **kwargs):
+        assert command == [
+            "nvidia-smi",
+            "-i",
+            "5",
+            "--query-gpu=uuid",
+            "--format=csv,noheader",
+        ]
+        return "GPU-physical-five\n"
+
+    monkeypatch.setattr(driver.subprocess, "check_output", query)
+    assert driver.resolve_gpu("5") == "GPU-physical-five"
+
+
 def make_action(multiplier):
     action = CatAction.__new__(CatAction)
     action._env = SimpleNamespace(num_envs=3, device="cpu")

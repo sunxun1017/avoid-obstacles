@@ -25,6 +25,18 @@ def source_manifest() -> dict[str, str]:
     }
 
 
+def resolve_gpu(selector: str) -> str:
+    """Resolve nvidia-smi physical indices to stable CUDA UUIDs."""
+    result = subprocess.check_output(
+        ["nvidia-smi", "-i", selector, "--query-gpu=uuid", "--format=csv,noheader"],
+        text=True,
+    )
+    devices = [line.strip() for line in result.splitlines() if line.strip()]
+    if len(devices) != 1 or not devices[0].startswith("GPU-"):
+        raise ValueError("Select exactly one physical GPU index or UUID.")
+    return devices[0]
+
+
 def run_experiment(
     root: Path, output: Path, *, resume: Path | None = None, smoke: bool = False
 ) -> dict:
@@ -110,11 +122,12 @@ def main() -> None:
     args = parser.parse_args()
     root = args.root.resolve()
     output = args.output.resolve() if args.output else root / "stage1-session"
+    gpu = resolve_gpu(args.gpu) if args.gpu is not None else None
     if not (root / "stages/1/assets.json").exists():
         parser.error("Run train_cat_curriculum.py prepare --stage 1 first.")
     if args.foreground:
-        if args.gpu is not None:
-            os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+        if gpu is not None:
+            os.environ["CUDA_VISIBLE_DEVICES"] = gpu
         os.environ.setdefault("MUJOCO_GL", "egl")
         run_experiment(root, output, resume=args.resume, smoke=args.smoke)
         return
@@ -123,8 +136,8 @@ def main() -> None:
             "Select an unused output directory;use --resume for the checkpoint."
         )
     runtime = {**os.environ, "MUJOCO_GL": os.environ.get("MUJOCO_GL", "egl")}
-    if args.gpu is not None:
-        runtime["CUDA_VISIBLE_DEVICES"] = args.gpu
+    if gpu is not None:
+        runtime["CUDA_VISIBLE_DEVICES"] = gpu
     command = [
         sys.executable,
         "-u",

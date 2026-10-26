@@ -45,7 +45,11 @@ def parent_settings(checkpoint: Path) -> dict:
         entity_name="robot",
         rfi_amplitude_multiplier=schema["rfi_amplitude_multiplier"],
     )
-    if saved["training_scenes"] != ["hurdle_crouch"]:
+    selected = saved["training_scenes"]
+    names = schema.get("scene_names", [])
+    if selected and all(type(i) is int and 0 <= i < len(names) for i in selected):
+        selected = [names[i] for i in selected]
+    if selected != ["hurdle_crouch"]:
         raise ValueError("Parent must use the hurdle_crouch training scene.")
     return saved
 
