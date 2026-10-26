@@ -419,3 +419,37 @@ def test_native_factory_contract_tracks_rfi_attenuation(tmp_path):
             assert float(ratio.max()) <= 0.15 * multiplier + 1e-6
         finally:
             env.close()
+
+
+@pytest.mark.parametrize(
+    "overrides, expected",
+    [
+        ({}, -0.001),
+        ({"reward_smoothness_action_weight": -0.002}, -0.002),
+        ({"reward_intervention": {"new_weight": -0.003}}, -0.003),
+    ],
+)
+def test_historical_progress_run_restores_smoothness_weight(overrides, expected):
+    from embodied_learning.tasks.cat_hurdle import apply_runtime_settings
+
+    env = SimpleNamespace(
+        unwrapped=SimpleNamespace(cat_controller=make_action(0.375).controller),
+        cat_state=SimpleNamespace(scales={"smoothness_action": -0.007}),
+        schema={},
+        device="cpu",
+    )
+    protocol = {
+        "parent_stage1_refinement_history": {
+            "version": "cat_stage1_pd30_rfi0375_reward_restore_v1",
+            "smoothness_action_before": -0.007,
+            "smoothness_action_after": -0.001,
+        },
+        "reward_intervention": {
+            "term": "feetgf",
+            "other_terms_and_weights": "unchanged",
+        },
+        **overrides,
+    }
+    apply_runtime_settings(env, protocol)
+    assert env.cat_state.scales["smoothness_action"] == expected
+    assert env.schema["reward_smoothness_action_weight"] == expected

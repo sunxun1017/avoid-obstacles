@@ -125,6 +125,14 @@ def apply_runtime_settings(env, protocol: dict) -> None:
     weight = protocol.get("reward_smoothness_action_weight")
     if weight is None and "new_weight" in protocol.get("reward_intervention", {}):
         weight = protocol["reward_intervention"]["new_weight"]
+    history = protocol.get("parent_stage1_refinement_history", {})
+    if (
+        weight is None
+        and history.get("version") == "cat_stage1_pd30_rfi0375_reward_restore_v1"
+    ):
+        # The historical progress-gate run retained this weight while its
+        # reward_intervention record was replaced by the feetgf intervention.
+        weight = history["smoothness_action_after"]
     if weight is not None:
         if type(weight) not in (float, int) or not torch.isfinite(
             torch.tensor(weight)
