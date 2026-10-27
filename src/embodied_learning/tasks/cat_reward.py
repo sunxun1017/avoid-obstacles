@@ -98,6 +98,7 @@ def cat_reward_terms(
     parameters: CatRewardParameters,
     diagnostics: dict[str, Tensor] | None = None,
     feet_progress_gate: Tensor | None = None,
+    whole_body_joint_velocity: bool = False,
 ) -> dict[str, Tensor]:
     b = x.root_vel.shape[0]
     if feet_progress_gate is not None and (
@@ -219,6 +220,8 @@ def cat_reward_terms(
         ).sum(-1),
         joint_torque=x.torques.square().sum(-1),
     )
+    if whole_body_joint_velocity:
+        terms["whole_body_joint_velocity"] = x.joint_vel.square().sum(-1)
     velocities = x.body_velocities
     if velocities.shape != (b, 11, 3):
         raise ValueError("body_velocities must be [B,11,3].")

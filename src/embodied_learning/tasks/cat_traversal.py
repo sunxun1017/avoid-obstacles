@@ -516,6 +516,9 @@ class CatTaskState:
             parameters=params,
             diagnostics=diagnostics,
             feet_progress_gate=progress_gate,
+            whole_body_joint_velocity=getattr(
+                self, "whole_body_joint_velocity", False
+            ),
         )
         if self.recovery is None:
             self._reward = aggregate_cat_reward(self.terms, self.scales, dt=0.02)
