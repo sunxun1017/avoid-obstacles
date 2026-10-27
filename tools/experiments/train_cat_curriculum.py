@@ -246,6 +246,10 @@ def make_env(root, level, *, num_envs, seed, execution_profile="source_train"):
         env.curriculum_metadata["feetgf_progress_refinement"] = protocol[
             "feetgf_progress_refinement"
         ]
+    if "field_reward_refinement" in protocol:
+        env.curriculum_metadata["field_reward_refinement"] = protocol[
+            "field_reward_refinement"
+        ]
     return env
 
 

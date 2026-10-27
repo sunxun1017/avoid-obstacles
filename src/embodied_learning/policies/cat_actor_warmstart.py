@@ -18,6 +18,11 @@ def load_actor_warmstart(
         raise ValueError("Actor warmstart requires declared curriculum metadata.")
     old, source = saved["field_contract"], saved["curriculum"]
     target = contract.to_dict()
+    from embodied_learning.tasks.cat_field_weights import adapt_field_reward_transfer
+
+    old, source, field_changes = adapt_field_reward_transfer(
+        checkpoint, old, target, source, curriculum
+    )
     refinement = curriculum.get("reward_weight_warmstart")
     refined = False
     progress = curriculum.get("feetgf_progress_refinement")
@@ -100,6 +105,7 @@ def load_actor_warmstart(
         curriculum,
         actor_warmstart=True,
     )
+    changes.update(field_changes)
     if refined:
         changes["task.root_tracking_weight"] = {
             "before": before,

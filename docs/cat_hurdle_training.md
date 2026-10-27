@@ -102,3 +102,36 @@ No existing independent training directory is removed by this integration.
 Running jobs, unique checkpoints, cached fields and their referenced parents
 must be retained. The new entry removes the need to create more per-run source
 copies; it does not make old provenance or model files disposable.
+
+
+## Independent field reward comparisons
+
+`ground`, `lateral` and `overhead` couple GF and DF coefficients. For a
+single-term comparison, declare absolute weights in protocol.json instead:
+
+```json
+{"field_reward_overrides": {"feetgf": 1.5}}
+```
+
+Supported terms are headgf, feetgf, handsgf, headdf, feetdf, handsdf,
+kneesdf and shldsdf. Values must be positive finite numbers. Unspecified terms
+keep their existing coefficients; an absent or empty override leaves the policy
+schema unchanged. The actual overrides are recorded in the checkpoint schema.
+
+A new experiment may inherit only the Actor from a same-stage checkpoint when
+`field_reward_refinement` declares version `cat_field_reward_actor_transfer_v1`,
+parent_sha256, parent_experiment, parent_protocol_sha256, before and after.
+The declaration must exactly match the real checkpoint and requested overrides.
+All other policy/physical contracts and same-stage geometry remain strict.
+Full PPO resume cannot change weights. Critic and optimizer start fresh for
+Actor-only transfer, including the unchanged-weight control arm.
+
+The 2026-10-27 stage4 pilot compares baseline, feetgf=1.5 and feetdf=1.5 from
+update480. Each arm uses4096 environments and128 updates (83,886,080 new
+transitions), with256-episode evaluation every32 updates. Select checkpoints
+using seed20261026; report selected-checkpoint seed20261027 separately and
+also evaluate the final checkpoint with pushes disabled. Keep all other
+perturbations, geometry, PD, progress gate and optimizer settings matched.
+This is a single-training-seed pilot, not evidence of a statistically established
+improvement. Physical GPU6 is selected by UUID, independently of logical CUDA
+ordinal0 within each process.
