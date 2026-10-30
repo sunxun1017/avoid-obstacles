@@ -18,6 +18,13 @@ def load_actor_warmstart(
         raise ValueError("Actor warmstart requires declared curriculum metadata.")
     old, source = saved["field_contract"], saved["curriculum"]
     target = contract.to_dict()
+    from embodied_learning.tasks.cat_contact_force import (
+        adapt_contact_force_transfer,
+    )
+
+    old, source, force_changes = adapt_contact_force_transfer(
+        checkpoint, old, target, source, curriculum
+    )
     from embodied_learning.tasks.cat_landing_speed import adapt_landing_transfer
 
     old, source, landing_changes = adapt_landing_transfer(
@@ -118,6 +125,7 @@ def load_actor_warmstart(
     changes.update(field_changes)
     changes.update(velocity_changes)
     changes.update(landing_changes)
+    changes.update(force_changes)
     if refined:
         changes["task.root_tracking_weight"] = {
             "before": before,

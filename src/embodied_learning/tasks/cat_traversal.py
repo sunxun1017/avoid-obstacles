@@ -516,6 +516,11 @@ class CatTaskState:
             parameters=params,
             diagnostics=diagnostics,
             feet_progress_gate=progress_gate,
+            contact_force_rate=(
+                controller.contact_force.cost_rate
+                if getattr(controller, "contact_force", None) is not None
+                else None
+            ),
             landing_speed_rate=(
                 controller.landing.cost_rate
                 if getattr(controller, "landing", None) is not None

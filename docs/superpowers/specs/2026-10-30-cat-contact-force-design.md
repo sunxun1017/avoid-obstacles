@@ -1,0 +1,17 @@
+# Baseline-preserving ground-contact force reward
+
+User asks to return to baseline, add a contact reward informed by papers/source, and explicitly retain all previously found fixes. Preserve current code and default-off experimental features; choose the completed original-reward baseline128 checkpoint from cat-landing-speed-stage4-pilot-20261030-01 as parent. Never restore old source files or revert corrected action history, field interpolation, sampling timing, buffer checks or contract validation. No landing-speed penalty in either new arm.
+
+Research: legged_gym _reward_feet_contact_forces implements linear excess force above a threshold; its base config does not enable this term by default. IsaacLab contact_forces takes the maximum force history per foot then sums positive excess. Unitree RL Lab H1 config actively sets a force-threshold penalty (500N, weight-.0002); G1 configuration inspected does not enable that force term, so do not attribute H1 settings to G1. Revisiting Reward Design and Evaluation for Robust Humanoid Standing and Walking (van Marum et al.,2024 workshop) uses a single-contact reward with0.2s grace while walking, but cautions that requiring double contact during standing impedes recovery steps. That is a gait objective rather than direct impact control.
+
+Chosen first experiment: only a positive excess measured foot-ground net force cost, negative weight. Per control: sum over feet relu(max_substeps(norm(net_ground_force))/robot_weight_N -3). Threshold3BW and weight0.2 are agent-selected pilot values, not copied proven G1 optima. Normalize using actual model robot mass (fixed in current task). Normal support below threshold receives no penalty. No gait mask, extra contact-count/airtime/standing bonuses, force or action clamps. Physics at2ms, control20ms, preserve short impacts through control-window peak. All earlier bug fixes remain.
+
+Enable only via exact versioned protocol foot_contact_force. Extend only existing left/right ground sensors with force output; compile independent original sensor-only model and compare non-sensor physical arrays/options before representing original physical identity. Reject physical differences rather than dropping arbitrary contract keys. No online-perception/recovery combination in this pilot. After each sim.step, run sense, invalidate the two sensors via update(0), read aggregate force and update peak once. No extra forward/RNG/physics. Controller begins each control/reset; only new reward changes, observation dimensions unchanged.
+
+Fresh matched Actor-only transfer from baseline128 for both arms, new Critic/optimizer identical. Exact parent-hashed same-stage declaration changes only contact-force schema, including explicit no-change declaration for baseline. Full resume strict.128updates each,4096envs160controls/update, chunks32, eval256success +32physics episodes at32/64/96/128. GPU1/5; no GPU0. No automatic promotion. Keep all old results and user config changes.
+
+Sources:
+- https://github.com/leggedrobotics/legged_gym/blob/master/legged_gym/envs/base/legged_robot.py
+- https://github.com/isaac-sim/IsaacLab/blob/main/source/isaaclab/isaaclab/envs/mdp/rewards.py
+- https://github.com/unitreerobotics/unitree_rl_lab/blob/main/source/unitree_rl_lab/unitree_rl_lab/tasks/locomotion/robots/h1/velocity_env_cfg.py
+- https://icra-2024-humanoid.github.io/docs/assets/papers/robust-walking.pdf

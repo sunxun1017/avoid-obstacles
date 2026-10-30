@@ -374,6 +374,7 @@ def make_cat_env(
     seed,
     options,
     online_sensor=None,
+    foot_contact_force=None,
     task_profile="cat_source_v1",
     recovery_options=None,
     execution_profile="source_train",
@@ -489,6 +490,22 @@ def make_cat_env(
                 ContactMatch(mode="body", pattern="box", entity=entity),
             )
     cfg.scene.sensors = tuple(sensors)
+    force_baseline = None
+    if foot_contact_force is not None:
+        from mjlab.scene import Scene
+        from embodied_learning.tasks.cat_contact_force import validate_schema
+
+        validate_schema(foot_contact_force)
+        if online_sensor is not None or task_profile != "cat_source_v1":
+            raise ValueError("Force pilot requires offline source task.")
+        force_baseline = Scene(cfg.scene, device="cpu").compile()
+        cfg.sim.mujoco.apply(force_baseline)
+        cfg.scene.sensors = tuple(
+            replace(sensor, fields=("found", "force"))
+            if sensor.name in ("cat_left_ground", "cat_right_ground")
+            else sensor
+            for sensor in cfg.scene.sensors
+        )
     baseline_identity = None
     if online_sensor is not None:
         from mjlab.scene import Scene
@@ -512,6 +529,11 @@ def make_cat_env(
             self.cat_sensor_reader = None
             self.cat_sensor_schedule = None
             self.cat_baseline_identity = baseline_identity
+            self.cat_force_baseline_identity = (
+                native_model_identity(force_baseline)
+                if force_baseline is not None
+                else None
+            )
             self.cat_collision_envelope = None
             self.cat_collision_query = None
             super().__init__(cfg=cfg, device=device)
@@ -567,7 +589,21 @@ def make_cat_env(
                     self.scene["robot"].write_root_state_to_sim(root, env_ids=ids)
             return super().step(actions)
 
-    return CatEnv(CatNativeEnv())
+    native = CatNativeEnv()
+    if force_baseline is not None:
+        from embodied_learning.tasks.cat_contact_force import (
+            verify_measurement_model,
+        )
+
+        try:
+            verify_measurement_model(native.sim.mj_model, force_baseline)
+        except Exception:
+            native.close()
+            raise
+    env = CatEnv(native)
+    if force_baseline is not None:
+        env.schema["robot_model_identity"] = native.cat_force_baseline_identity
+    return env
 
 
 class CatEnv(RslRlVecEnvWrapper):

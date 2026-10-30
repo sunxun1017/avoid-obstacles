@@ -100,6 +100,7 @@ def cat_reward_terms(
     feet_progress_gate: Tensor | None = None,
     whole_body_joint_velocity: bool = False,
     landing_speed_rate: Tensor | None = None,
+    contact_force_rate: Tensor | None = None,
 ) -> dict[str, Tensor]:
     b = x.root_vel.shape[0]
     if feet_progress_gate is not None and (
@@ -233,6 +234,16 @@ def cat_reward_terms(
                 "Landing speed rate must match reward batch/device/dtype."
             )
         terms["foot_landing_speed"] = landing_speed_rate
+    if contact_force_rate is not None:
+        if (
+            contact_force_rate.shape != (b,)
+            or contact_force_rate.device != x.root_vel.device
+            or contact_force_rate.dtype != x.root_vel.dtype
+        ):
+            raise ValueError(
+                "Contact force rate must match reward batch/device/dtype."
+            )
+        terms["foot_contact_force"] = contact_force_rate
     velocities = x.body_velocities
     if velocities.shape != (b, 11, 3):
         raise ValueError("body_velocities must be [B,11,3].")

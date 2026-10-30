@@ -49,6 +49,8 @@ class CatJointController:
             raise ValueError("Source actions must be finite [B,12].")
         if getattr(self, "landing", None) is not None:
             self.landing.begin_control()
+        if getattr(self, "contact_force", None) is not None:
+            self.contact_force.begin_control()
         self.last_last_actions.copy_(self.last_actions)
         # Shift the executed controls, not the incoming action: rewards need
         # a[t], a[t-1], a[t-2] even though observations expose a[t].
@@ -72,6 +74,8 @@ class CatJointController:
     def reset(self, env_ids: Tensor) -> None:
         if getattr(self, "landing", None) is not None:
             self.landing.reset(env_ids)
+        if getattr(self, "contact_force", None) is not None:
+            self.contact_force.reset(env_ids)
         self.targets[env_ids] = self.default
         self.actions[env_ids] = 0
         self.last_actions[env_ids] = 0
