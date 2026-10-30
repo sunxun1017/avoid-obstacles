@@ -47,6 +47,8 @@ class CatJointController:
     def process_action(self, actions: Tensor) -> None:
         if actions.shape != self.actions.shape or not torch.isfinite(actions).all():
             raise ValueError("Source actions must be finite [B,12].")
+        if getattr(self, "landing", None) is not None:
+            self.landing.begin_control()
         self.last_last_actions.copy_(self.last_actions)
         # Shift the executed controls, not the incoming action: rewards need
         # a[t], a[t-1], a[t-2] even though observations expose a[t].
@@ -68,6 +70,8 @@ class CatJointController:
         return torque.clamp(-self.limits, self.limits)
 
     def reset(self, env_ids: Tensor) -> None:
+        if getattr(self, "landing", None) is not None:
+            self.landing.reset(env_ids)
         self.targets[env_ids] = self.default
         self.actions[env_ids] = 0
         self.last_actions[env_ids] = 0

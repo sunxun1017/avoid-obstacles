@@ -254,6 +254,10 @@ def make_env(root, level, *, num_envs, seed, execution_profile="source_train"):
         env.curriculum_metadata["whole_body_velocity_refinement"] = protocol[
             "whole_body_velocity_refinement"
         ]
+    if "landing_speed_refinement" in protocol:
+        env.curriculum_metadata["landing_speed_refinement"] = protocol[
+            "landing_speed_refinement"
+        ]
     return env
 
 

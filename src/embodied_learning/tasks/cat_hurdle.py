@@ -146,6 +146,9 @@ def apply_runtime_settings(env, protocol: dict) -> None:
     from embodied_learning.tasks.cat_joint_velocity import apply_joint_velocity
 
     apply_joint_velocity(env, protocol)
+    from embodied_learning.tasks.cat_landing_speed import apply_landing_speed
+
+    apply_landing_speed(env, protocol)
     if "rfi_amplitude_multiplier" in protocol:
         env.schema["rfi_amplitude_multiplier"] = protocol["rfi_amplitude_multiplier"]
 

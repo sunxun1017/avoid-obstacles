@@ -516,6 +516,11 @@ class CatTaskState:
             parameters=params,
             diagnostics=diagnostics,
             feet_progress_gate=progress_gate,
+            landing_speed_rate=(
+                controller.landing.cost_rate
+                if getattr(controller, "landing", None) is not None
+                else None
+            ),
             whole_body_joint_velocity=getattr(
                 self, "whole_body_joint_velocity", False
             ),
