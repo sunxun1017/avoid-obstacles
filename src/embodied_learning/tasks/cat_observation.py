@@ -11,7 +11,9 @@ from embodied_learning.tasks.cat_reward import OBS_INDICES
 GROUPS = ((0,), (1,), (2,), (3, 4), (5, 6), (7, 8), (9, 10))
 
 
-def field_features(gf, bf, sdf):
+def field_features(
+    gf: torch.Tensor, bf: torch.Tensor, sdf: torch.Tensor
+) -> torch.Tensor:
     return torch.cat(
         [
             x
@@ -28,42 +30,42 @@ def field_features(gf, bf, sdf):
 
 def build_cat_observations(
     *,
-    gyro,
-    gravity,
-    joint_pos,
-    joint_vel,
-    default_joints,
-    last_actions,
-    targets,
-    command,
-    foot_height,
-    phase,
-    root_local_vel,
-    gf,
-    bf,
-    sdf,
-    body_positions,
-    body_velocities,
-    torso_rpy,
-    gait_mask,
-    feet_contact,
-    kp_scale,
-    kd_scale,
-    rfi_scale,
-    navigation_rotation,
-    gf_delayed,
-    bf_delayed,
-    sdf_delayed,
-    command_delayed,
-    noise_level=1.0,
-):
+    gyro: torch.Tensor,
+    gravity: torch.Tensor,
+    joint_pos: torch.Tensor,
+    joint_vel: torch.Tensor,
+    default_joints: torch.Tensor,
+    last_actions: torch.Tensor,
+    targets: torch.Tensor,
+    command: torch.Tensor,
+    foot_height: torch.Tensor,
+    phase: torch.Tensor,
+    root_local_vel: torch.Tensor,
+    gf: torch.Tensor,
+    bf: torch.Tensor,
+    sdf: torch.Tensor,
+    body_positions: torch.Tensor,
+    body_velocities: torch.Tensor,
+    torso_rpy: torch.Tensor,
+    gait_mask: torch.Tensor,
+    feet_contact: torch.Tensor,
+    kp_scale: torch.Tensor,
+    kd_scale: torch.Tensor,
+    rfi_scale: torch.Tensor,
+    navigation_rotation: torch.Tensor,
+    gf_delayed: torch.Tensor,
+    bf_delayed: torch.Tensor,
+    sdf_delayed: torch.Tensor,
+    command_delayed: torch.Tensor,
+    noise_level: float = 1.0,
+) -> TensorDict:
     # The empty-map extension represents absent obstacles by +inf. Encode this
     # as free space at the actor's existing distance horizon, rather than
     # letting nan_to_num turn the Critic input into float32's maximum value.
     # Every finite SDF (including the unbounded source Critic distances) is kept.
     sdf = torch.where(torch.isposinf(sdf), 0.5, sdf)
 
-    def noisy(x, scale):
+    def noisy(x: torch.Tensor, scale: float) -> torch.Tensor:
         return (
             x + (2 * torch.rand_like(x) - 1) * noise_level * scale
             if noise_level
@@ -108,7 +110,7 @@ def build_cat_observations(
     )
     rotation = navigation_rotation.transpose(-1, -2)
 
-    def rotate(v):
+    def rotate(v: torch.Tensor) -> torch.Tensor:
         return (rotation[:, None] @ v[..., None]).squeeze(-1)
 
     actor_command = command.clone()

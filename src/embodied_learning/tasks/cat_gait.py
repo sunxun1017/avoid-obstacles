@@ -10,7 +10,7 @@ from torch import Tensor
 
 
 class CatGaitState:
-    def __init__(self, num_envs: int, device: str, *, dt: float = 0.02):
+    def __init__(self, num_envs: int, device: str, *, dt: float = 0.02) -> None:
         if num_envs < 1 or not math.isfinite(dt) or dt <= 0:
             raise ValueError("Invalid gait count or timestep.")
         self.dt = dt
@@ -73,7 +73,14 @@ class CatPlaybackGaitState(CatGaitState):
     here is an episode timestamp, as in the source player, not a countdown.
     """
 
-    def __init__(self, num_envs, device, *, dt=0.02, command_deadband=0.2):
+    def __init__(
+        self,
+        num_envs: int,
+        device: str,
+        *,
+        dt: float = 0.02,
+        command_deadband: float = 0.2,
+    ) -> None:
         if (
             type(command_deadband) not in (int, float)
             or not math.isfinite(command_deadband)
@@ -85,12 +92,14 @@ class CatPlaybackGaitState(CatGaitState):
         self.step = torch.zeros(num_envs, device=device, dtype=torch.long)
         self.has_velocity = torch.zeros(num_envs, device=device, dtype=torch.bool)
 
-    def reset(self, env_ids, frequency, initial_phase):
+    def reset(
+        self, env_ids: Tensor, frequency: Tensor, initial_phase: Tensor
+    ) -> None:
         super().reset(env_ids, frequency, initial_phase)
         self.step[env_ids] = 0
         self.has_velocity[env_ids] = False
 
-    def advance(self, command):
+    def advance(self, command: Tensor) -> Tensor:
         if command.shape != self.last_command.shape:
             raise ValueError("Command must be [B,4].")
         has_vel = command[:, 1:].norm(dim=-1) > self.command_deadband

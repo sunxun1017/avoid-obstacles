@@ -12,7 +12,7 @@ class RootProgressWindow:
     turning small near-goal position fluctuations into full progress credit.
     """
 
-    def __init__(self, num_envs: int, device: str):
+    def __init__(self, num_envs: int, device: str) -> None:
         self.history = torch.zeros(25, num_envs, 2, device=device)
         self.age = torch.zeros(num_envs, dtype=torch.long, device=device)
         self.gate = torch.zeros(num_envs, device=device)

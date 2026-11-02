@@ -27,7 +27,7 @@ def sample_author_initial_state(
         raise ValueError("Source joint vectors must contain 29 entries.")
     n = len(root_state)
 
-    def rand(*shape):
+    def rand(*shape: int) -> Tensor:
         return torch.rand(
             *shape,
             device=root_state.device,

@@ -351,8 +351,14 @@ def build_voxel_field(
 
 
 def build_source_voxel_field(
-    occupied, *, goal, voxel_size, origin, max_speed=0.6, goal_radius=0.12
-):
+    occupied: np.ndarray,
+    *,
+    goal: tuple[float, float, float],
+    voxel_size: float,
+    origin: tuple[float, float, float],
+    max_speed: float = 0.6,
+    goal_radius: float = 0.12,
+) -> VoxelPotentialField:
     """Literal pf_modular progressive field construction, Apache-2.0.
 
     Retains filled geodesics and full-grid gradients from upstream 866ba392.
@@ -484,7 +490,7 @@ def sample_source_field(
     if not field.known[ix, iy, iz].all():
         raise ValueError("Source query contains unknown cells.")
 
-    def sample(grid):
+    def sample(grid: Tensor) -> Tensor:
         values = grid[ix, iy, iz]
         if grid.ndim == 4:
             return (values * w[..., None]).sum(-2)
