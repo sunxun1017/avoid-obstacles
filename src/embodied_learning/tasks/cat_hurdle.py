@@ -140,6 +140,9 @@ def apply_runtime_settings(env, protocol: dict) -> None:
             raise ValueError("Smoothness reward weight must be finite.")
         env.cat_state.scales["smoothness_action"] = weight
         env.schema["reward_smoothness_action_weight"] = weight
+    from embodied_learning.tasks.cat_smoothness import apply_joint_smoothness
+
+    apply_joint_smoothness(env, protocol)
     from embodied_learning.tasks.cat_field_weights import apply_field_weights
 
     apply_field_weights(env, protocol)

@@ -40,6 +40,13 @@ def load_actor_warmstart(
     old, source, field_changes = adapt_field_reward_transfer(
         checkpoint, old, target, source, curriculum
     )
+    from embodied_learning.tasks.cat_smoothness import (
+        adapt_smoothness_transfer,
+    )
+
+    old, source, smoothness_changes = adapt_smoothness_transfer(
+        checkpoint, old, target, source, curriculum
+    )
     refinement = curriculum.get("reward_weight_warmstart")
     refined = False
     progress = curriculum.get("feetgf_progress_refinement")
@@ -126,6 +133,7 @@ def load_actor_warmstart(
     changes.update(velocity_changes)
     changes.update(landing_changes)
     changes.update(force_changes)
+    changes.update(smoothness_changes)
     if refined:
         changes["task.root_tracking_weight"] = {
             "before": before,

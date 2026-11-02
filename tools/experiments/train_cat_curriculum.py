@@ -260,7 +260,13 @@ def make_env(root, level, *, num_envs, seed, execution_profile="source_train"):
             "landing_speed_refinement"
         ]
     if "contact_force_refinement" in protocol:
-        env.curriculum_metadata["contact_force_refinement"] = protocol["contact_force_refinement"]
+        env.curriculum_metadata["contact_force_refinement"] = protocol[
+            "contact_force_refinement"
+        ]
+    if "smoothness_refinement" in protocol:
+        env.curriculum_metadata["smoothness_refinement"] = protocol[
+            "smoothness_refinement"
+        ]
     return env
 
 
