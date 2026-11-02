@@ -15,12 +15,21 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from embodied_learning.data.field_scenes import SceneManifest
+from embodied_learning.perception.voxel_field import FieldSample, VoxelPotentialField
+from embodied_learning.tasks.field_assets import FieldBank
 
-def sha256(path):
+
+def sha256(path: str | Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def rebuild_guidance(field, goal, *, influence_radius):
+def rebuild_guidance(
+    field: VoxelPotentialField,
+    goal: tuple[float, float, float],
+    *,
+    influence_radius: float,
+) -> torch.Tensor:
     if not math.isfinite(influence_radius) or influence_radius <= 0:
         raise ValueError("Guidance radius must be positive and finite.")
     if field.sdf.device.type != "cpu":
@@ -52,7 +61,14 @@ def rebuild_guidance(field, goal, *, influence_radius):
 class FootGuidanceBank:
     """Route only published body-site columns 3/4 to the alternative GF."""
 
-    def __init__(self, base, grids, *, radius, manifest_identity):
+    def __init__(
+        self,
+        base: FieldBank,
+        grids: tuple[tuple[torch.Tensor, ...], ...],
+        *,
+        radius: float,
+        manifest_identity: str,
+    ) -> None:
         if len(grids) != len(base.fields):
             raise ValueError("Foot field scene count mismatch.")
         self.base = base
@@ -93,10 +109,22 @@ class FootGuidanceBank:
             foot_manifest_identity=manifest_identity,
         )
 
-    def sample_source(self, positions, scene_ids, goal_ids):
+    def sample_source(
+        self,
+        positions: torch.Tensor,
+        scene_ids: torch.Tensor,
+        goal_ids: torch.Tensor,
+    ) -> FieldSample:
         return self.sample(positions, scene_ids, goal_ids, source=True)
 
-    def sample(self, positions, scene_ids, goal_ids, *, source=False):
+    def sample(
+        self,
+        positions: torch.Tensor,
+        scene_ids: torch.Tensor,
+        goal_ids: torch.Tensor,
+        *,
+        source: bool = False,
+    ) -> FieldSample:
         if positions.ndim != 3 or positions.shape[1] != 11:
             raise ValueError("Foot routing requires the ordered 11 body sites.")
         sample = self.base.sample(positions, scene_ids, goal_ids, source=source)
@@ -108,7 +136,13 @@ class FootGuidanceBank:
         return replace(sample, guidance=guidance)
 
 
-def prepare_foot_cache(base, manifest, directory, *, radius):
+def prepare_foot_cache(
+    base: FieldBank,
+    manifest: SceneManifest,
+    directory: str | Path,
+    *,
+    radius: float,
+) -> FootGuidanceBank:
     directory = Path(directory)
     if (directory / "manifest.json").exists():
         return load_foot_bank(base, directory, radius=radius)
@@ -157,7 +191,9 @@ def prepare_foot_cache(base, manifest, directory, *, radius):
     return load_foot_bank(base, directory, radius=radius)
 
 
-def load_foot_bank(base, directory, *, radius):
+def load_foot_bank(
+    base: FieldBank, directory: str | Path, *, radius: float
+) -> FootGuidanceBank:
     directory = Path(directory)
     path = directory / "manifest.json"
     metadata = json.loads(path.read_text())
