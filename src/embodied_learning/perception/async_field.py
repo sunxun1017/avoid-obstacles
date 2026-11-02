@@ -2,6 +2,7 @@
 
 import multiprocessing as mp
 import time
+from typing import Any
 
 import numpy as np
 import torch
@@ -13,8 +14,9 @@ from embodied_learning.perception.field_worker import (
     read_text,
     run_field_worker,
 )
+from embodied_learning.perception.occupancy import OccupancyMapper
 from embodied_learning.perception.online_field import OnlineFieldMap
-from embodied_learning.perception.rays import validate_rays
+from embodied_learning.perception.rays import RayMeasurements, validate_rays
 from embodied_learning.perception.voxel_field import VoxelPotentialField
 
 
@@ -26,7 +28,14 @@ class AsyncFieldMap(OnlineFieldMap):
     start() may wait for process initialization, never update()/poll()/sample().
     """
 
-    def __init__(self, mapper, *, max_rays, worker_device=None, **kwargs):
+    def __init__(
+        self,
+        mapper: OccupancyMapper,
+        *,
+        max_rays: int,
+        worker_device: str | torch.device | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(mapper, **kwargs)
         if type(max_rays) is not int or max_rays < 1:
             raise ValueError("max_rays must be a positive integer.")
@@ -70,10 +79,10 @@ class AsyncFieldMap(OnlineFieldMap):
         )
 
     @property
-    def worker_alive(self):
+    def worker_alive(self) -> bool:
         return self._process is not None and self._process.is_alive()
 
-    def start(self, timeout=30.0):
+    def start(self, timeout: float = 30.0) -> None:
         if self._closed:
             raise RuntimeError("Field worker is closed.")
         if self._process is not None:
@@ -101,7 +110,7 @@ class AsyncFieldMap(OnlineFieldMap):
             self.close()
             raise
 
-    def _check_worker(self):
+    def _check_worker(self) -> None:
         if self._closed or self._process is None:
             raise RuntimeError("Field worker is not running; call start first.")
         if not self.worker_alive or self._transport.sync["failed"].value:
@@ -115,7 +124,14 @@ class AsyncFieldMap(OnlineFieldMap):
             )
 
     @torch.no_grad()
-    def update(self, rays, goals, *, timestamp, apply_cadence=True):
+    def update(
+        self,
+        rays: RayMeasurements,
+        goals: torch.Tensor,
+        *,
+        timestamp: float,
+        apply_cadence: bool = True,
+    ) -> bool:
         self._check_worker()
         if timestamp > time.monotonic():
             raise ValueError("Measurement timestamp cannot be in the future.")
@@ -163,7 +179,7 @@ class AsyncFieldMap(OnlineFieldMap):
         return True
 
     @torch.no_grad()
-    def poll(self):
+    def poll(self) -> bool:
         self._check_worker()
         t = self._transport
         if not t.output_lock.acquire(False):
@@ -227,17 +243,17 @@ class AsyncFieldMap(OnlineFieldMap):
             self._published = seq
         return bool(copies)
 
-    def reset(self, env_ids=None):
+    def reset(self, env_ids: torch.Tensor | None = None) -> None:
         ids = self._ids(env_ids)
         super().reset(ids)
         selected = ids.cpu().numpy()
         self._epochs[selected] += 1
         self._counts[selected] = 0
 
-    def map_counts(self):
+    def map_counts(self) -> tuple[list[int], list[int]]:
         return self._counts[:, 0].tolist(), self._counts[:, 1].tolist()
 
-    def diagnostics(self):
+    def diagnostics(self) -> dict[str, Any]:
         return dict(
             submitted_sequence=self._submitted,
             published_sequence=self._published,
@@ -248,7 +264,7 @@ class AsyncFieldMap(OnlineFieldMap):
             last_update_seconds=self.last_update_seconds,
         )
 
-    def close(self):
+    def close(self) -> None:
         if self._closed:
             return
         self._closed = True
@@ -266,9 +282,9 @@ class AsyncFieldMap(OnlineFieldMap):
         if t is not None:
             t.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "AsyncFieldMap":
         self.start()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         self.close()

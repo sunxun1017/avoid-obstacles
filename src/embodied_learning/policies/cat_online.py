@@ -1,6 +1,8 @@
 """Explicit inference-only field substitution; training contracts stay strict."""
 
 from dataclasses import replace
+from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -8,7 +10,9 @@ from embodied_learning.policies.field_policy import load_student, load_teacher
 from embodied_learning.protocols.imitation import PolicyContract
 
 
-def online_inference_contract(online: PolicyContract, saved: PolicyContract):
+def online_inference_contract(
+    online: PolicyContract, saved: PolicyContract
+) -> PolicyContract:
     """Validate everything except the deliberately replaced field/sensor assets."""
     schema = dict(online.schema)
     perception = schema.pop("online_perception", {})
@@ -32,7 +36,12 @@ def online_inference_contract(online: PolicyContract, saved: PolicyContract):
     return expected
 
 
-def load_online_policy(checkpoint, *, online_contract: PolicyContract, device):
+def load_online_policy(
+    checkpoint: str | Path,
+    *,
+    online_contract: PolicyContract,
+    device: str | torch.device,
+) -> Any:
     """Load a trusted project CAT checkpoint after validating the online boundary."""
     saved = torch.load(checkpoint, map_location="cpu", weights_only=False)
     actual = PolicyContract.from_dict(saved["field_contract"])

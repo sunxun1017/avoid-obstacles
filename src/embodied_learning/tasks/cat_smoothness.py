@@ -2,13 +2,15 @@
 
 import copy
 import math
+from pathlib import Path
+from typing import Any
 
 from embodied_learning.tasks.cat_foot_guidance import sha256
 
 DEFAULTS = {"smoothness_action": -0.001, "smoothness_joint": -1e-6}
 
 
-def validate_cost(value):
+def validate_cost(value: float) -> float:
     if (
         type(value) not in (int, float)
         or not math.isfinite(value)
@@ -20,7 +22,7 @@ def validate_cost(value):
     return value
 
 
-def apply_joint_smoothness(env, protocol):
+def apply_joint_smoothness(env: Any, protocol: dict[str, Any]) -> None:
     key = "reward_smoothness_joint_weight"
     if key in protocol:
         weight = validate_cost(protocol[key])
@@ -28,7 +30,13 @@ def apply_joint_smoothness(env, protocol):
         env.schema[key] = weight
 
 
-def adapt_smoothness_transfer(checkpoint, old, target, source, curriculum):
+def adapt_smoothness_transfer(
+    checkpoint: str | Path,
+    old: dict[str, Any],
+    target: dict[str, Any],
+    source: dict[str, Any],
+    curriculum: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     declaration = curriculum.get("smoothness_refinement")
     if declaration is None or (
         source["experiment"] == curriculum["experiment"]

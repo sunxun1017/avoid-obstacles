@@ -44,7 +44,7 @@ class RecoveryConfig:
     clearance_violation_limit: float = 0.2
     clearance_cost_scale: float = 20.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for field in fields(self):
             value = getattr(self, field.name)
             if (
@@ -74,7 +74,12 @@ class RecoveryConfig:
 class RecoveryNavigator:
     DRIVE, BRAKE, SETTLE, HOLD = range(4)
 
-    def __init__(self, num_envs: int, device, config: RecoveryConfig | None = None):
+    def __init__(
+        self,
+        num_envs: int,
+        device: str | torch.device,
+        config: RecoveryConfig | None = None,
+    ) -> None:
         if type(num_envs) is not int or num_envs < 1:
             raise ValueError("Recovery navigator requires a positive slot count.")
         self.config = config or RecoveryConfig()

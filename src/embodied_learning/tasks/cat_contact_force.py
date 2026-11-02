@@ -2,6 +2,8 @@
 
 import copy
 import math
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -12,7 +14,7 @@ KEY = "foot_contact_force"
 SENSORS = ("cat_left_ground", "cat_right_ground")
 
 
-def validate_schema(value):
+def validate_schema(value: dict[str, Any] | None) -> dict[str, Any] | None:
     if value is None:
         return None
     if (
@@ -32,7 +34,9 @@ def validate_schema(value):
     return result
 
 
-def contact_force_cost(peak_force, *, weight_n, threshold_bw):
+def contact_force_cost(
+    peak_force: torch.Tensor, *, weight_n: float, threshold_bw: float
+) -> torch.Tensor:
     if (
         peak_force.ndim != 2
         or peak_force.shape[1] != 2
@@ -50,7 +54,7 @@ def contact_force_cost(peak_force, *, weight_n, threshold_bw):
     return torch.where(torch.isfinite(value), value, 0.0)
 
 
-def verify_measurement_model(actual, reference):
+def verify_measurement_model(actual: Any, reference: Any) -> None:
     """Allow sensor metadata changes only; verify all physical arrays/options."""
     for name in dir(reference):
         if name.startswith(("_", "sensor", "name")):
@@ -77,30 +81,37 @@ def verify_measurement_model(actual, reference):
 
 
 class FootContactForceState:
-    def __init__(self, num_envs, device, *, weight_n, threshold_bw):
+    def __init__(
+        self,
+        num_envs: int,
+        device: str | torch.device,
+        *,
+        weight_n: float,
+        threshold_bw: float,
+    ) -> None:
         self.peak = torch.zeros(num_envs, 2, device=device)
         contact_force_cost(self.peak, weight_n=weight_n, threshold_bw=threshold_bw)
         self.weight_n = weight_n
         self.threshold_bw = threshold_bw
 
-    def begin_control(self):
+    def begin_control(self) -> None:
         self.peak.zero_()
 
-    def reset(self, env_ids):
+    def reset(self, env_ids: torch.Tensor) -> None:
         self.peak[env_ids] = 0
 
-    def accumulate(self, force):
+    def accumulate(self, force: torch.Tensor) -> None:
         if force.shape != (*self.peak.shape, 3):
             raise ValueError("Foot forces must be [B,2,3].")
         self.peak.copy_(torch.maximum(self.peak, force.norm(dim=-1)))
 
     @property
-    def cost_rate(self):
+    def cost_rate(self) -> torch.Tensor:
         return contact_force_cost(
             self.peak, weight_n=self.weight_n, threshold_bw=self.threshold_bw
         )
 
-    def sample(self, native):
+    def sample(self, native: Any) -> None:
         native.sim.sense()
         forces = []
         for name in SENSORS:
@@ -111,10 +122,10 @@ class FootContactForceState:
             forces.append(sensor.data.force.sum(1))
         self.accumulate(torch.stack(forces, 1))
 
-    def install(self, native):
+    def install(self, native: Any) -> None:
         original = native.sim.step
 
-        def step_with_force():
+        def step_with_force() -> Any:
             result = original()
             self.sample(native)
             return result
@@ -122,7 +133,7 @@ class FootContactForceState:
         native.sim.step = step_with_force
 
 
-def apply_contact_force(env, protocol):
+def apply_contact_force(env: Any, protocol: dict[str, Any]) -> None:
     if KEY not in protocol:
         return
     schema = validate_schema(protocol[KEY])
@@ -162,7 +173,13 @@ def apply_contact_force(env, protocol):
     env.schema[KEY] = schema
 
 
-def adapt_contact_force_transfer(checkpoint, old, target, source, curriculum):
+def adapt_contact_force_transfer(
+    checkpoint: str | Path,
+    old: dict[str, Any],
+    target: dict[str, Any],
+    source: dict[str, Any],
+    curriculum: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     declaration = curriculum.get("contact_force_refinement")
     if declaration is None or (
         source["experiment"] == curriculum["experiment"]

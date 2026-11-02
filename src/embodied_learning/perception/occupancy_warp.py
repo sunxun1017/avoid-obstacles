@@ -3,6 +3,9 @@
 import torch
 import warp as wp
 
+from embodied_learning.perception.occupancy import OccupancyMapper
+from embodied_learning.perception.rays import RayMeasurements
+
 wp.set_module_options({"enable_backward": False})
 
 
@@ -106,7 +109,7 @@ def traverse(
             break
 
 
-def update_warp(mapper, rays):
+def update_warp(mapper: OccupancyMapper, rays: RayMeasurements) -> torch.Tensor:
     wp.init()
     flags = torch.zeros(
         (mapper.num_envs, *mapper.shape), dtype=torch.int32, device=mapper.device

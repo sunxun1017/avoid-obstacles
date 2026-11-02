@@ -4,7 +4,9 @@ Changes: batched PyTorch and native mjlab action term, name-based mapping.
 """
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import torch
 from mjlab.managers.action_manager import ActionTerm, ActionTermCfg
@@ -20,7 +22,14 @@ from embodied_learning.robots.g1 import (
 
 
 class CatJointController:
-    def __init__(self, joint_names, soft_lower, soft_upper, num_envs, device):
+    def __init__(
+        self,
+        joint_names: Sequence[str],
+        soft_lower: torch.Tensor,
+        soft_upper: torch.Tensor,
+        num_envs: int,
+        device: str | torch.device,
+    ) -> None:
         if len(joint_names) != 29 or set(joint_names) != set(CAT_JOINT_NAMES):
             raise ValueError("Source G1 requires all 29 named joints.")
         self.indices = torch.tensor(
@@ -88,7 +97,7 @@ class CatActionCfg(ActionTermCfg):
     random_rfi: bool = True
     rfi_amplitude_multiplier: float = 1.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         value = self.rfi_amplitude_multiplier
         if (
             type(value) not in (int, float)
@@ -97,12 +106,12 @@ class CatActionCfg(ActionTermCfg):
         ):
             raise ValueError("RFI attenuation must be finite and between0and1.")
 
-    def build(self, env):
+    def build(self, env: Any) -> "CatAction":
         return CatAction(self, env)
 
 
 class CatAction(ActionTerm):
-    def __init__(self, cfg, env):
+    def __init__(self, cfg: CatActionCfg, env: Any) -> None:
         super().__init__(cfg, env)
         limits = self._entity.data.soft_joint_pos_limits[0]
         self.controller = CatJointController(
@@ -115,17 +124,17 @@ class CatAction(ActionTerm):
         env.cat_controller = self.controller
 
     @property
-    def action_dim(self):
+    def action_dim(self) -> int:
         return 12
 
     @property
-    def raw_action(self):
+    def raw_action(self) -> torch.Tensor:
         return self.controller.actions
 
-    def process_actions(self, actions):
+    def process_actions(self, actions: torch.Tensor) -> None:
         self.controller.process_action(actions)
 
-    def apply_actions(self):
+    def apply_actions(self) -> None:
         c = self.controller
         r = self._entity
         q = r.data.joint_pos[:, c.indices]
@@ -136,7 +145,7 @@ class CatAction(ActionTerm):
         native[:, c.indices] = torques
         r.set_joint_effort_target(native)
 
-    def reset(self, env_ids=None):
+    def reset(self, env_ids: torch.Tensor | None = None) -> None:
         if env_ids is None:
             env_ids = torch.arange(self.num_envs, device=self.device)
         c = self.controller

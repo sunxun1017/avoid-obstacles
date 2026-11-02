@@ -279,7 +279,7 @@ class OnlineFieldMap:
             self._cached_occupied[i] = None
             self.errors[i] = "No measurement."
 
-    def map_counts(self):
+    def map_counts(self) -> tuple[list[int], list[int]]:
         snapshot = self.mapper.snapshot()
         return (
             snapshot.observed.flatten(1).sum(1).cpu().tolist(),

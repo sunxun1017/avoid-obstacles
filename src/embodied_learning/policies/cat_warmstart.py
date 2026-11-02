@@ -89,7 +89,9 @@ def load_cat_warmstart(
     return saved, provenance
 
 
-def initialize_cat_warmstart(actor, critic, saved: dict) -> None:
+def initialize_cat_warmstart(
+    actor: torch.nn.Module, critic: torch.nn.Module, saved: dict
+) -> None:
     """Copy both networks, adding zero columns only to their input layers."""
     migrated = []
     for model, group, old_width, new_width in (

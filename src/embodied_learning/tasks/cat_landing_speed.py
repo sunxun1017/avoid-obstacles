@@ -1,9 +1,13 @@
 """Opt-in, physics-substep landing speed cost for native flat-ground G1."""
 
+from __future__ import annotations
+
 import copy
 import math
 import re
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 import mujoco
 import torch
@@ -13,7 +17,7 @@ from embodied_learning.tasks.cat_foot_guidance import sha256
 KEY = "foot_landing_speed"
 
 
-def validate_schema(value):
+def validate_schema(value: dict[str, Any] | None) -> dict[str, Any] | None:
     if value is None:
         return None
     if (
@@ -33,7 +37,13 @@ def validate_schema(value):
     return result
 
 
-def landing_speed_cost(sole_height, vertical_velocity, *, height_m, speed_m_s):
+def landing_speed_cost(
+    sole_height: torch.Tensor,
+    vertical_velocity: torch.Tensor,
+    *,
+    height_m: float,
+    speed_m_s: float,
+) -> torch.Tensor:
     if (
         sole_height.ndim != 2
         or sole_height.shape[1] != 2
@@ -58,7 +68,9 @@ class SoleGeometry:
     half_lengths: tuple
 
     @classmethod
-    def from_model(cls, model, device):
+    def from_model(
+        cls, model: mujoco.MjModel, device: str | torch.device
+    ) -> SoleGeometry:
         ids, radii, halves = [], [], []
         for side in ("left", "right"):
             found = []
@@ -97,7 +109,12 @@ class SoleGeometry:
             halves.append(torch.tensor([x[2] for x in found], device=device))
         return cls(tuple(ids), tuple(radii), tuple(halves))
 
-    def heights(self, geom_xpos, geom_xmat, env_origins):
+    def heights(
+        self,
+        geom_xpos: torch.Tensor,
+        geom_xmat: torch.Tensor,
+        env_origins: torch.Tensor,
+    ) -> torch.Tensor:
         # Capsule support along world z is radius + half_length*abs(axis_z).
         return torch.stack(
             [
@@ -114,7 +131,15 @@ class SoleGeometry:
 
 
 class FootLandingState:
-    def __init__(self, num_envs, device, *, height_m, speed_m_s, control_dt):
+    def __init__(
+        self,
+        num_envs: int,
+        device: str | torch.device,
+        *,
+        height_m: float,
+        speed_m_s: float,
+        control_dt: float,
+    ) -> None:
         if not math.isfinite(control_dt) or control_dt <= 0:
             raise ValueError("Landing control dt must be positive.")
         validate_schema(
@@ -132,13 +157,15 @@ class FootLandingState:
         self.geometry = None
         self.site_ids = None
 
-    def begin_control(self):
+    def begin_control(self) -> None:
         self.integral.zero_()
 
-    def reset(self, env_ids):
+    def reset(self, env_ids: torch.Tensor) -> None:
         self.integral[env_ids] = 0
 
-    def accumulate(self, heights, velocities, *, dt):
+    def accumulate(
+        self, heights: torch.Tensor, velocities: torch.Tensor, *, dt: float
+    ) -> None:
         self.integral.add_(
             landing_speed_cost(
                 heights, velocities, height_m=self.height_m, speed_m_s=self.speed_m_s
@@ -147,10 +174,10 @@ class FootLandingState:
         )
 
     @property
-    def cost_rate(self):
+    def cost_rate(self) -> torch.Tensor:
         return self.integral / self.control_dt
 
-    def sample(self, native):
+    def sample(self, native: Any) -> None:
         robot = native.scene["robot"]
         heights = self.geometry.heights(
             native.sim.data.geom_xpos,
@@ -160,10 +187,10 @@ class FootLandingState:
         velocity = robot.data.site_vel_w[:, self.site_ids, 2]
         self.accumulate(heights, velocity, dt=native.physics_dt)
 
-    def install(self, native):
+    def install(self, native: Any) -> None:
         original_step = native.sim.step
 
-        def step_with_landing_sample():
+        def step_with_landing_sample() -> Any:
             result = original_step()
             # mj_step exposes derived state at this integration's start.
             # Sampling afterward covers every substep exactly once, including
@@ -174,7 +201,7 @@ class FootLandingState:
         native.sim.step = step_with_landing_sample
 
 
-def apply_landing_speed(env, protocol):
+def apply_landing_speed(env: Any, protocol: dict[str, Any]) -> None:
     if KEY not in protocol:
         return
     schema = validate_schema(protocol[KEY])
@@ -213,7 +240,13 @@ def apply_landing_speed(env, protocol):
     env.schema[KEY] = schema
 
 
-def adapt_landing_transfer(checkpoint, old, target, source, curriculum):
+def adapt_landing_transfer(
+    checkpoint: str | Path,
+    old: dict[str, Any],
+    target: dict[str, Any],
+    source: dict[str, Any],
+    curriculum: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     declaration = curriculum.get("landing_speed_refinement")
     if declaration is None or (
         source["experiment"] == curriculum["experiment"]

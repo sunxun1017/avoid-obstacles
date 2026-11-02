@@ -4,16 +4,21 @@ Source methods are adapted under Apache-2.0; explicit batched state and caching.
 """
 
 import math
+from typing import Any
 
 import torch
+from tensordict import TensorDict
 
+from embodied_learning.data.field_scenes import SceneManifest
 from embodied_learning.tasks.cat_command import (
     compute_cat_command,
     retime_cat_arrival,
 )
+from embodied_learning.tasks.cat_foot_guidance import FootGuidanceBank
 from embodied_learning.tasks.cat_foot_progress import RootProgressWindow
 from embodied_learning.tasks.cat_gait import CatGaitState, CatPlaybackGaitState
 from embodied_learning.tasks.cat_observation import build_cat_observations
+from embodied_learning.tasks.cat_online import CatOnlineFields
 from embodied_learning.tasks.cat_recovery import (
     RecoveryConfig,
     RecoveryNavigator,
@@ -26,6 +31,7 @@ from embodied_learning.tasks.cat_reward import (
     aggregate_cat_reward,
     cat_reward_terms,
 )
+from embodied_learning.tasks.field_assets import FieldBank
 
 
 class CatTaskState:
@@ -48,17 +54,17 @@ class CatTaskState:
 
     def __init__(
         self,
-        manifest,
-        bank,
-        allowed,
-        num_envs,
-        device,
-        options,
+        manifest: SceneManifest,
+        bank: FieldBank | FootGuidanceBank | CatOnlineFields,
+        allowed: tuple[int, ...],
+        num_envs: int,
+        device: str | torch.device,
+        options: dict[str, Any],
         *,
-        task_profile="cat_source_v1",
-        recovery_options=None,
-        execution_profile="source_train",
-    ):
+        task_profile: str = "cat_source_v1",
+        recovery_options: dict[str, Any] | None = None,
+        execution_profile: str = "source_train",
+    ) -> None:
         if bank.source_profile != {"version": "cat_source_v1"}:
             raise ValueError("Source task requires source-profile cache.")
         if task_profile not in ("cat_source_v1", "cat_recovery_v1"):
@@ -236,7 +242,7 @@ class CatTaskState:
             for name in names:
                 self.scales[name] = self.options[coef]
 
-    def reset(self, env_ids):
+    def reset(self, env_ids: torch.Tensor) -> None:
         n = len(env_ids)
         freq = 1.3 + 0.2 * torch.rand(n, device=env_ids.device)
         phase = torch.tensor(
@@ -262,7 +268,16 @@ class CatTaskState:
         self._key = None
 
     @staticmethod
-    def classify(*, up_z, head_z, self_contact, sdf, invalid, steps, threshold):
+    def classify(
+        *,
+        up_z: torch.Tensor,
+        head_z: torch.Tensor,
+        self_contact: torch.Tensor,
+        sdf: torch.Tensor,
+        invalid: torch.Tensor,
+        steps: torch.Tensor,
+        threshold: float,
+    ) -> dict[str, torch.Tensor]:
         collision = (self_contact | (sdf < -threshold).any(-1)) & (steps >= 50)
         return dict(
             fall=(up_z < 0) | (head_z < 0.7),
@@ -271,14 +286,20 @@ class CatTaskState:
             timeout=steps >= 1000,
         )
 
-    def record_goal(self, distance, safe):
+    def record_goal(self, distance: torch.Tensor, safe: torch.Tensor) -> None:
         self.ever_goal |= (distance < 0.1) & safe
 
-    def advance_before_physics(self, actions):
+    def advance_before_physics(self, actions: torch.Tensor) -> None:
         # Actions/PD are handled by a separate controller, not this state.
         self._key = None
 
-    def refresh(self, payload, controller, steps, common_step):
+    def refresh(
+        self,
+        payload: dict[str, Any],
+        controller: Any,
+        steps: torch.Tensor,
+        common_step: int,
+    ) -> None:
         key = (common_step, self.generation)
         if self._key == key:
             return
@@ -724,11 +745,11 @@ class CatTaskState:
         self.initial.fill_(False)
         self._key = key
 
-    def observations(self):
+    def observations(self) -> TensorDict | None:
         return self._obs
 
-    def reward(self):
+    def reward(self) -> torch.Tensor:
         return self._reward
 
-    def outcomes(self):
+    def outcomes(self) -> dict[str, torch.Tensor]:
         return self._outcomes

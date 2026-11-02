@@ -3,16 +3,23 @@
 import copy
 import math
 from pathlib import Path
+from typing import Any
 
 import torch
 
+from embodied_learning.protocols.imitation import PolicyContract
 from embodied_learning.tasks.cat_curriculum import validate_transfer
 from embodied_learning.tasks.cat_foot_guidance import sha256
 
 
 def load_actor_warmstart(
-    checkpoint, *, contract, curriculum, training_scenes, device
-):
+    checkpoint: str | Path,
+    *,
+    contract: PolicyContract,
+    curriculum: dict[str, Any] | None,
+    training_scenes: list[int] | list[str],
+    device: str | torch.device,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     saved = torch.load(checkpoint, map_location=device, weights_only=False)
     if curriculum is None or "curriculum" not in saved:
         raise ValueError("Actor warmstart requires declared curriculum metadata.")

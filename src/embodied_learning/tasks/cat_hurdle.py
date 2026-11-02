@@ -1,8 +1,10 @@
 """Portable protocol and runtime settings for the feetgf hurdle experiment."""
 
 import copy
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -91,7 +93,7 @@ def configure_recipe(
         protocol["optimization_profile"] = protocol["ppo"]["optimization_profile"]
 
 
-def apply_runtime_settings(env, protocol: dict) -> None:
+def apply_runtime_settings(env: Any, protocol: dict) -> None:
     """Apply explicit gains/weights and report them in the policy contract."""
     controller = env.unwrapped.cat_controller
     pd = protocol.get("controller_pd")
@@ -160,7 +162,7 @@ def apply_runtime_settings(env, protocol: dict) -> None:
 
 
 @contextmanager
-def evaluation_push_mode(env, disable: bool):
+def evaluation_push_mode(env: Any, disable: bool) -> Iterator[None]:
     """Suppress only push impulses, retaining source random draw timing."""
     if not disable:
         yield
@@ -169,7 +171,7 @@ def evaluation_push_mode(env, disable: bool):
     options, original = state.options, state.advance_before_physics
     state.options = {**options, "push": False}
 
-    def advance(actions):
+    def advance(actions: torch.Tensor) -> None:
         if options["push"]:
             count = int(
                 (

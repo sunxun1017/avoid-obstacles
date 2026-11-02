@@ -8,6 +8,7 @@ remain explicitly different from the author's public training setup.
 
 import math
 from itertools import chain
+from typing import Any
 
 import torch
 from rsl_rl.algorithms import PPO
@@ -23,41 +24,41 @@ from embodied_learning.policies.source_distribution import (
 
 
 class _MeanSlice(nn.Module):
-    def __init__(self, output_dim):
+    def __init__(self, output_dim: int) -> None:
         super().__init__()
         self.output_dim = output_dim
 
-    def forward(self, logits):
+    def forward(self, logits: torch.Tensor) -> torch.Tensor:
         return logits[..., : self.output_dim]
 
 
 class SourceNormalTanh(LatentTanhGaussianDistribution):
     """State-dependent softplus scale; actions stay latent until CatEnv.step."""
 
-    def __init__(self, output_dim):
+    def __init__(self, output_dim: int) -> None:
         Distribution.__init__(self, output_dim)
         self._distribution = None
         Normal.set_default_validate_args(False)
 
     @property
-    def input_dim(self):
+    def input_dim(self) -> int:
         return 2 * self.output_dim
 
-    def update(self, mlp_output):
+    def update(self, mlp_output: torch.Tensor) -> None:
         mean, scale = mlp_output.split(self.output_dim, dim=-1)
         self._distribution = Normal(mean, F.softplus(scale) + 0.001)
 
-    def deterministic_output(self, mlp_output):
+    def deterministic_output(self, mlp_output: torch.Tensor) -> torch.Tensor:
         return mlp_output[..., : self.output_dim]
 
-    def as_deterministic_output_module(self):
+    def as_deterministic_output_module(self) -> nn.Module:
         return _MeanSlice(self.output_dim)
 
 
 class SourceMLPModel(MLPModel):
     """LeCun uniform kernels and zero biases, as in Brax's Flax MLP."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         for layer in self.mlp:
             if isinstance(layer, nn.Linear):
@@ -71,8 +72,15 @@ class SourceMLPModel(MLPModel):
 
 @torch.no_grad()
 def source_gae(
-    truncation, termination, rewards, values, bootstrap_value, *, lam, gamma
-):
+    truncation: torch.Tensor,
+    termination: torch.Tensor,
+    rewards: torch.Tensor,
+    values: torch.Tensor,
+    bootstrap_value: torch.Tensor,
+    *,
+    lam: float,
+    gamma: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Brax returns and its one-step advantage over the lambda return.
 
     In particular, truncation masks the timeout transition. It does not
@@ -96,7 +104,9 @@ def source_gae(
 class SourcePPO(PPO):
     """Trajectory minibatches and the pinned Brax loss/gradient semantics."""
 
-    def __init__(self, *args, source_unroll_steps=None, **kwargs):
+    def __init__(
+        self, *args: Any, source_unroll_steps: int | None = None, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         if (
             self.actor.is_recurrent
@@ -141,7 +151,13 @@ class SourcePPO(PPO):
         self.last_observations = self.storage.observations[0].clone()
         self.last_batch_shapes = []
 
-    def process_env_step(self, obs, rewards, dones, extras):
+    def process_env_step(
+        self,
+        obs: Any,
+        rewards: torch.Tensor,
+        dones: torch.Tensor,
+        extras: dict[str, Any],
+    ) -> None:
         timeout = extras.get("time_outs", torch.zeros_like(dones))
         self.truncations[self.storage.step].copy_(timeout.reshape(-1, 1))
         # Reuse storage/normalization handling without RSL's timeout reward.
@@ -152,11 +168,11 @@ class SourcePPO(PPO):
             {k: v for k, v in extras.items() if k != "time_outs"},
         )
 
-    def compute_returns(self, obs):
+    def compute_returns(self, obs: Any) -> None:
         # Keep a regular, preallocated buffer: collection runs in inference_mode.
         self.last_observations.copy_(obs)
 
-    def _trajectory_batches(self):
+    def _trajectory_batches(self) -> tuple[int, int, dict[str, Any], torch.Tensor]:
         """Split collection into separate short unrolls, as in Brax scan.
 
         Fewer simultaneous worlds may collect several unrolls before an update.
@@ -167,7 +183,7 @@ class SourcePPO(PPO):
         length, worlds = self.source_unroll_steps, st.num_envs
         rounds = st.num_transitions_per_env // length
 
-        def pack(value):
+        def pack(value: Any) -> Any:
             suffix = value.shape[2:]
             return (
                 value.reshape(rounds, length, worlds, *suffix)
@@ -191,7 +207,7 @@ class SourcePPO(PPO):
         bootstrap = torch.stack(next_observations, dim=0).reshape(rounds * worlds)
         return length, rounds * worlds, data, bootstrap
 
-    def update(self):
+    def update(self) -> dict[str, float]:
         st = self.storage
         if st.step != st.num_transitions_per_env:
             raise ValueError("Source update requires a complete rollout.")

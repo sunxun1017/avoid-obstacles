@@ -4,6 +4,7 @@ import math
 import shutil
 import time
 from multiprocessing import shared_memory
+from typing import Any
 
 import numpy as np
 
@@ -18,7 +19,9 @@ FIELD_ARRAYS = (
 )
 
 
-def layout(batch, shape, max_rays):
+def layout(
+    batch: int, shape: tuple[int, int, int], max_rays: int
+) -> dict[str, tuple[tuple[int, ...], str]]:
     grids = (batch, *shape)
     specs = {
         "origins": ((batch, max_rays, 3), "float32"),
@@ -53,20 +56,27 @@ def layout(batch, shape, max_rays):
     return specs
 
 
-def write_text(target, value):
+def write_text(target: np.ndarray, value: str) -> None:
     target.fill(0)
     encoded = str(value).encode("utf-8")[: target.size - 1]
     target[: len(encoded)] = np.frombuffer(encoded, dtype=np.uint8)
 
 
-def read_text(value):
+def read_text(value: np.ndarray) -> str:
     return value.tobytes().split(b"\0", 1)[0].decode("utf-8", errors="replace")
 
 
 class FieldTransport:
     """One replaceable input and one published output, each under its own lock."""
 
-    def __init__(self, specs, *, context=None, name=None, sync=None):
+    def __init__(
+        self,
+        specs: dict[str, tuple[tuple[int, ...], str]],
+        *,
+        context: Any = None,
+        name: str | None = None,
+        sync: Any = None,
+    ) -> None:
         self.specs = specs
         self.owner = name is None
         offsets, size = {}, 0
@@ -109,7 +119,7 @@ class FieldTransport:
             self.close()
             raise
 
-    def close(self):
+    def close(self) -> None:
         if self.closed:
             return
         self.closed = True
@@ -119,7 +129,12 @@ class FieldTransport:
             self.memory.unlink()
 
 
-def run_field_worker(name, specs, sync, config):
+def run_field_worker(
+    name: str,
+    specs: dict[str, tuple[tuple[int, ...], str]],
+    sync: dict[str, Any],
+    config: dict[str, Any],
+) -> None:
     """Spawn target: owns all mutable maps and computation on its chosen device."""
     import torch
 

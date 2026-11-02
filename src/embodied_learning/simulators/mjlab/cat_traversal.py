@@ -5,12 +5,13 @@ Robot model/contact geometry remain mjlab assets; source-name mappings are expli
 
 import hashlib
 from dataclasses import asdict, replace
+from typing import Any
 
 import numpy as np
 import torch
 from mjlab.actuator import BuiltinMotorActuatorCfg
 from mjlab.entity import EntityCfg
-from mjlab.envs import ManagerBasedRlEnv
+from mjlab.envs import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import (
     ObservationGroupCfg,
@@ -23,6 +24,7 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity.config.g1.env_cfgs import unitree_g1_flat_env_cfg
 from mjlab.utils.lab_api.math import matrix_from_quat
 
+from embodied_learning.data.field_scenes import SceneManifest
 from embodied_learning.robots.g1 import (
     CAT_ACTION_NAMES,
     CAT_DEFAULT_JOINTS,
@@ -37,11 +39,14 @@ from embodied_learning.simulators.mjlab.field_traversal import (
     _box_spec,
     _reset_field,
 )
+from embodied_learning.tasks.cat_foot_guidance import FootGuidanceBank
+from embodied_learning.tasks.cat_online import CatOnlineFields
 from embodied_learning.tasks.cat_reward import CatRewardInputs
 from embodied_learning.tasks.cat_traversal import CatTaskState
+from embodied_learning.tasks.field_assets import FieldBank
 
 
-def native_model_identity(model) -> str:
+def native_model_identity(model: Any) -> str:
     """Hash compiled numeric robot/scene assets, independent of data or device."""
     digest = hashlib.sha256()
     for name in sorted(dir(model)):
@@ -66,7 +71,9 @@ def native_model_identity(model) -> str:
     return digest.hexdigest()
 
 
-def check_physics_buffers(overflow, nefc, *, njmax):
+def check_physics_buffers(
+    overflow: torch.Tensor, nefc: torch.Tensor, *, njmax: int
+) -> None:
     """Reject GPU allocation overflow before corrupted transitions reach PPO."""
     if ((overflow != 0) | (nefc > njmax)).any():
         required = int(nefc.max().item())
@@ -87,7 +94,7 @@ def build_cat_cfg(
     random_pd: bool = True,
     random_rfi: bool = True,
     rfi_amplitude_multiplier: float = 1.0,
-):
+) -> ManagerBasedRlEnvCfg:
     cfg = unitree_g1_flat_env_cfg()
     cfg.scene.num_envs = num_envs
     cfg.sim.nconmax = 128
@@ -124,7 +131,7 @@ def build_cat_cfg(
     )
     original = robot.spec_fn
 
-    def spec_fn():
+    def spec_fn() -> Any:
         spec = original()
         for name, (body, pos) in G1_ADDED_SITES.items():
             spec.body(body).add_site(name=name, pos=pos, size=(0.01, 0, 0))
@@ -144,7 +151,7 @@ def build_cat_cfg(
     return cfg
 
 
-def rpy(rotation):
+def rpy(rotation: torch.Tensor) -> torch.Tensor:
     # Signed atan2 roll/pitch/yaw, equivalent to jaxlie SO3.as_rpy_radians.
     return torch.stack(
         (
@@ -159,7 +166,7 @@ def rpy(rotation):
     )
 
 
-def _read_body_envelope(env, state):
+def _read_body_envelope(env: Any, state: CatTaskState) -> Any:
     """Read full compiled geom poses and query the known-scene research cover."""
     from embodied_learning.simulators.mjlab.cat_geometry import BoxEnvelopeQuery
 
@@ -178,7 +185,7 @@ def _read_body_envelope(env, state):
     return query.sample(centers, state.scene_ids)
 
 
-def read_cat_reward_inputs(env, state):
+def read_cat_reward_inputs(env: Any, state: CatTaskState) -> dict[str, Any]:
     robot = env.scene["robot"]
     data = robot.data
     c = env.cat_controller
@@ -282,7 +289,7 @@ def read_cat_reward_inputs(env, state):
     return payload
 
 
-def _refresh(env):
+def _refresh(env: Any) -> None:
     state = env.cat_state
     if state._key != (env.common_step_counter, state.generation):
         env.sim.forward()
@@ -307,23 +314,23 @@ def _refresh(env):
         )
 
 
-def _source_obs(env, group):
+def _source_obs(env: Any, group: str) -> torch.Tensor:
     _refresh(env)
     return env.cat_state.observations()[group]
 
 
-def _source_reward(env):
+def _source_reward(env: Any) -> torch.Tensor:
     _refresh(env)
     # Native RewardManager multiplies this rate by dt, yielding the source total.
     return env.cat_state.reward() / env.step_dt
 
 
-def _source_done(env, name):
+def _source_done(env: Any, name: str) -> torch.Tensor:
     _refresh(env)
     return env.cat_state.outcomes()[name]
 
 
-def _apply_author_initialization(env, env_ids):
+def _apply_author_initialization(env: Any, env_ids: torch.Tensor) -> None:
     """Write source reset samples only to selected native worlds."""
     from embodied_learning.tasks.cat_initialization import (
         sample_author_initial_state,
@@ -347,7 +354,7 @@ def _apply_author_initialization(env, env_ids):
     )
 
 
-def _source_reset(env, env_ids):
+def _source_reset(env: Any, env_ids: torch.Tensor | None) -> None:
     if env_ids is None:
         env_ids = torch.arange(env.num_envs, device=env.device)
     _reset_field(env, env_ids)
@@ -365,21 +372,21 @@ def _source_reset(env, env_ids):
 
 
 def make_cat_env(
-    manifest,
-    bank,
+    manifest: SceneManifest,
+    bank: FieldBank | FootGuidanceBank | CatOnlineFields,
     *,
-    scene_ids,
-    num_envs,
-    device,
-    seed,
-    options,
-    online_sensor=None,
-    foot_contact_force=None,
-    task_profile="cat_source_v1",
-    recovery_options=None,
-    execution_profile="source_train",
-    rfi_amplitude_multiplier=1.0,
-):
+    scene_ids: tuple[str, ...] | list[str],
+    num_envs: int,
+    device: str | torch.device,
+    seed: int,
+    options: dict[str, Any],
+    online_sensor: Any = None,
+    foot_contact_force: Any = None,
+    task_profile: str = "cat_source_v1",
+    recovery_options: dict[str, Any] | None = None,
+    execution_profile: str = "source_train",
+    rfi_amplitude_multiplier: float = 1.0,
+) -> "CatEnv":
     if (
         task_profile == "cat_recovery_v1"  # """ 任务配置类型 """
         and online_sensor is not None
@@ -439,7 +446,7 @@ def make_cat_env(
     }
     sensors = []
 
-    def contact(name, primary, secondary):
+    def contact(name: str, primary: ContactMatch, secondary: ContactMatch) -> None:
         sensors.append(
             ContactSensorCfg(
                 name=name,
@@ -493,6 +500,7 @@ def make_cat_env(
     force_baseline = None
     if foot_contact_force is not None:
         from mjlab.scene import Scene
+
         from embodied_learning.tasks.cat_contact_force import validate_schema
 
         validate_schema(foot_contact_force)
@@ -522,7 +530,7 @@ def make_cat_env(
         attach_online_sensor(cfg, online_sensor)
 
     class CatNativeEnv(ManagerBasedRlEnv):
-        def __init__(self):
+        def __init__(self) -> None:
             self.cat_state = self.field_state = state
             self.cat_obstacle_contacts = obstacle_contacts
             self.cat_sensor_config = online_sensor
@@ -538,7 +546,7 @@ def make_cat_env(
             self.cat_collision_query = None
             super().__init__(cfg=cfg, device=device)
 
-        def load_managers(self):
+        def load_managers(self) -> None:
             self.cat_rfi_amplitude_multiplier = rfi_amplitude_multiplier
             if task_profile == "cat_recovery_v1":
                 from embodied_learning.simulators.mjlab.cat_geometry import (
@@ -562,12 +570,12 @@ def make_cat_env(
                 install_sensor_schedule(self)
             super().load_managers()
 
-        def close(self):
+        def close(self) -> None:
             if self.cat_sensor_schedule is not None:
                 self.cat_sensor_schedule.close()
             super().close()
 
-        def step(self, actions):
+        def step(self, actions: torch.Tensor) -> Any:
             state.advance_before_physics(actions)
             if state.options["push"]:
                 push = ((self.episode_length_buf + 1) % state.push_interval) == 0
@@ -607,7 +615,7 @@ def make_cat_env(
 
 
 class CatEnv(RslRlVecEnvWrapper):
-    def __init__(self, native):
+    def __init__(self, native: Any) -> None:
         super().__init__(native, clip_actions=None)
         self.inference_only = native.cat_sensor_config is not None
         self.inference_only |= (
@@ -660,7 +668,7 @@ class CatEnv(RslRlVecEnvWrapper):
                 mapping_backend=state.bank.online.mapper.backend,
             )
 
-    def close(self):
+    def close(self) -> None:
         try:
             super().close()
         finally:
@@ -668,21 +676,21 @@ class CatEnv(RslRlVecEnvWrapper):
                 self.cat_state.bank.close()
 
     @property
-    def training_step(self):
+    def training_step(self) -> int:
         return self.unwrapped.common_step_counter
 
     @training_step.setter
-    def training_step(self, value):
+    def training_step(self, value: Any) -> None:
         self.unwrapped.common_step_counter = value
         # This is learner bookkeeping, not an additional control step.
         self.cat_state._last_common = value
         if self.cat_state._key is not None:
             self.cat_state._key = (value, self.cat_state.generation)
 
-    def reset_slots(self, slots):
+    def reset_slots(self, slots: torch.Tensor) -> None:
         self.unwrapped.reset(env_ids=slots)
 
-    def step(self, actions):
+    def step(self, actions: torch.Tensor) -> Any:
         # PPO stores the latent Gaussian sample; source control/rewards receive
         # bounded tanh actions, as in Brax. Play and DAgger use the same boundary.
         if not torch.isfinite(actions).all():

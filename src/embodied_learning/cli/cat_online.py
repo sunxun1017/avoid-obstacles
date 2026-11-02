@@ -4,9 +4,10 @@ import argparse
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 
-def _parser():
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--config", type=Path, default=Path("configs/experiments/g1_cat_source.yaml")
@@ -42,7 +43,7 @@ def _parser():
     return parser
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.num_envs < 1 or args.steps < 1:
         raise ValueError("num-envs and steps must be positive.")
@@ -105,7 +106,7 @@ def main(argv=None):
         else:
 
             class SmokePolicy:
-                def predict(self, observations):
+                def predict(self, observations: Any) -> Any:
                     return torch.zeros(env.num_envs, 12, device=env.device)
 
             policy = SmokePolicy()

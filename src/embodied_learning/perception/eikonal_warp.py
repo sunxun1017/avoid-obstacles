@@ -156,7 +156,9 @@ def relax(
 class CudaEikonal:
     """Reusable workspace; solves are isolated, including obstacle removals."""
 
-    def __init__(self, shape, device):
+    def __init__(
+        self, shape: tuple[int, int, int], device: str | torch.device
+    ) -> None:
         if len(shape) != 3 or min(shape) < 3:
             raise ValueError("Expected a three-dimensional grid with axes >=3.")
         self.shape = tuple(shape)
@@ -177,7 +179,7 @@ class CudaEikonal:
         self.iterations = 0
         self.stream = torch.cuda.Stream(device=self.device)
 
-    def _step(self, old, new, *, tolerance, order):
+    def _step(self, old: int, new: int, *, tolerance: float, order: int) -> None:
         wp.from_torch(self.active[new]).zero_()
         wp.launch(
             relax,
@@ -199,14 +201,14 @@ class CudaEikonal:
     @torch.no_grad()
     def solve(
         self,
-        phi,
-        blocked,
+        phi: torch.Tensor,
+        blocked: torch.Tensor,
         *,
-        spacing,
-        max_iterations=None,
-        tolerance=1.0e-4,
-        order=2,
-    ):
+        spacing: float,
+        max_iterations: int | None = None,
+        tolerance: float = 1.0e-4,
+        order: int = 2,
+    ) -> torch.Tensor:
         caller = torch.cuda.current_stream(self.device)
         self.stream.wait_stream(caller)
         with torch.cuda.stream(self.stream):
@@ -222,7 +224,16 @@ class CudaEikonal:
         result.record_stream(caller)
         return result
 
-    def _solve(self, phi, blocked, *, spacing, max_iterations, tolerance, order):
+    def _solve(
+        self,
+        phi: torch.Tensor,
+        blocked: torch.Tensor,
+        *,
+        spacing: float,
+        max_iterations: int | None,
+        tolerance: float,
+        order: int,
+    ) -> torch.Tensor:
         if (
             phi.shape != self.shape
             or blocked.shape != self.shape

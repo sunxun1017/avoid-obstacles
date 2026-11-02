@@ -7,6 +7,7 @@ import json
 import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import torch
 from rsl_rl.runners import OnPolicyRunner
@@ -367,7 +368,7 @@ def train_specialist(
     )
     official_update = runner.alg.update
 
-    def checked_update():
+    def checked_update() -> Any:
         result = official_update()
         if not all(math.isfinite(v) for v in result.values()):
             raise RuntimeError("PPO produced nonfinite optimization losses.")

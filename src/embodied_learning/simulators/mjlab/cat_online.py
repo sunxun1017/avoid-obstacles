@@ -1,6 +1,7 @@
 """Inference-only CAT sensor/field composition; no offline field loading."""
 
 import time
+from typing import Any
 
 import torch
 
@@ -16,7 +17,7 @@ class CatSensorSchedule:
     A changed episode may require a second, post-reset capture in the same step.
     """
 
-    def __init__(self, env):
+    def __init__(self, env: Any) -> None:
         self.env = env
         self._sense = env.sim.sense
         self._key = None
@@ -29,7 +30,7 @@ class CatSensorSchedule:
         self.slots = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
         env.sim.sense = self.sense
 
-    def sense(self):
+    def sense(self) -> None:
         env, bank = self.env, self.env.cat_state.bank
         key = (env.common_step_counter, env.cat_state.generation)
         if key == self._key:
@@ -54,37 +55,37 @@ class CatSensorSchedule:
         self._goals[due] = env.cat_state.goals[due]
         self.pending = True
 
-    def reset(self, env_ids):
+    def reset(self, env_ids: torch.Tensor) -> None:
         self._last_capture[env_ids] = -torch.inf
         self._goals[env_ids] = torch.nan
         self._key = None
         self.pending = False
 
-    def close(self):
+    def close(self) -> None:
         self.env.sim.sense = self._sense
 
 
-def install_sensor_schedule(env):
+def install_sensor_schedule(env: Any) -> CatSensorSchedule:
     if env.cat_sensor_schedule is None:
         env.cat_sensor_schedule = CatSensorSchedule(env)
     return env.cat_sensor_schedule
 
 
 def make_cat_online_env(
-    manifest,
+    manifest: Any,
     *,
-    scene_ids,
-    num_envs,
-    device,
-    seed,
-    options,
+    scene_ids: Any,
+    num_envs: int,
+    device: str | torch.device,
+    seed: int,
+    options: dict[str, Any],
     sensor: OnlineSensorConfig | None = None,
-    update_period=0.1,
-    max_age=0.3,
-    execution="sync",
-    field_backend="source",
-    mapping_backend="torch",
-):
+    update_period: float = 0.1,
+    max_age: float = 0.3,
+    execution: str = "sync",
+    field_backend: str = "source",
+    mapping_backend: str = "torch",
+) -> Any:
     from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
     from embodied_learning.tasks.cat_online import CatOnlineFields
 
@@ -121,7 +122,7 @@ def make_cat_online_env(
         raise
 
 
-def refresh_online_fields(env):
+def refresh_online_fields(env: Any) -> None:
     from embodied_learning.simulators.mjlab.cat_sensors import CatSensorReader
 
     bank = env.cat_state.bank

@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 from embodied_learning.data.config import load_experiment_config
 
@@ -154,7 +155,9 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def resolve_training_defaults(args, settings):
+def resolve_training_defaults(
+    args: argparse.Namespace, settings: dict[str, Any]
+) -> None:
     """CLI overrides experiment defaults; reject ambiguous booleans as integers."""
     if args.seed is None:
         args.seed = settings.get("seed", 42)

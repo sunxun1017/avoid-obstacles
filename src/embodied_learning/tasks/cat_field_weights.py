@@ -2,6 +2,8 @@
 
 import copy
 import math
+from pathlib import Path
+from typing import Any
 
 from embodied_learning.tasks.cat_foot_guidance import sha256
 
@@ -19,7 +21,7 @@ FIELD_TERMS = frozenset(
 )
 
 
-def validate_field_weights(weights):
+def validate_field_weights(weights: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(weights, dict) or set(weights) - FIELD_TERMS:
         raise ValueError("Unknown field reward overrides.")
     if any(
@@ -30,7 +32,7 @@ def validate_field_weights(weights):
     return copy.deepcopy(weights)
 
 
-def apply_field_weights(env, protocol):
+def apply_field_weights(env: Any, protocol: dict[str, Any]) -> None:
     if "field_reward_overrides" not in protocol:
         return
     weights = validate_field_weights(protocol["field_reward_overrides"])
@@ -39,7 +41,13 @@ def apply_field_weights(env, protocol):
         env.schema["field_reward_overrides"] = weights
 
 
-def adapt_field_reward_transfer(checkpoint, old, target, source, curriculum):
+def adapt_field_reward_transfer(
+    checkpoint: str | Path,
+    old: dict[str, Any],
+    target: dict[str, Any],
+    source: dict[str, Any],
+    curriculum: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     declaration = curriculum.get("field_reward_refinement")
     changes = {}
     if declaration is None or (

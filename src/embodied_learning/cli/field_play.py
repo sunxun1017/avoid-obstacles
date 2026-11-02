@@ -36,7 +36,7 @@ def play_policy(
         close = display.close
         closed = False
 
-        def close_once():
+        def close_once() -> None:
             nonlocal closed
             if not closed:
                 closed = True

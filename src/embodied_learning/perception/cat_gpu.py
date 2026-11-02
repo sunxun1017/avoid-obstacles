@@ -9,7 +9,9 @@ from embodied_learning.perception.voxel_field import VoxelPotentialField
 
 
 class CudaCatFieldBuilder:
-    def __init__(self, shape, device):
+    def __init__(
+        self, shape: tuple[int, int, int], device: str | torch.device
+    ) -> None:
         self.shape = tuple(shape)
         self.solver = CudaEikonal(shape, device)
         self.coordinates = torch.stack(
@@ -25,7 +27,14 @@ class CudaCatFieldBuilder:
         self.last_iterations = ()
 
     @torch.no_grad()
-    def build(self, occupied, *, origin, voxel_size, goal):
+    def build(
+        self,
+        occupied: torch.Tensor,
+        *,
+        origin: tuple[float, float, float],
+        voxel_size: float,
+        goal: tuple[float, float, float],
+    ) -> VoxelPotentialField:
         if (
             occupied.shape != self.shape
             or occupied.dtype != torch.bool

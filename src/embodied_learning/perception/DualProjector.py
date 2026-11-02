@@ -135,7 +135,9 @@ class DualProjector:
         horizontal = torch.hypot(x, y)
         valid = valid & (horizontal <= r[:, None])
 
-        def bins(values: Tensor, bounds: tuple[float, float], count: int):
+        def bins(
+            values: Tensor, bounds: tuple[float, float], count: int
+        ) -> tuple[torch.Tensor, torch.Tensor]:
             scaled = (values - bounds[0]) / (bounds[1] - bounds[0])
             inside = (scaled >= 0) & (scaled < 1)
             indices = (scaled * count).floor().long().clamp(0, count - 1)

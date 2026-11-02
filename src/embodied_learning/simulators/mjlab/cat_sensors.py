@@ -7,6 +7,7 @@ only endpoints on the support plane are removed, not rays behind obstacles.
 
 import math
 from dataclasses import dataclass
+from typing import Any
 
 import torch
 
@@ -22,7 +23,9 @@ class LidarPatternCfg:
     azimuth_count: int = 128
     elevation_count: int = 32
 
-    def generate_rays(self, mj_model, device):
+    def generate_rays(
+        self, mj_model: Any, device: str | torch.device
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """360 degree instantaneous scan, elevation -45..45 degrees."""
         azimuth = torch.arange(self.azimuth_count, device=device) * (
             2 * math.pi / self.azimuth_count
@@ -45,7 +48,7 @@ class OnlineSensorConfig:
     azimuth_count: int = 128
     elevation_count: int = 32
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.source not in ("depth", "lidar"):
             raise ValueError("source must be depth or lidar.")
         if not math.isfinite(self.max_range) or self.max_range <= 0:
@@ -62,7 +65,7 @@ class OnlineSensorConfig:
             raise ValueError("Sensor resolutions must be integers >= 2.")
 
 
-def attach_online_sensor(cfg, sensor: OnlineSensorConfig):
+def attach_online_sensor(cfg: Any, sensor: OnlineSensorConfig) -> None:
     from mjlab.sensor import CameraSensorCfg, RayCastSensorCfg
     from mjlab.sensor.builtin_sensor import ObjRef
 
@@ -93,7 +96,9 @@ def attach_online_sensor(cfg, sensor: OnlineSensorConfig):
         cfg.scene.sensors = (*cfg.scene.sensors, lidar)
 
 
-def filter_mapping_rays(rays, self_hits, ground_hits):
+def filter_mapping_rays(
+    rays: RayMeasurements, self_hits: torch.Tensor, ground_hits: torch.Tensor
+) -> RayMeasurements:
     """Self is no information; support ground clears to its measured surface."""
     valid = rays.valid_mask & ~self_hits
     return RayMeasurements(
@@ -104,7 +109,7 @@ def filter_mapping_rays(rays, self_hits, ground_hits):
 class CatSensorReader:
     """Snapshot an initialized mjlab 1.6.0 sensor on the simulation thread."""
 
-    def __init__(self, env, config: OnlineSensorConfig):
+    def __init__(self, env: Any, config: OnlineSensorConfig) -> None:
         import mujoco
 
         self.env, self.config = env, config
@@ -127,7 +132,7 @@ class CatSensorReader:
 
             self.depth = DepthCameraReader(env, "cat_depth")
 
-    def read(self):
+    def read(self) -> RayMeasurements:
         import mujoco
 
         cfg = self.config

@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from typing import Any
 
 import numpy as np
 
@@ -17,7 +18,9 @@ LEVELS = (
 )
 
 
-def stage_settings(original, *, profile="legacy_combination_v1"):
+def stage_settings(
+    original: dict[str, Any], *, profile: str = "legacy_combination_v1"
+) -> list[dict[str, Any]]:
     """Keep the bar front at x=.4; move the beam away at easier levels."""
     scene = next(s for s in original["scenes"] if s["id"] == "hurdle_crouch")
     expected = [
@@ -69,8 +72,14 @@ def stage_settings(original, *, profile="legacy_combination_v1"):
 
 
 def validate_transfer(
-    old, new, source, target, *, evaluation=False, actor_warmstart=False
-):
+    old: dict[str, Any],
+    new: dict[str, Any],
+    source: dict[str, Any],
+    target: dict[str, Any],
+    *,
+    evaluation: bool = False,
+    actor_warmstart: bool = False,
+) -> dict[str, Any]:
     """Keep resume in-stage; allow declared scene changes for Actor transfer."""
     for value in (old, new):
         if not isinstance(value.get("schema"), dict) or not isinstance(
@@ -128,7 +137,9 @@ def validate_transfer(
     return changes
 
 
-def require_original_task_contract(reference, actual):
+def require_original_task_contract(
+    reference: dict[str, Any], actual: dict[str, Any]
+) -> None:
     """Validate the original physical task against the earlier 25 cm reference.
 
     The declared field-cache/foot-GF/interpolation and trainer differences
@@ -157,7 +168,7 @@ def require_original_task_contract(reference, actual):
         raise ValueError("Final original scene/task contract changed.")
 
 
-def robot_fingerprint(model):
+def robot_fingerprint(model: Any) -> str:
     """Hash robot dynamics separately from allowed world-geometry changes."""
     h = hashlib.sha256()
     for kind, count, attrs in (

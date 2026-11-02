@@ -2,19 +2,21 @@
 
 import copy
 import math
+from pathlib import Path
+from typing import Any
 
 from embodied_learning.tasks.cat_foot_guidance import sha256
 
 KEY = "whole_body_joint_velocity"
 
 
-def validate_weight(weight):
+def validate_weight(weight: float) -> float:
     if type(weight) not in (int, float) or not math.isfinite(weight) or weight <= 0:
         raise ValueError("Whole-body velocity weight must be positive and finite.")
     return float(weight)
 
 
-def validate_schema(value):
+def validate_schema(value: dict[str, Any] | None) -> dict[str, Any] | None:
     if value is None:
         return None
     if (
@@ -26,7 +28,7 @@ def validate_schema(value):
     return dict(version="sum_dq2_29_v1", weight=validate_weight(value["weight"]))
 
 
-def apply_joint_velocity(env, protocol):
+def apply_joint_velocity(env: Any, protocol: dict[str, Any]) -> None:
     if "whole_body_joint_velocity_weight" not in protocol:
         return
     weight = validate_weight(protocol["whole_body_joint_velocity_weight"])
@@ -37,7 +39,13 @@ def apply_joint_velocity(env, protocol):
     env.schema[KEY] = dict(version="sum_dq2_29_v1", weight=weight)
 
 
-def adapt_velocity_transfer(checkpoint, old, target, source, curriculum):
+def adapt_velocity_transfer(
+    checkpoint: str | Path,
+    old: dict[str, Any],
+    target: dict[str, Any],
+    source: dict[str, Any],
+    curriculum: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     declaration = curriculum.get("whole_body_velocity_refinement")
     if declaration is None or (
         source["experiment"] == curriculum["experiment"]

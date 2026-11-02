@@ -2,9 +2,11 @@
 
 import time
 from dataclasses import fields
+from typing import Any
 
 import torch
 
+from embodied_learning.data.field_scenes import SceneManifest
 from embodied_learning.perception.occupancy import OccupancyMapper
 from embodied_learning.perception.online_field import (
     OnlineFieldMap,
@@ -23,17 +25,17 @@ class CatOnlineFields:
 
     def __init__(
         self,
-        manifest,
+        manifest: SceneManifest,
         *,
-        num_envs,
-        device,
-        update_period=0.1,
-        max_age=0.3,
-        execution="sync",
-        field_backend="source",
-        mapping_backend="torch",
-        max_rays=4096,
-    ):
+        num_envs: int,
+        device: str | torch.device,
+        update_period: float = 0.1,
+        max_age: float = 0.3,
+        execution: str = "sync",
+        field_backend: str = "source",
+        mapping_backend: str = "torch",
+        max_rays: int = 4096,
+    ) -> None:
         if execution not in ("sync", "async"):
             raise ValueError("execution must be sync or async.")
         if field_backend == "cuda" and torch.device(device).type != "cuda":
@@ -80,20 +82,28 @@ class CatOnlineFields:
         self.ray_counts = torch.zeros(num_envs, dtype=torch.long, device=device)
         self.query_available = torch.zeros(num_envs, dtype=torch.bool, device=device)
 
-    def start(self):
+    def start(self) -> None:
         if self.execution == "async":
             self.online.start()
 
-    def close(self):
+    def close(self) -> None:
         if self.execution == "async":
             self.online.close()
 
-    def reset(self, env_ids, scene_ids):
+    def reset(self, env_ids: torch.Tensor, scene_ids: torch.Tensor) -> None:
         self.online.reset(env_ids)
         self.ray_counts[env_ids] = 0
         self.query_available[env_ids] = False
 
-    def update(self, rays, goals, *, timestamp, env_origins, capture_mask=None):
+    def update(
+        self,
+        rays: RayMeasurements,
+        goals: torch.Tensor,
+        *,
+        timestamp: float,
+        env_origins: torch.Tensor,
+        capture_mask: torch.Tensor | None = None,
+    ) -> None:
         """Convert world rays; an explicit capture mask owns scan admission.
 
         The simulator already schedules acquisition. Reapplying map cadence can
@@ -127,7 +137,12 @@ class CatOnlineFields:
         self.timestamp = timestamp
         self.last_update_seconds = time.perf_counter() - started
 
-    def sample_source(self, positions, scene_ids, goal_ids):
+    def sample_source(
+        self,
+        positions: torch.Tensor,
+        scene_ids: torch.Tensor,
+        goal_ids: torch.Tensor,
+    ) -> FieldSample:
         self.last_query = self.online.sample(positions, timestamp=self.timestamp)
         sample = self.last_query.sample
         # A body partly outside the field must not keep a previous moving command.
@@ -144,7 +159,7 @@ class CatOnlineFields:
             }
         )
 
-    def diagnostics(self):
+    def diagnostics(self) -> dict[str, Any]:
         measured, occupied = self.online.map_counts()
         return dict(
             execution=self.execution,

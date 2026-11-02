@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
+from typing import Any
 
 import mujoco
 import torch
@@ -56,7 +57,9 @@ class CollisionEnvelope:
     geom_records: tuple[dict, ...]
 
     @classmethod
-    def from_model(cls, model, device, max_segment: float = 0.04):
+    def from_model(
+        cls, model: Any, device: str | torch.device, max_segment: float = 0.04
+    ) -> CollisionEnvelope:
         if not math.isfinite(max_segment) or max_segment <= 0:
             raise ValueError("max_segment must be finite and positive.")
         prefixed = any(
@@ -120,7 +123,12 @@ class CollisionEnvelope:
             tuple(records),
         )
 
-    def world_centers(self, geom_xpos, geom_xmat, env_origins) -> Tensor:
+    def world_centers(
+        self,
+        geom_xpos: torch.Tensor,
+        geom_xmat: torch.Tensor,
+        env_origins: torch.Tensor,
+    ) -> Tensor:
         """Transform using FULL native geom arrays, returning scene-local points.
 
         Nonfinite kinematics propagate to sample_box_envelope's invalid mask;
@@ -182,8 +190,12 @@ class BoxEnvelopeQuery:
     """
 
     def __init__(
-        self, manifest: SceneManifest, envelope: CollisionEnvelope, *, dtype=None
-    ):
+        self,
+        manifest: SceneManifest,
+        envelope: CollisionEnvelope,
+        *,
+        dtype: torch.dtype | None = None,
+    ) -> None:
         if not manifest.scenes:
             raise ValueError("A cached envelope query requires at least one scene.")
         radii, groups = envelope.radii, envelope.groups
