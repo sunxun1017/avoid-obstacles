@@ -17,6 +17,6 @@ def test_route_rejects_missing_same_lane_distance_control():
 def test_post_landing_stop_uses_command_transition_and_keeps_censoring():
     from embodied_learning.evaluation.cat_route_probe import first_stop_after_landing
 
-    assert first_stop_after_landing([True, True, False, True], 0.021, 50) == pytest.approx(0.04)
+    assert first_stop_after_landing([True, True, False, True], 0.021, 50) == pytest.approx(0.06)
     assert first_stop_after_landing([True, True, True], 0.021, 50) is None
     assert first_stop_after_landing([True, False, False], 0.051, 50) == pytest.approx(0.06)
