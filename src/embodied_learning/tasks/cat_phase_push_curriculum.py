@@ -5,9 +5,11 @@ import torch
 
 class S0PhasePushCurriculum:
     version = "s0_phase_push_v1"
+    near_goal_version = "s0_phase_push_near_goal_v1"
     phase_names = ("walk", "brake", "stop")
 
-    def __init__(self, num_envs, device):
+    def __init__(self, num_envs, device, *, near_goal_starts=False):
+        self.near_goal_starts = near_goal_starts
         slots = torch.arange(num_envs, device=device)
         self.phase = torch.tensor([-1, -1, -1, -1, 0, 1, 2, 2], device=device)[slots % 8]
         # Each phase covers both signs. Walking and braking are pushed laterally.
@@ -17,6 +19,16 @@ class S0PhasePushCurriculum:
         self.used = torch.zeros(num_envs, dtype=torch.bool, device=device)
         self.still = torch.zeros(num_envs, dtype=torch.long, device=device)
         self.counts = torch.zeros(3, dtype=torch.long, device=device)
+        self.near_goal_reset_count = torch.zeros((), dtype=torch.long, device=device)
+
+    def near_goal_reset_slots(self, ids):
+        """Use both signs of half of the stationary impulse slots for goal starts."""
+        if not self.near_goal_starts:
+            return ids[:0]
+        group = ids % 16
+        selected = ids[(group == 6) | (group == 7)]
+        self.near_goal_reset_count += len(selected)
+        return selected
 
     def select(self, tick, interval, distance, command_speed, planar_speed):
         """Return slots eligible for one extra impulse in the current episode."""

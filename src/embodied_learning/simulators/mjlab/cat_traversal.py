@@ -357,6 +357,16 @@ def _source_reset(env, env_ids):
         and state.execution_profile == "source_train"
     ):
         _apply_author_initialization(env, env_ids)
+    phase_pushes = getattr(env, "cat_phase_pushes", None)
+    if phase_pushes is not None and phase_pushes.near_goal_starts:
+        slots = phase_pushes.near_goal_reset_slots(env_ids)
+        if len(slots):
+            robot = env.scene["robot"]
+            roots = robot.data.default_root_state[slots].clone()
+            roots[:, :3] = state.goals[slots] + env.scene.env_origins[slots]
+            roots[:, 3:7] = roots.new_tensor([1., 0., 0., 0.])
+            roots[:, 7:] = 0
+            robot.write_root_state_to_sim(roots, env_ids=slots)
     state.reset(env_ids)
     if env.cat_sensor_config is not None:
         env.cat_state.bank.reset(env_ids, env.cat_state.scene_ids)
@@ -380,6 +390,7 @@ def make_cat_env(
     recovery_options=None,
     execution_profile="source_train",
     rfi_amplitude_multiplier=1.0,
+    phase_pushes=None,
 ):
     if (
         task_profile == "cat_recovery_v1"  # """ 任务配置类型 """
@@ -531,7 +542,7 @@ def make_cat_env(
             self.cat_sensor_config = online_sensor
             self.cat_sensor_reader = None
             self.cat_sensor_schedule = None
-            self.cat_phase_pushes = None
+            self.cat_phase_pushes = phase_pushes
             self.cat_baseline_identity = baseline_identity
             self.cat_force_baseline_identity = (
                 native_model_identity(force_baseline)

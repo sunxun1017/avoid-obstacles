@@ -209,7 +209,7 @@ def prepare(root, level=None):
     )
 
 
-def make_env(root, level, *, num_envs, seed, execution_profile="source_train"):
+def make_env(root, level, *, num_envs, seed, execution_profile="source_train", phase_pushes=None):
     from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
 
     protocol = json.loads((root / "protocol.json").read_text())
@@ -231,9 +231,23 @@ def make_env(root, level, *, num_envs, seed, execution_profile="source_train"):
         base, assets["foot_fields"], radius=protocol["foot_radius_m"]
     )
     assert bank.cache_identity == assets["composite_cache_identity"]
+    if phase_pushes is not None:
+        scene = next(s for s in manifest.scenes if s.id == "hurdle_crouch")
+        if (
+            level != 0
+            or execution_profile != "source_train"
+            or not settings["task"].get("push")
+            or settings["task"].get("arrival_control") != "root_planar_blend_v2"
+            or (phase_pushes.near_goal_starts and scene.boxes)
+        ):
+            raise ValueError(
+                "Phase push curriculum requires S0 arrival control and original pushes. "
+                "Goal starts require an empty training scene."
+            )
     env = make_cat_env(
         manifest,
         bank,
+        phase_pushes=phase_pushes,
         foot_contact_force=protocol.get("foot_contact_force"),
         risk_guidance=protocol.get("risk_guidance"),
         scene_ids=["hurdle_crouch"],
@@ -357,30 +371,26 @@ def train(
                 "Resume must stay in the same stage; "
                 "use --warmstart-actor to change stage."
             )
+    num_envs = 32 if smoke else protocol["training_envs"]
+    phase_pushes = None
+    if (push_version := protocol.get("training_push_curriculum")) is not None:
+        from embodied_learning.tasks.cat_phase_push_curriculum import S0PhasePushCurriculum
+
+        if push_version not in (S0PhasePushCurriculum.version, S0PhasePushCurriculum.near_goal_version):
+            raise ValueError("Unknown training push curriculum.")
+        phase_pushes = S0PhasePushCurriculum(
+            num_envs, "cuda:0", near_goal_starts=push_version == S0PhasePushCurriculum.near_goal_version,
+        )
     env = make_env(
         root,
         level,
-        num_envs=32 if smoke else protocol["training_envs"],
+        num_envs=num_envs,
         seed=protocol["ppo"]["seed"],
+        phase_pushes=phase_pushes,
     )
     cfg = config(protocol, updates)
     expected = contract(env, cfg)
-    phase_pushes = None
     try:
-        if (push_version := protocol.get("training_push_curriculum")) is not None:
-            from embodied_learning.tasks.cat_phase_push_curriculum import S0PhasePushCurriculum
-
-            if (
-                push_version != S0PhasePushCurriculum.version
-                or level != 0
-                or not env.cat_state.options["push"]
-                or env.cat_state.arrival_control != "root_planar_blend_v2"
-            ):
-                raise ValueError(
-                    "Phase push curriculum requires S0 arrival control and original pushes."
-                )
-            phase_pushes = S0PhasePushCurriculum(env.num_envs, env.device)
-            env.unwrapped.cat_phase_pushes = phase_pushes
         before = (
             torch.load(resume, map_location="cpu", weights_only=False)
             if resume
@@ -483,6 +493,10 @@ def train(
                         ))
                     }
                     if phase_pushes is not None else {}
+                ),
+                **(
+                    {"near_goal_resets": int(phase_pushes.near_goal_reset_count)}
+                    if phase_pushes is not None and phase_pushes.near_goal_starts else {}
                 ),
                 completed_at=datetime.now(timezone.utc).isoformat(),
             ),

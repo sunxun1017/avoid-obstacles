@@ -43,3 +43,18 @@ def test_keeps_original_push_separate_and_increases_impulse_cap():
     assert (difficult.norm(dim=1) > gentle.norm(dim=1)).all()
     assert (gentle[:2, 0] == 0).all() and (gentle[2:, 1] == 0).all()
     assert gentle[2, 0] > 0 and gentle[3, 0] < 0
+
+
+def test_near_goal_starts_only_use_half_the_stopping_slots_and_count_partial_resets():
+    ids = torch.tensor([1, 4, 6, 7, 12, 14, 15, 22, 23, 28, 30, 31])
+    default = S0PhasePushCurriculum(32, "cpu")
+    assert default.near_goal_reset_slots(ids).tolist() == []
+
+    curriculum = S0PhasePushCurriculum(32, "cpu", near_goal_starts=True)
+    reset_ids = curriculum.near_goal_reset_slots(ids)
+    assert reset_ids.tolist() == [6, 7, 22, 23]
+    assert (curriculum.phase[reset_ids] == 2).all()
+    assert curriculum.direction[reset_ids, 0].tolist() == [1, -1, 1, -1]
+    assert curriculum.near_goal_reset_count.item() == 4
+    assert curriculum.near_goal_reset_slots(torch.tensor([6, 20])).tolist() == [6]
+    assert curriculum.near_goal_reset_count.item() == 5
