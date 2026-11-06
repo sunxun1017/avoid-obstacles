@@ -16,7 +16,21 @@ MATCHING = (
     "code_commit", "checkpoint_sha256", "config_sha256", "protocol_sha256",
     "field_cache_identity", "initial_hashes", "initial_goals", "gpu",
 )
-METRICS = ("gyro_peak", "gyro_rms", "knee_ankle_speed_rms", "knee_ankle_target_step_deg")
+METRICS = (
+    "gyro_peak", "gyro_rms", "knee_ankle_speed_rms", "knee_ankle_target_step_deg",
+    "stationary_gyro_peak_hz", "stationary_gyro_power_share_ge_10hz",
+)
+
+
+def stationary_spectrum(gyro, hz):
+    """One-second windowed spectrum, with power summed across gyro axes."""
+    windowed = (gyro - gyro.mean(axis=0)) * np.hanning(len(gyro))[:, None]
+    frequency = np.fft.rfftfreq(len(gyro), 1 / hz)[1:]
+    power = np.square(np.abs(np.fft.rfft(windowed, axis=0)[1:])).sum(axis=1)
+    total = power.sum()
+    if total == 0:
+        return None
+    return float(frequency[power.argmax()]), float(power[frequency >= 10].sum() / total)
 
 
 def summarize_episode(episode, control, motion, manifest):
@@ -29,12 +43,16 @@ def summarize_episode(episode, control, motion, manifest):
         raise ValueError("Trace mask does not agree with episode length")
     if episode["steps"] != 20 * hz:
         return row
-    c, m = control[valid][-hz // 2:], motion[valid][-hz // 2:]
+    full_control, full_motion = control[valid], motion[valid]
+    c, m = full_control[-(hz // 2):], full_motion[-(hz // 2):]
     names = manifest["motion_columns"]
     if m.shape[1] != len(names):
         raise ValueError("Motion schema mismatch")
-    gyro = m[:, [names.index(f"gyro_{axis}") for axis in ("roll", "pitch", "yaw")]]
-    phase = m[:, [names.index("phase_left"), names.index("phase_right")]]
+    gyro_columns = [names.index(f"gyro_{axis}") for axis in ("roll", "pitch", "yaw")]
+    phase_columns = [names.index("phase_left"), names.index("phase_right")]
+    move_column = names.index("move")
+    gyro = m[:, gyro_columns]
+    phase = m[:, phase_columns]
     angle_speed = np.linalg.norm(gyro, axis=1)
     n = len(manifest["joint_names"])
     legs = [i for i, name in enumerate(manifest["joint_names"]) if "knee" in name or "ankle" in name]
@@ -44,12 +62,24 @@ def summarize_episode(episode, control, motion, manifest):
         gyro_peak=float(angle_speed.max()),
         gyro_rms=float(np.sqrt(np.mean(angle_speed**2))),
         angular_exceeded=bool((angle_speed >= 0.2).any()),
-        static_command=bool((m[:, names.index("move")] < 0.5).all()),
+        static_command=bool((m[:, move_column] < 0.5).all()),
         static_phase=bool((np.ptp(phase, axis=0) < 1e-6).all()),
         double_support=bool((c[:, 4:6] > 0.5).all()),
         knee_ankle_speed_rms=float(np.sqrt(np.mean(velocities**2))),
         knee_ankle_target_step_deg=float(np.rad2deg(np.sqrt(np.mean(np.diff(targets, axis=0)**2)))),
     )
+    final_motion = full_motion[-hz:]
+    final_control = full_control[-hz:]
+    if (
+        (final_motion[:, move_column] < 0.5).all()
+        and (np.ptp(final_motion[:, phase_columns], axis=0) < 1e-6).all()
+        and (final_control[:, 4:6] > 0.5).all()
+        and (final_control[:, 0] <= 0.1).all()
+    ):
+        spectrum = stationary_spectrum(final_motion[:, gyro_columns], hz)
+        if spectrum is not None:
+            row.update(stationary_gyro_peak_hz=spectrum[0],
+                       stationary_gyro_power_share_ge_10hz=spectrum[1])
     return row
 
 
