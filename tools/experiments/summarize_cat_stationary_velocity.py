@@ -21,6 +21,21 @@ METRICS = (
 )
 
 
+def eligible_control_ticks(control, dwell):
+    """Infer eligible decision times from the pre-decision control trace."""
+    # Valid recorded steps begin at t=1. The reset observation cannot activate
+    # the filter, and the final observation is never consumed by this episode.
+    previous = control[control[:, 6].astype(bool)][:-1]
+    if len(previous) < dwell:
+        return np.empty(0, dtype=int)
+    ready = (
+        (previous[:, 0] <= 0.1) & (previous[:, 1] < 0.2) & (previous[:, 2] < 1.0)
+        & (previous[:, 4:6] > 0.5).all(axis=1) & (previous[:, 7] < 0.5)
+    )
+    full = np.convolve(ready.astype(int), np.ones(dwell, dtype=int), mode="valid")
+    return np.flatnonzero(full == dwell) + dwell
+
+
 def load_cohort(directory):
     m = json.loads((directory / "manifest.json").read_text())
     episodes = [json.loads(x) for x in (directory / "episodes.jsonl").read_text().splitlines()]
@@ -42,10 +57,24 @@ def load_cohort(directory):
             raise ValueError(f"Invalid filter coverage: {directory}, {slot}")
         c, a, p = control[:, slot], motion[:, slot], physics[:, slot]
         row = summarize_episode(e, c, a, m)
+        landing = episode_metrics(p, c, m)
+        first_filter_s = None
+        if mode == "ema":
+            eligible = eligible_control_ticks(c, m["velocity_filter_dwell_ticks"])
+            if len(eligible) != applied[slot]:
+                raise ValueError(f"Filter telemetry disagrees with the gate: {directory}, {slot}")
+            if len(eligible):
+                first_filter_s = float(eligible[0] / m["control_hz"])
+        landing_s = landing.get("landing_time_s")
         row.update(
             code_commit=m["code_commit"], route=m["route"], mode=mode,
             label=m["label"], seed=m["evaluation_seed"], slot=slot, applied_ticks=applied[slot],
-            landing_peak_bw=episode_metrics(p, c, m).get("landing_peak_bw"),
+            landing_peak_bw=landing.get("landing_peak_bw"),
+            first_landing_s=landing_s, reconstructed_first_filter_s=first_filter_s,
+            filter_after_landing_s=(
+                first_filter_s - landing_s
+                if first_filter_s is not None and landing_s is not None else None
+            ),
             first_goal_seconds=e.get("first_goal_seconds"),
         )
         rows[slot] = row
@@ -76,6 +105,10 @@ def main():
                 success=sum(r["success"] for r in rows),
                 strict_success=sum(r["strict_success"] for r in rows),
                 applied_episodes=sum(r["applied_ticks"] > 0 for r in rows),
+                reconstructed_filter_after_landing_s=stats([
+                    r["filter_after_landing_s"] for r in rows
+                    if r["filter_after_landing_s"] is not None
+                ]),
                 falls=sum(r["reason"] == "fall" for r in rows),
                 prohibited_contacts=sum(r["reason"] == "prohibited_contact" for r in rows),
                 metrics={k: stats([r[k] for r in rows if r.get(k) is not None]) for k in METRICS},
