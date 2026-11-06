@@ -531,6 +531,7 @@ def make_cat_env(
             self.cat_sensor_config = online_sensor
             self.cat_sensor_reader = None
             self.cat_sensor_schedule = None
+            self.cat_phase_pushes = None
             self.cat_baseline_identity = baseline_identity
             self.cat_force_baseline_identity = (
                 native_model_identity(force_baseline)
@@ -590,6 +591,22 @@ def make_cat_env(
                         * magnitude[:, None]
                     )
                     self.scene["robot"].write_root_state_to_sim(root, env_ids=ids)
+                if self.cat_phase_pushes is not None:
+                    robot = self.scene["robot"]
+                    ids = self.cat_phase_pushes.select(
+                        self.episode_length_buf + 1,
+                        state.push_interval,
+                        state.goal_distance,
+                        state.gait.last_command[:, 1:3].norm(dim=-1),
+                        robot.data.root_link_vel_w[:, :2].norm(dim=-1),
+                    )
+                    if len(ids):
+                        root = torch.cat(
+                            (robot.data.root_link_pose_w[ids], robot.data.root_link_vel_w[ids]),
+                            dim=1,
+                        ).clone()
+                        root[:, 7:9] += self.cat_phase_pushes.impulse(ids, self.common_step_counter)
+                        robot.write_root_state_to_sim(root, env_ids=ids)
             return super().step(actions)
 
     native = CatNativeEnv()

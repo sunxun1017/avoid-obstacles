@@ -365,7 +365,22 @@ def train(
     )
     cfg = config(protocol, updates)
     expected = contract(env, cfg)
+    phase_pushes = None
     try:
+        if (push_version := protocol.get("training_push_curriculum")) is not None:
+            from embodied_learning.tasks.cat_phase_push_curriculum import S0PhasePushCurriculum
+
+            if (
+                push_version != S0PhasePushCurriculum.version
+                or level != 0
+                or not env.cat_state.options["push"]
+                or env.cat_state.arrival_control != "root_planar_blend_v2"
+            ):
+                raise ValueError(
+                    "Phase push curriculum requires S0 arrival control and original pushes."
+                )
+            phase_pushes = S0PhasePushCurriculum(env.num_envs, env.device)
+            env.unwrapped.cat_phase_pushes = phase_pushes
         before = (
             torch.load(resume, map_location="cpu", weights_only=False)
             if resume
@@ -459,6 +474,16 @@ def train(
                 ),
                 strict_reload_passed=True,
                 field_routing_passed=True,
+                **(
+                    {
+                        "phase_pushes": dict(zip(
+                            phase_pushes.phase_names,
+                            phase_pushes.counts.tolist(),
+                            strict=True,
+                        ))
+                    }
+                    if phase_pushes is not None else {}
+                ),
                 completed_at=datetime.now(timezone.utc).isoformat(),
             ),
         )
