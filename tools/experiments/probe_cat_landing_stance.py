@@ -18,6 +18,7 @@ import train_cat_curriculum as curriculum
 from embodied_learning.data.field_scenes import load_scene_manifest
 from embodied_learning.evaluation.cat_route_probe import route_goal_ids
 from embodied_learning.evaluation.cat_hurdle_events import HurdleEventImpulse
+from embodied_learning.evaluation.cat_stationary_velocity import ALPHA, DWELL_TICKS, stationary_velocity_probe
 from embodied_learning.policies.field_policy import load_teacher
 from embodied_learning.simulators.mjlab import cat_traversal
 from embodied_learning.tasks import cat_traversal as cat_task
@@ -58,7 +59,10 @@ def main():
         choices=("full", "no-push", "quiet", "no-push-no-observation-noise", "no-push-no-rfi"),
     )
     parser.add_argument("--event-push", choices=("baseline", *HurdleEventImpulse.stages))
+    parser.add_argument("--stationary-velocity", choices=("off", "ema"), default="off")
     args = parser.parse_args()
+    if args.stationary_velocity != "off" and (args.event_push or args.disturbance != "full"):
+        parser.error("Stationary velocity probe requires the full disturbance profile")
     if args.event_push and (args.route != "hurdle-far" or args.disturbance != "full"):
         parser.error("Event pushes require the hurdle-far route and otherwise unmodified disturbances")
     empty = args.route.startswith("empty-")
@@ -193,6 +197,9 @@ def main():
                 robot, env.num_envs, env.device, bars[0], body_mass, args.event_push,
             )
         active = torch.ones(env.num_envs, dtype=torch.bool, device=env.device)
+        filter_ticks = None
+        if args.stationary_velocity == "ema":
+            policy, filter_ticks = stationary_velocity_probe(policy, env, ground, active)
         substep_contact = torch.zeros_like(active)
         physics = []
         control = []
@@ -260,7 +267,9 @@ def main():
         metadata = dict(
             label=args.label, route=args.route, code_commit=commit,
             disturbance=args.disturbance, pd_randomization_unchanged=True,
-            event_push=args.event_push,
+            event_push=args.event_push, stationary_velocity=args.stationary_velocity,
+            velocity_filter_alpha=ALPHA if filter_ticks is not None else None,
+            velocity_filter_dwell_ticks=DWELL_TICKS if filter_ticks is not None else None,
             event_push_dv_y_m_s=0.35 if args.event_push not in (None, "baseline") else None,
             suppress_push=suppress_push, suppress_observation_noise=suppress_observation_noise,
             suppress_rfi=suppress_rfi, checkpoint=str(args.checkpoint),
@@ -316,6 +325,10 @@ def main():
             control=torch.stack(control).cpu().numpy(),
             motion=torch.stack(motion).cpu().numpy(),
         )
+        if filter_ticks is not None:
+            (args.output / "velocity-filter.json").write_text(
+                json.dumps({"applied_control_ticks": filter_ticks.cpu().tolist()}, indent=2) + "\n"
+            )
         if event_probe is not None:
             (args.output / "event-impulses.json").write_text(
                 json.dumps(event_probe.report(), indent=2) + "\n"
