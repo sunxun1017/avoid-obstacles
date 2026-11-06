@@ -88,6 +88,7 @@ def episode_metrics(physics, control, manifest):
             landing_knee_ankle_velocity_rms=float(np.sqrt(np.mean(measured_velocity[side_joints]**2))),
             landing_knee_ankle_target_step_deg=float(np.rad2deg(np.sqrt(np.mean(target_change[side_joints]**2)))),
             landing_time_s=(i + 1) / hz,
+            landing_foot=side,
             landing_peak_bw=float(fz[i:end, side].max()),
             landing_down_m_s=float(-p[i - round(0.006 * hz):i, 8 + side].mean()),
             landing_pitch_excursion_deg=float(np.rad2deg(np.abs(c[control_index:after, 3] - c[before, 3]).max())),
