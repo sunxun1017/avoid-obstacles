@@ -17,6 +17,7 @@ from evaluate_cat_checkpoint import evaluate_cohort
 import train_cat_curriculum as curriculum
 from embodied_learning.data.field_scenes import load_scene_manifest
 from embodied_learning.evaluation.cat_route_probe import route_goal_ids
+from embodied_learning.evaluation.cat_hurdle_events import HurdleEventImpulse
 from embodied_learning.policies.field_policy import load_teacher
 from embodied_learning.simulators.mjlab import cat_traversal
 from embodied_learning.tasks import cat_traversal as cat_task
@@ -56,9 +57,12 @@ def main():
         "--disturbance", default="full",
         choices=("full", "no-push", "quiet", "no-push-no-observation-noise", "no-push-no-rfi"),
     )
+    parser.add_argument("--event-push", choices=("baseline", *HurdleEventImpulse.stages))
     args = parser.parse_args()
+    if args.event_push and (args.route != "hurdle-far" or args.disturbance != "full"):
+        parser.error("Event pushes require the hurdle-far route and otherwise unmodified disturbances")
     empty = args.route.startswith("empty-")
-    suppress_push = args.disturbance != "full"
+    suppress_push = args.disturbance != "full" or args.event_push is not None
     suppress_observation_noise = args.disturbance in ("quiet", "no-push-no-observation-noise")
     suppress_rfi = args.disturbance in ("quiet", "no-push-no-rfi")
     if args.disturbance != "full" and args.route != "empty-stand":
@@ -180,6 +184,14 @@ def main():
         )
         if not 10 < body_mass < 100:
             raise ValueError(f"Unexpected robot mass {body_mass}")
+        event_probe = None
+        if args.event_push:
+            bars = [box for box in scene.boxes if box.center[2] - box.half_size[2] <= 1e-6]
+            if len(bars) != 1:
+                raise ValueError("Event push probe requires one ground hurdle")
+            event_probe = HurdleEventImpulse(
+                robot, env.num_envs, env.device, bars[0], body_mass, args.event_push,
+            )
         active = torch.ones(env.num_envs, dtype=torch.bool, device=env.device)
         substep_contact = torch.zeros_like(active)
         physics = []
@@ -199,6 +211,8 @@ def main():
             foot = robot.data.site_pos_w[:, sites] - native.scene.env_origins[:, None]
             vz = robot.data.site_vel_w[:, sites, 2]
             physics.append(torch.cat([fz, foot.flatten(1), vz, active[:, None]], dim=1))
+            if event_probe is not None:
+                event_probe.observe(len(physics), foot, fz, active)
 
         def trace_refresh(payload, action, lengths, common):
             selected = active & ~state.initial
@@ -246,6 +260,8 @@ def main():
         metadata = dict(
             label=args.label, route=args.route, code_commit=commit,
             disturbance=args.disturbance, pd_randomization_unchanged=True,
+            event_push=args.event_push,
+            event_push_dv_y_m_s=0.35 if args.event_push not in (None, "baseline") else None,
             suppress_push=suppress_push, suppress_observation_noise=suppress_observation_noise,
             suppress_rfi=suppress_rfi, checkpoint=str(args.checkpoint),
             checkpoint_sha256=sha256(args.checkpoint), evaluation_seed=args.seed,
@@ -282,6 +298,14 @@ def main():
                 intervention.enter_context(
                     patch.object(controller, "compute_torques", torque_without_rfi)
                 )
+            if event_probe is not None:
+                original_step = env.step
+
+                def step_with_event(actions):
+                    event_probe.apply(len(physics), active)
+                    return original_step(actions)
+
+                intervention.enter_context(patch.object(env, "step", step_with_event))
             report = evaluate_cohort(
                 env, policy, episodes=args.episodes,
                 episode_path=args.output / "episodes.jsonl", terminal_gate=True,
@@ -292,6 +316,10 @@ def main():
             control=torch.stack(control).cpu().numpy(),
             motion=torch.stack(motion).cpu().numpy(),
         )
+        if event_probe is not None:
+            (args.output / "event-impulses.json").write_text(
+                json.dumps(event_probe.report(), indent=2) + "\n"
+            )
         (args.output / "evaluation.json").write_text(json.dumps(report, indent=2) + "\n")
     finally:
         if obs_patch is not None:
