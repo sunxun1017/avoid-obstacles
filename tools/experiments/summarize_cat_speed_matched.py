@@ -93,14 +93,18 @@ def main():
                 frame = (round(landing["landing_time_s"] * a["physics_hz"]) - 1) * hz // a["physics_hz"]
                 speed = speed_before(hurdle_control, frame, hz)
                 if speed is not None:
-                    row["hurdle_landing_speed"] = speed
+                    row.update(
+                        hurdle_landing_speed=speed,
+                        hurdle_landing_peak_bw=landing["landing_peak_bw"],
+                        hurdle_landing_down_m_s=landing["landing_down_m_s"],
+                    )
                     reference = closest_speed_match(
                         empty_touchdowns(empty_physics, empty_control, landing["landing_foot"], b), speed,
                     )
                     if reference is not None:
                         row.update(
                             landing_match=True, empty_landing_speed=reference["speed"],
-                            hurdle_landing_peak_bw=landing["landing_peak_bw"], empty_landing_peak_bw=reference["peak_bw"],
+                            empty_landing_peak_bw=reference["peak_bw"],
                             landing_peak_delta_bw=landing["landing_peak_bw"] - reference["peak_bw"],
                             landing_down_delta_m_s=landing["landing_down_m_s"] - reference["down_m_s"],
                         )
@@ -131,9 +135,33 @@ def main():
                     "landing_peak_delta_bw", "landing_down_delta_m_s", "stop_gyro_peak_delta",
                 )},
             )
-    (args.destination / "comparison.json").write_text(
-        json.dumps(dict(speed_band_m_s=SPEED_BAND, by_model=summary), indent=2, allow_nan=False) + "\n"
-    )
+    matched_models = {}
+    for seed in sorted({row["seed"] for row in rows}):
+        left, right = (
+            {row["slot"]: row for row in rows if row["seed"] == seed and row["model"] == model}
+            for model in ("balance50", "balance100")
+        )
+        eligible = [
+            (left[i], right[i]) for i in sorted(left.keys() & right.keys())
+            if "hurdle_landing_speed" in left[i] and "hurdle_landing_speed" in right[i]
+            and abs(right[i]["hurdle_landing_speed"] - left[i]["hurdle_landing_speed"]) <= SPEED_BAND
+        ]
+        matched_models[str(seed)] = dict(
+            pairs=len(eligible),
+            max_abs_speed_delta_m_s=max(
+                (abs(b["hurdle_landing_speed"] - a["hurdle_landing_speed"]) for a, b in eligible),
+                default=None,
+            ),
+            delta_100_minus_50={
+                name: stats([b[name] - a[name] for a, b in eligible])
+                for name in ("hurdle_landing_peak_bw", "hurdle_landing_down_m_s")
+            },
+            harder_landing_pairs=sum(b["hurdle_landing_peak_bw"] > a["hurdle_landing_peak_bw"] for a, b in eligible),
+        )
+    (args.destination / "comparison.json").write_text(json.dumps(
+        dict(speed_band_m_s=SPEED_BAND, by_model=summary, speed_matched_models=matched_models),
+        indent=2, allow_nan=False,
+    ) + "\n")
 
 
 if __name__ == "__main__":
