@@ -70,7 +70,7 @@ def test_gate_joins_same_checkpoint_evaluations_and_rejects_diagnostics():
     a["terminal_v1"]["success_count"] += 1
     assert gate_from_evaluations([a, b])["passed"] is True
     for patch in (
-        {"seed": 9}, {"checkpoint_sha256": "b" * 64},
+        {"seed": 9}, {"seed": 42}, {"checkpoint_sha256": "b" * 64},
         {"training_stage": 1}, {"completed_updates": 599},
         {"contact_sampling": "control_step"}, {"diagnostic_override": {"push": False}},
         {"protocol_sha256": "e" * 64}, {"evaluation_code_commit": "f" * 40},

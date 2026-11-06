@@ -50,12 +50,28 @@ def config(protocol, updates):
     return replace(PpoConfig(**values), iterations=updates)
 
 
-def initialize(root, *, recipe="foundation_v1", parent_checkpoint=None):
+def initialize(
+    root, *, recipe="foundation_v1", parent_checkpoint=None,
+    training_seed=42, terminal_gate_seeds=None,
+):
     """Create a new, reviewable protocol; never rewrite an existing run."""
     from embodied_learning.tasks.cat_hurdle import parent_settings
 
     if recipe not in ("foundation_v1", "feetgf_progress_stage1_v1"):
         raise ValueError("Unknown curriculum recipe.")
+    if type(training_seed) is not int or training_seed < 0:
+        raise ValueError("Training seed must be a nonnegative integer")
+    gated = terminal_gate_seeds is not None
+    if gated:
+        if recipe != "foundation_v1":
+            raise ValueError("Automatic gate initialization requires the from-scratch recipe")
+        gate_seeds = tuple(terminal_gate_seeds)
+        if (
+            len(gate_seeds) != 2
+            or any(type(seed) is not int or seed < 0 for seed in gate_seeds)
+            or len({training_seed, *gate_seeds}) != 3
+        ):
+            raise ValueError("Training and both evaluation seeds must be distinct nonnegative integers")
     saved = None
     if recipe == "feetgf_progress_stage1_v1":
         if parent_checkpoint is None:
@@ -76,20 +92,22 @@ def initialize(root, *, recipe="foundation_v1", parent_checkpoint=None):
         dict(
             experiment=root.name,
             curriculum_profile="foundation_v1",
-            progression="manual",
+            progression="terminal_20s_v1" if gated else "manual",
             stage_initialization="actor_only",
             foot_radius_m=0.30,
             source_interpolation="xyz_weights_v1",
             optimization_profile="brax_0_12_3_v1",
             training_envs=4096,
-            total_updates=611,
-            chunk_updates=32,
-            evaluation_episodes=256,
-            evaluation_profile="author_playback",
-            gate_seed=20261022,
-            final_seed=20261022,
+            total_updates=600 if gated else 611,
+            chunk_updates=50 if gated else 32,
+            evaluation_episodes=128 if gated else 256,
+            evaluation_profile="source_train" if gated else "author_playback",
+            **(
+                {"terminal_gate_seeds": list(gate_seeds)}
+                if gated else {"gate_seed": 20261022, "final_seed": 20261022}
+            ),
             ppo=dict(
-                iterations=611,
+                iterations=600 if gated else 611,
                 rollout_steps=160,
                 hidden_dims=[256, 128, 64],
                 critic_hidden_dims=[512, 256, 128],
@@ -98,8 +116,8 @@ def initialize(root, *, recipe="foundation_v1", parent_checkpoint=None):
                 learning_rate=3e-4,
                 epochs=4,
                 mini_batches=32,
-                save_interval=16,
-                seed=42,
+                save_interval=50 if gated else 16,
+                seed=training_seed,
                 optimization_profile="brax_0_12_3_v1",
                 source_unroll_steps=20,
             ),
@@ -585,12 +603,16 @@ def main():
         default="author_playback",
     )
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--training-seed", type=int)
+    parser.add_argument("--terminal-gate-seeds", nargs=2, type=int)
     parser.add_argument("--seed", type=int, default=20261020)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--disable-push", action="store_true")
     parser.add_argument("--terminal-gate", action="store_true")
     args = parser.parse_args()
     torch.set_num_threads(4)
+    if args.command != "init" and (args.training_seed is not None or args.terminal_gate_seeds is not None):
+        parser.error("Training and terminal gate seeds apply only to initialization")
     if args.terminal_gate and args.command != "evaluate":
         parser.error("--terminal-gate applies only to evaluation")
     root = args.root.resolve()
@@ -612,7 +634,9 @@ def main():
             parser.error("--updates must be positive.")
     if args.command == "init":
         initialize(
-            root, recipe=args.recipe, parent_checkpoint=args.parent_checkpoint
+            root, recipe=args.recipe, parent_checkpoint=args.parent_checkpoint,
+            training_seed=42 if args.training_seed is None else args.training_seed,
+            terminal_gate_seeds=args.terminal_gate_seeds,
         )
     elif args.command == "prepare":
         prepare(root, args.stage)

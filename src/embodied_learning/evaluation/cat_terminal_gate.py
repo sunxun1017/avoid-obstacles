@@ -57,6 +57,7 @@ def gate_from_evaluations(reports):
             or result["protocol"] != VERSION
             or "diagnostic_override" in report
             or report["seed"] in cohorts
+            or report["seed"] == report["training_seed"]
             or any(report[key] != first[key] for key in provenance)
         ):
             raise ValueError("Reports must use the same update-600 checkpoint, stage and full protocol")

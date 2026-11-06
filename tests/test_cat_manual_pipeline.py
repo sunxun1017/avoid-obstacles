@@ -206,3 +206,23 @@ def test_gated_scheduler_advances_only_after_two_seed_update_600_reports(tmp_pat
     assert "--resume" in calls[1] and "--resume" in calls[5]
     assert (output / "stage-01/gate.json").is_file()
     assert not (output / "stage-02").exists()
+
+
+def test_gate_initializer_freezes_budget_and_disjoint_seeds(tmp_path):
+    import pytest
+
+    pipeline_module()
+    from train_cat_curriculum import initialize
+
+    root = tmp_path / "new"
+    initialize(root, training_seed=7, terminal_gate_seeds=(8, 9))
+    p = json.loads((root / "protocol.json").read_text())
+    assert p["ppo"]["seed"] == 7
+    assert p["terminal_gate_seeds"] == [8, 9]
+    assert p["total_updates"] == p["ppo"]["iterations"] == 600
+    assert p["chunk_updates"] == p["ppo"]["save_interval"] == 50
+    assert p["evaluation_episodes"] == 128 and p["evaluation_profile"] == "source_train"
+    assert p["progression"] == "terminal_20s_v1"
+    with pytest.raises(ValueError, match="distinct"):
+        initialize(tmp_path / "bad", training_seed=7, terminal_gate_seeds=(7, 9))
+    assert not (tmp_path / "bad").exists()

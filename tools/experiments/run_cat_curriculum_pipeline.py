@@ -240,9 +240,9 @@ def run_gated(root, output, *, run_child=None):
         or protocol["chunk_updates"] < 1
         or not isinstance(seeds, list) or len(seeds) != 2
         or any(type(seed) is not int or seed < 0 for seed in seeds)
-        or seeds[0] == seeds[1]
+        or len({protocol["ppo"]["seed"], *seeds}) != 3
     ):
-        raise ValueError("Set 600 total updates, positive chunk size and two distinct gate seeds")
+        raise ValueError("Set 600 total updates, positive chunk size and gate seeds distinct from training")
     stages = stages_for(root, protocol)
     if not stages:
         raise ValueError("Gated curriculum requires at least one stage")
