@@ -241,3 +241,23 @@ def test_invalid_pose_terminates_without_querying_nan():
     state.refresh(payload, c, torch.tensor([1]), 1)
     assert state.outcomes()["invalid"][0]
     assert torch.isfinite(state.observations()["actor"]).all()
+
+
+def test_diagnostic_clean_observation_preserves_noise_draws():
+    with np.load(Path(__file__).parent / "fixtures/cat_source_reference.npz") as fixture:
+        payload = {
+            key[4:]: torch.from_numpy(fixture[key])
+            for key in fixture.files
+            if key.startswith("obs_") and key not in ("obs_actor", "obs_critic")
+        }
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(123)
+        noisy = build_cat_observations(**payload, noise_level=1.0)
+        noisy_rng = torch.random.get_rng_state()
+        torch.manual_seed(123)
+        clean = build_cat_observations(**payload, noise_level=0.0, consume_noise_draws=True)
+        assert torch.equal(noisy_rng, torch.random.get_rng_state())
+        reference = build_cat_observations(**payload, noise_level=0.0)
+    assert not torch.equal(noisy["actor"], clean["actor"])
+    assert torch.equal(clean["actor"], reference["actor"])
+    assert torch.equal(clean["critic"], reference["critic"])

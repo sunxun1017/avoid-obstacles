@@ -56,6 +56,7 @@ def build_cat_observations(
     sdf_delayed,
     command_delayed,
     noise_level=1.0,
+    consume_noise_draws=False,
     phase_features=None,
 ):
     # The empty-map extension represents absent obstacles by +inf. Encode this
@@ -67,7 +68,7 @@ def build_cat_observations(
     def noisy(x, scale):
         return (
             x + (2 * torch.rand_like(x) - 1) * noise_level * scale
-            if noise_level
+            if noise_level or consume_noise_draws
             else x
         )
 

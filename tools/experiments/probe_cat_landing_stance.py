@@ -1,6 +1,7 @@
 """Trace a fixed cohort of frozen CAT hurdle and arrival trajectories."""
 
 import argparse
+from contextlib import ExitStack
 from dataclasses import replace
 import hashlib
 import json
@@ -18,7 +19,9 @@ from embodied_learning.data.field_scenes import load_scene_manifest
 from embodied_learning.evaluation.cat_route_probe import route_goal_ids
 from embodied_learning.policies.field_policy import load_teacher
 from embodied_learning.simulators.mjlab import cat_traversal
+from embodied_learning.tasks import cat_traversal as cat_task
 from embodied_learning.tasks.cat_foot_guidance import load_foot_bank
+from embodied_learning.tasks.cat_hurdle import evaluation_push_mode
 from embodied_learning.tasks.field_assets import load_field_cache
 
 
@@ -49,8 +52,11 @@ def main():
         choices=("original", "hurdle-near", "hurdle-far", "empty-near", "empty-stand"),
     )
     parser.add_argument("--empty-cache", type=Path)
+    parser.add_argument("--disturbance", choices=("full", "no-push", "quiet"), default="full")
     args = parser.parse_args()
     empty = args.route.startswith("empty-")
+    if args.disturbance != "full" and args.route != "empty-stand":
+        parser.error("Disturbance ablation is restricted to the empty standing probe")
     if empty and args.empty_cache is None:
         parser.error("Empty routes require --empty-cache")
     args.output.mkdir(parents=True, exist_ok=False)
@@ -75,6 +81,7 @@ def main():
     with patch.object(cat_traversal, "ContactSensorCfg", read_force):
         env = curriculum.make_env(args.source, 4, **settings)
     reset_patch = None
+    obs_patch = None
     try:
         native = env.unwrapped
         state = env.cat_state
@@ -141,6 +148,17 @@ def main():
 
             reset_patch = patch.object(cat_traversal, "_reset_field", reset_route)
             reset_patch.start()
+        if args.disturbance == "quiet":
+            original_obs = cat_task.build_cat_observations
+
+            def clean_observations(**kwargs):
+                original_level = kwargs.pop("noise_level")
+                return original_obs(
+                    **kwargs, noise_level=0.0, consume_noise_draws=bool(original_level),
+                )
+
+            obs_patch = patch.object(cat_task, "build_cat_observations", clean_observations)
+            obs_patch.start()
         torch.manual_seed(args.seed)
         env.reset_slots(torch.arange(env.num_envs, device=env.device))
         policy = load_teacher(args.checkpoint, expected_contract=contract, device=env.device)
@@ -220,7 +238,11 @@ def main():
             ).items()
         }
         metadata = dict(
-            label=args.label, route=args.route, code_commit=commit, checkpoint=str(args.checkpoint),
+            label=args.label, route=args.route, code_commit=commit,
+            disturbance=args.disturbance, pd_randomization_unchanged=True,
+            suppress_push=args.disturbance != "full",
+            suppress_observation_noise=args.disturbance == "quiet",
+            suppress_rfi=args.disturbance == "quiet", checkpoint=str(args.checkpoint),
             checkpoint_sha256=sha256(args.checkpoint), evaluation_seed=args.seed,
             evaluation_episodes=args.episodes, protocol_sha256=sha256(protocol_path),
             config_sha256=sha256(config),
@@ -244,10 +266,21 @@ def main():
             probe="fixed_hurdle_contact_v1", physics_arrays_unchanged=True,
         )
         (args.output / "manifest.json").write_text(json.dumps(metadata, indent=2) + "\n")
-        report = evaluate_cohort(
-            env, policy, episodes=args.episodes,
-            episode_path=args.output / "episodes.jsonl", terminal_gate=True,
-        )
+        with ExitStack() as intervention:
+            intervention.enter_context(evaluation_push_mode(env, args.disturbance != "full"))
+            if args.disturbance == "quiet":
+                original_torque = controller.compute_torques
+
+                def torque_without_rfi(pos, vel, *, rfi):
+                    return original_torque(pos, vel, rfi=torch.zeros_like(rfi))
+
+                intervention.enter_context(
+                    patch.object(controller, "compute_torques", torque_without_rfi)
+                )
+            report = evaluate_cohort(
+                env, policy, episodes=args.episodes,
+                episode_path=args.output / "episodes.jsonl", terminal_gate=True,
+            )
         np.savez_compressed(
             args.output / "traces.npz",
             physics=torch.stack(physics).cpu().numpy(),
@@ -256,6 +289,8 @@ def main():
         )
         (args.output / "evaluation.json").write_text(json.dumps(report, indent=2) + "\n")
     finally:
+        if obs_patch is not None:
+            obs_patch.stop()
         if reset_patch is not None:
             reset_patch.stop()
         env.close()
