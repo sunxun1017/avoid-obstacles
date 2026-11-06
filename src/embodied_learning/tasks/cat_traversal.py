@@ -25,6 +25,7 @@ from embodied_learning.tasks.cat_reward import (
     CatRewardParameters,
     aggregate_cat_reward,
     cat_reward_terms,
+    standing_stability_bonus,
 )
 
 
@@ -122,10 +123,19 @@ class CatTaskState:
                 "feetgf_progress_gate",
                 "training_initialization",
                 "stop_transition",
+                "standing_stability",
             }
         ):
             raise ValueError("Unknown source task option.")
         self.options = {**defaults, **options}
+        self.standing_stability = self.options.get("standing_stability")
+        if self.standing_stability is not None and (
+            self.standing_stability != "goal_double_support_v1"
+            or self.recovery is not None
+            or getattr(bank, "deployment", False)
+            or any(manifest.scenes[index].boxes for index in allowed)
+        ):
+            raise ValueError("Standing stability requires a known empty CAT scene.")
         progress_profile = self.options.get("feetgf_progress_gate")
         if progress_profile not in (None, "root_displacement_0p5s_v1"):
             raise ValueError("Unknown feet guidance progress gate profile.")
@@ -263,6 +273,8 @@ class CatTaskState:
         self.saved_reward_diagnostics = {}
         self.last_metrics = {}
         self.scales = SOURCE_SCALES.copy()
+        if self.standing_stability is not None:
+            self.scales["standing_stability"] = 2.0
         # Explicit experiment: prioritize following the requested velocity,
         # including zero velocity, keeping original posture/contact coefficients.
         self.scales["tracking_root_field"] = tracking_weight
@@ -671,6 +683,15 @@ class CatTaskState:
                 self, "whole_body_joint_velocity", False
             ),
         )
+        goal_distance = (root[:, :2] - self.goals[:, :2]).norm(dim=-1)
+        if self.standing_stability is not None:
+            self.terms["standing_stability"] = standing_stability_bonus(
+                torch.where(invalid, torch.inf, goal_distance),
+                x.cmd_vel,
+                x.root_vel,
+                payload["gyro"],
+                x.feet_contact,
+            )
         if self.recovery is None:
             self._reward = aggregate_cat_reward(self.terms, self.scales, dt=0.02)
         flags = self.classify(
@@ -737,8 +758,7 @@ class CatTaskState:
             self._reward = aggregate_recovery_reward(
                 self.terms, self.scales, dt=0.02
             )
-        self.goal_distance = (root[:, :2] - self.goals[:, :2]).norm(dim=-1)
-        self.goal_distance = torch.where(invalid, torch.nan, self.goal_distance)
+        self.goal_distance = torch.where(invalid, torch.nan, goal_distance)
         self.record_goal(
             self.goal_distance,
             ~(flags["fall"] | flags["collision"] | flags["invalid"]),

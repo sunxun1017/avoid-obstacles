@@ -79,6 +79,27 @@ class CatRewardParameters:
     foot_height_stance: float = 0.0
 
 
+def standing_stability_bonus(
+    goal_distance: Tensor,
+    command: Tensor,
+    root_velocity: Tensor,
+    gyro: Tensor,
+    feet_contact: Tensor,
+) -> Tensor:
+    """Reward low body motion near the goal during commanded double support."""
+    standing = (
+        (goal_distance <= 0.10)
+        & (command[:, :2].norm(dim=-1) < 0.01)
+        & (feet_contact > 0).all(dim=-1)
+    )
+    motion = (
+        root_velocity.square().sum(dim=-1) / 0.20**2
+        + gyro.square().sum(dim=-1) / 0.35**2
+    )
+    quality = (1.0 + motion).reciprocal()
+    return torch.where(standing & torch.isfinite(quality), quality, 0.0)
+
+
 def aggregate_cat_reward(
     terms: dict[str, Tensor], scales: dict[str, float], *, dt: float
 ) -> Tensor:
