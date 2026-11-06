@@ -15,6 +15,7 @@ import torch
 from evaluate_cat_checkpoint import evaluate_cohort
 import train_cat_curriculum as curriculum
 from embodied_learning.data.field_scenes import load_scene_manifest
+from embodied_learning.evaluation.cat_route_probe import route_goal_ids
 from embodied_learning.policies.field_policy import load_teacher
 from embodied_learning.simulators.mjlab import cat_traversal
 from embodied_learning.tasks.cat_foot_guidance import load_foot_bank
@@ -43,7 +44,15 @@ def main():
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--episodes", type=int, default=16)
     parser.add_argument("--label", required=True)
+    parser.add_argument(
+        "--route", default="original",
+        choices=("original", "hurdle-near", "hurdle-far", "empty-near", "empty-stand"),
+    )
+    parser.add_argument("--empty-cache", type=Path)
     args = parser.parse_args()
+    empty = args.route.startswith("empty-")
+    if empty and args.empty_cache is None:
+        parser.error("Empty routes require --empty-cache")
     args.output.mkdir(parents=True, exist_ok=False)
     torch.set_num_threads(4)
 
@@ -65,6 +74,7 @@ def main():
 
     with patch.object(cat_traversal, "ContactSensorCfg", read_force):
         env = curriculum.make_env(args.source, 4, **settings)
+    reset_patch = None
     try:
         native = env.unwrapped
         state = env.cat_state
@@ -76,19 +86,64 @@ def main():
         config = stage / "config.json"
         assets = json.loads((stage / "assets.json").read_text())
         manifest = load_scene_manifest(config)
+        if empty:
+            manifest = replace(
+                manifest, scenes=tuple(replace(scene, boxes=()) for scene in manifest.scenes),
+            )
+        field_path = args.empty_cache if empty else Path(assets["fields"]) / "manifest.json"
         cache = load_field_cache(
-            Path(assets["fields"]) / "manifest.json", manifest,
+            field_path, manifest,
             device=env.device, source_profile={"version": "cat_source_v1"},
         )
         cache = replace(cache, source_interpolation=protocol["source_interpolation"])
         state.manifest = manifest
-        state.bank = load_foot_bank(
-            cache, assets["foot_fields"], radius=protocol["foot_radius_m"],
-        )
+        scene = next(scene for scene in manifest.scenes if scene.id == "hurdle_crouch")
+        robot = native.scene["robot"]
+        if empty:
+            # With no SDF voxel near the obstacles, both foot radii yield
+            # exactly the same goal guidance.
+            influence = max(protocol["foot_radius_m"], 5 * scene.voxel_size)
+            scene_idx = cache.scene_names.index(scene.id)
+            if any(float(field.sdf.min()) < influence for field in cache.fields[scene_idx]):
+                raise ValueError("Empty field is inside the foot guidance influence radius")
+            state.bank = cache
+        else:
+            state.bank = load_foot_bank(
+                cache, assets["foot_fields"], radius=protocol["foot_radius_m"],
+            )
+        if args.route != "original":
+            routes = torch.tensor(
+                route_goal_ids(scene.goals, far=args.route == "hurdle-far"),
+                device=env.device,
+            )
+            goal_points = state.goals.new_tensor(scene.goals)
+            original_reset = cat_traversal._reset_field
+
+            def reset_route(world, slots):
+                original_reset(world, slots)
+                state.goal_ids[slots] = routes[state.goal_ids[slots]]
+                state.goals[slots] = goal_points[state.goal_ids[slots]]
+                if empty:
+                    poses = state.goals.new_zeros((len(slots), 7))
+                    poses[:, 3] = 1
+                    poses[:, 2] = -100
+                    poses[:, :3] += world.scene.env_origins[slots]
+                    for name in world.cat_obstacle_contacts:
+                        world.scene[name.removeprefix("cat_")].write_mocap_pose_to_sim(
+                            poses, env_ids=slots,
+                        )
+                if args.route == "empty-stand":
+                    roots = robot.data.default_root_state[slots].clone()
+                    roots[:, :3] = state.goals[slots] + world.scene.env_origins[slots]
+                    roots[:, 3:7] = roots.new_tensor([1, 0, 0, 0])
+                    roots[:, 7:] = 0
+                    robot.write_root_state_to_sim(roots, env_ids=slots)
+
+            reset_patch = patch.object(cat_traversal, "_reset_field", reset_route)
+            reset_patch.start()
         torch.manual_seed(args.seed)
         env.reset_slots(torch.arange(env.num_envs, device=env.device))
         policy = load_teacher(args.checkpoint, expected_contract=contract, device=env.device)
-        robot = native.scene["robot"]
         sites = [robot.site_names.index(name) for name in ("left_foot", "right_foot")]
         ground = [native.scene[f"cat_{side}_ground"] for side in ("left", "right")]
         prohibited = [native.scene[name] for name in native.cat_obstacle_contacts]
@@ -105,6 +160,7 @@ def main():
         substep_contact = torch.zeros_like(active)
         physics = []
         control = []
+        motion = []
         update = native.scene.update
         refresh = state.refresh
 
@@ -139,6 +195,11 @@ def main():
                     controller.targets,
                     (x.foot_vel[:, :, :2].norm(dim=-1)),
                 ], dim=1))
+                motion.append(torch.cat([
+                    payload["gyro"], x.pelvis_rpy, x.torso_ang_vel, x.torso_rpy,
+                    state.gait.last_command, state.gait.phase,
+                    state.gait.stop_timestep[:, None], payload["root_position"],
+                ], dim=1))
                 active.logical_and_(~(
                     selected & (flags["fall"] | flags["collision"] | flags["invalid"] | flags["timeout"])
                 ))
@@ -158,14 +219,24 @@ def main():
                 kp=controller.kp_scale, kd=controller.kd_scale, rfi=controller.rfi_scale,
             ).items()
         }
-        scene = next(scene for scene in manifest.scenes if scene.id == "hurdle_crouch")
         metadata = dict(
-            label=args.label, code_commit=commit, checkpoint=str(args.checkpoint),
+            label=args.label, route=args.route, code_commit=commit, checkpoint=str(args.checkpoint),
             checkpoint_sha256=sha256(args.checkpoint), evaluation_seed=args.seed,
             evaluation_episodes=args.episodes, protocol_sha256=sha256(protocol_path),
             config_sha256=sha256(config),
             environment_config_sha256=sha256(args.source / "stages/4/config.json"),
             scene_manifest=manifest.identity, initial_hashes=initial_hashes,
+            field_cache_identity=cache.cache_identity,
+            initial_goals=state.goals.detach().cpu().tolist(),
+            initial_roots=(robot.data.root_link_pos_w - native.scene.env_origins).detach().cpu().tolist(),
+            motion_columns=[
+                "gyro_roll", "gyro_pitch", "gyro_yaw",
+                "pelvis_roll", "pelvis_pitch", "pelvis_yaw",
+                "torso_rate_roll", "torso_rate_pitch", "torso_rate_yaw",
+                "torso_roll", "torso_pitch", "torso_yaw",
+                "move", "command_x", "command_y", "phase_left", "phase_right",
+                "stop_timestep", "root_x", "root_y", "root_z",
+            ],
             robot_mass_kg=float(body_mass),
             boxes=[dict(center=b.center, half_size=b.half_size) for b in scene.boxes],
             joint_names=list(env.schema["joint_names"]), control_hz=50, physics_hz=500,
@@ -181,9 +252,12 @@ def main():
             args.output / "traces.npz",
             physics=torch.stack(physics).cpu().numpy(),
             control=torch.stack(control).cpu().numpy(),
+            motion=torch.stack(motion).cpu().numpy(),
         )
         (args.output / "evaluation.json").write_text(json.dumps(report, indent=2) + "\n")
     finally:
+        if reset_patch is not None:
+            reset_patch.stop()
         env.close()
 
 
