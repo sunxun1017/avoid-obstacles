@@ -344,3 +344,46 @@ def test_goal_hold_requires_in_goal_settled_valid_upright_state(condition):
     assert result["goal_hold_fraction"] == 0
     assert result["ever_goal_hold_count"] == 0
     assert result["final_goal_hold_count"] == 0
+
+
+def test_first_settled_window_is_recorded_separately_from_terminal_success(tmp_path):
+    class FirstWindowEnv:
+        num_envs, device = 2, "cpu"
+        age = 0
+
+        def get_observations(self):
+            return {}
+
+        def step(self, action):
+            self.age += 1
+            no = torch.zeros(2, dtype=torch.bool)
+            yes = ~no
+            hit = torch.tensor([self.age == 32, self.age in (5, 32)])
+            speed = torch.full((2,), 0.15 if self.age < 6 else 0.05)
+            done = torch.full((2,), self.age == 32)
+            return {}, torch.zeros(2), done, {
+                "cat_metrics": dict(
+                    goal_distance=torch.full((2,), 0.05),
+                    min_goal_distance=torch.full((2,), 0.05),
+                    stop_command=yes, settled_stop=no, root_speed=speed,
+                    root_angular_speed=speed,
+                ),
+                "cat_metric_definitions": {},
+                "field_outcomes": dict(
+                    goal=yes, success=no, physical_collision=hit,
+                    prohibited_contact=hit, collision=done, fall=no, invalid=no, timeout=no,
+                ),
+            }
+
+    path = tmp_path / "episodes.jsonl"
+    report = cohort.evaluate_cohort(
+        FirstWindowEnv(), SimpleNamespace(predict=lambda _: None),
+        episodes=2, episode_path=path, terminal_gate=True,
+    )
+    a, b = (json.loads(line)["terminal_v1"] for line in path.read_text().splitlines())
+    assert a["first_ordinary_hold_seconds"] == pytest.approx(0.50)
+    assert a["first_strict_hold_seconds"] == pytest.approx(0.60)
+    assert b["first_ordinary_hold_seconds"] is None
+    assert b["first_strict_hold_seconds"] is None
+    assert report["terminal_v1"]["success_count"] == 0
+    assert report["terminal_v1"]["first_strict_hold_seconds"]["count"] == 1

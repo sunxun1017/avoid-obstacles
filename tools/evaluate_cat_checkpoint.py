@@ -22,6 +22,7 @@ from unittest.mock import patch
 import torch
 
 from embodied_learning.evaluation.cat_terminal_gate import (
+    HOLD_STEPS,
     VERSION as TERMINAL_PROTOCOL,
     classify_terminal,
     update_hold,
@@ -68,6 +69,8 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None, terminal_gate=F
     if terminal_gate:
         ordinary_hold = torch.zeros_like(quota)
         strict_hold = torch.zeros_like(quota)
+        first_ordinary_hold = torch.zeros_like(quota)
+        first_strict_hold = torch.zeros_like(quota)
         contact = torch.zeros_like(quota, dtype=torch.bool)
         reached_v1 = torch.zeros_like(contact)
     first_goal_speed = torch.full(
@@ -142,6 +145,11 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None, terminal_gate=F
                 )
                 reached_v1 |= active & (metrics["goal_distance"] <= 0.1)
                 contact |= active & outcomes["prohibited_contact"].bool()
+                safe_now = active & ~contact & ~outcomes["fall"].bool() & ~outcomes["invalid"].bool()
+                ordinary_new = safe_now & (ordinary_hold >= HOLD_STEPS) & (first_ordinary_hold == 0)
+                strict_new = safe_now & (strict_hold >= HOLD_STEPS) & (first_strict_hold == 0)
+                first_ordinary_hold[ordinary_new] = age[ordinary_new]
+                first_strict_hold[strict_new] = age[strict_new]
             done = dones.bool() & active
             for slot in done.nonzero().flatten().tolist():
                 length = int(age[slot])
@@ -188,13 +196,18 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None, terminal_gate=F
                         contact=bool(contact[slot]), reached=bool(reached_v1[slot]),
                     )
                     record["terminal_v1"] = dict(
-                        success=success, strict_success=strict, failure_reason=reason
+                        success=success, strict_success=strict, failure_reason=reason,
+                        first_ordinary_hold_seconds=int(first_ordinary_hold[slot]) * 0.02
+                        if first_ordinary_hold[slot] else None,
+                        first_strict_hold_seconds=int(first_strict_hold[slot]) * 0.02
+                        if first_strict_hold[slot] else None,
                     )
                 records.append(record)
                 if stream:
                     stream.write(json.dumps(record, allow_nan=False) + "\n")
             if terminal_gate:
                 ordinary_hold[done] = strict_hold[done] = 0
+                first_ordinary_hold[done] = first_strict_hold[done] = 0
                 contact[done] = reached_v1[done] = False
             completed[done] += 1
             age[done] = first_goal[done] = 0
@@ -265,10 +278,14 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None, terminal_gate=F
     if terminal_gate:
         scores = [r["terminal_v1"] for r in records]
         count = sum(r["success"] for r in scores)
+        strict_count = sum(r["strict_success"] for r in scores)
         terminal_summary["terminal_v1"] = dict(
             protocol=TERMINAL_PROTOCOL, success_count=count, episodes=episodes,
             success_wilson_95=wilson(count, episodes),
-            strict_success_count=sum(r["strict_success"] for r in scores),
+            strict_success_count=strict_count,
+            strict_success_wilson_95=wilson(strict_count, episodes),
+            first_ordinary_hold_seconds=distribution([r["first_ordinary_hold_seconds"] for r in scores]),
+            first_strict_hold_seconds=distribution([r["first_strict_hold_seconds"] for r in scores]),
             failures={
                 reason: sum(r["failure_reason"] == reason for r in scores)
                 for reason in ("invalid", "fall", "prohibited_contact", "not_reached", "not_settled")
