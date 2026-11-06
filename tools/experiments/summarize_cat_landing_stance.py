@@ -34,13 +34,14 @@ def episode_metrics(physics, control, manifest):
         if b["center"][2] - b["half_size"][2] <= 1e-6
         and b["center"][2] + b["half_size"][2] < 0.5
     ]
-    if len(barriers) != 1:
-        raise ValueError("Probe requires exactly one ground hurdle")
-    bar = barriers[0]
-    front = bar["center"][0] - bar["half_size"][0]
-    back = bar["center"][0] + bar["half_size"][0]
-    lateral = bar["center"][1]
-    half_width = bar["half_size"][1]
+    if manifest["boxes"] and len(barriers) != 1:
+        raise ValueError("Obstacle probe requires exactly one ground hurdle")
+    if barriers:
+        bar = barriers[0]
+        front = bar["center"][0] - bar["half_size"][0]
+        back = bar["center"][0] + bar["half_size"][0]
+        lateral = bar["center"][1]
+        half_width = bar["half_size"][1]
     p = physics[physics[:, 10].astype(bool)]
     if len(p) != len(c) * hz // manifest["control_hz"]:
         raise ValueError(f"Misaligned telemetry: {len(p)} physics vs {len(c)} control")
@@ -52,7 +53,7 @@ def episode_metrics(physics, control, manifest):
     foot = p[:, 2:8].reshape(-1, 2, 3)
     fz = np.abs(p[:, :2]) / bw
     touchdown = []
-    for side in range(2):
+    for side in (range(2) if barriers else ()):
         on = fz[:, side] > 0.05
         candidates = np.flatnonzero(on[1:] & ~on[:-1]) + 1
         for i in candidates:
