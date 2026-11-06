@@ -234,7 +234,7 @@ def main():
                 "pelvis_roll", "pelvis_pitch", "pelvis_yaw",
                 "torso_rate_roll", "torso_rate_pitch", "torso_rate_yaw",
                 "torso_roll", "torso_pitch", "torso_yaw",
-                "move", "command_x", "command_y", "phase_left", "phase_right",
+                "move", "command_x", "command_y", "command_z", "phase_left", "phase_right",
                 "stop_timestep", "root_x", "root_y", "root_z",
             ],
             robot_mass_kg=float(body_mass),
