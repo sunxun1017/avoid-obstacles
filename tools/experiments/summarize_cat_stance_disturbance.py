@@ -10,7 +10,8 @@ import numpy as np
 
 from summarize_cat_landing_stance import stats
 
-ARMS = ("full", "no-push", "quiet")
+ARMS = ("full", "no-push", "quiet", "no-push-no-observation-noise", "no-push-no-rfi")
+ISOLATED_ARMS = {"no-push-no-observation-noise", "no-push-no-rfi"}
 MATCHING = (
     "code_commit", "checkpoint_sha256", "config_sha256", "protocol_sha256",
     "field_cache_identity", "initial_hashes", "initial_goals", "gpu",
@@ -96,7 +97,8 @@ def main():
                 "static_command", "static_phase", "double_support", "angular_exceeded")) for r in rows),
             metrics={m: stats([r[m] for r in rows if m in r]) for m in METRICS},
         ))
-        baseline = (label, seed, "full")
+        baseline_arm = "no-push" if arm in ISOLATED_ARMS else "full"
+        baseline = (label, seed, baseline_arm)
         candidate = (label, seed, arm)
         if arm == "full" or baseline not in groups:
             continue
@@ -106,9 +108,9 @@ def main():
         if left.keys() != right.keys():
             raise ValueError(f"Unmatched disturbance slots {candidate}")
         effects.append(dict(
-            model=label, seed=seed, arm=arm, pairs=len(group),
+            model=label, seed=seed, arm=arm, baseline_arm=baseline_arm, pairs=len(group),
             delta_success_count=sum(right[i]["success"] - left[i]["success"] for i in left),
-            delta_candidate_minus_full={
+            delta_candidate_minus_baseline={
                 m: stats([right[i][m] - left[i][m] for i in left if m in right[i] and m in left[i]])
                 for m in METRICS
             },

@@ -52,9 +52,15 @@ def main():
         choices=("original", "hurdle-near", "hurdle-far", "empty-near", "empty-stand"),
     )
     parser.add_argument("--empty-cache", type=Path)
-    parser.add_argument("--disturbance", choices=("full", "no-push", "quiet"), default="full")
+    parser.add_argument(
+        "--disturbance", default="full",
+        choices=("full", "no-push", "quiet", "no-push-no-observation-noise", "no-push-no-rfi"),
+    )
     args = parser.parse_args()
     empty = args.route.startswith("empty-")
+    suppress_push = args.disturbance != "full"
+    suppress_observation_noise = args.disturbance in ("quiet", "no-push-no-observation-noise")
+    suppress_rfi = args.disturbance in ("quiet", "no-push-no-rfi")
     if args.disturbance != "full" and args.route != "empty-stand":
         parser.error("Disturbance ablation is restricted to the empty standing probe")
     if empty and args.empty_cache is None:
@@ -148,7 +154,7 @@ def main():
 
             reset_patch = patch.object(cat_traversal, "_reset_field", reset_route)
             reset_patch.start()
-        if args.disturbance == "quiet":
+        if suppress_observation_noise:
             original_obs = cat_task.build_cat_observations
 
             def clean_observations(**kwargs):
@@ -240,9 +246,8 @@ def main():
         metadata = dict(
             label=args.label, route=args.route, code_commit=commit,
             disturbance=args.disturbance, pd_randomization_unchanged=True,
-            suppress_push=args.disturbance != "full",
-            suppress_observation_noise=args.disturbance == "quiet",
-            suppress_rfi=args.disturbance == "quiet", checkpoint=str(args.checkpoint),
+            suppress_push=suppress_push, suppress_observation_noise=suppress_observation_noise,
+            suppress_rfi=suppress_rfi, checkpoint=str(args.checkpoint),
             checkpoint_sha256=sha256(args.checkpoint), evaluation_seed=args.seed,
             evaluation_episodes=args.episodes, protocol_sha256=sha256(protocol_path),
             config_sha256=sha256(config),
@@ -267,8 +272,8 @@ def main():
         )
         (args.output / "manifest.json").write_text(json.dumps(metadata, indent=2) + "\n")
         with ExitStack() as intervention:
-            intervention.enter_context(evaluation_push_mode(env, args.disturbance != "full"))
-            if args.disturbance == "quiet":
+            intervention.enter_context(evaluation_push_mode(env, suppress_push))
+            if suppress_rfi:
                 original_torque = controller.compute_torques
 
                 def torque_without_rfi(pos, vel, *, rfi):
