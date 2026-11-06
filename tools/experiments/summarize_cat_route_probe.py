@@ -103,6 +103,48 @@ def main():
         ))
     (args.root / "route-summary.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
 
+    comparisons = []
+    for left in sorted(groups):
+        route, label, seed = left
+        candidates = []
+        if label == "balance50":
+            candidates.append((route, "balance100", seed))
+        if route == "hurdle-near":
+            candidates.append(("hurdle-far", label, seed))
+            candidates.append(("empty-near", label, seed))
+        if route == "empty-near":
+            candidates.append(("empty-stand", label, seed))
+        for right in candidates:
+            if right not in groups:
+                continue
+            a, b = manifests[left], manifests[right]
+            if left[0] == "hurdle-near" and right[0] == "hurdle-far":
+                if a["initial_hashes"] != b["initial_hashes"]:
+                    raise ValueError(f"Near/far initial conditions differ: {label}, {seed}")
+                near, far = np.asarray(a["initial_goals"]), np.asarray(b["initial_goals"])
+                if not np.array_equal(near[:, 1:], far[:, 1:]) or not (far[:, 0] > near[:, 0]).all():
+                    raise ValueError(f"Near/far target assignment differs in lane: {label}, {seed}")
+            left_rows = {r["slot"]: r for r in groups[left]}
+            right_rows = {r["slot"]: r for r in groups[right]}
+            if left_rows.keys() != right_rows.keys():
+                raise ValueError(f"Unmatched slots: {left} vs {right}")
+            differences = {
+                metric: stats([
+                    right_rows[slot][metric] - left_rows[slot][metric]
+                    for slot in left_rows
+                    if left_rows[slot].get(metric) is not None and right_rows[slot].get(metric) is not None
+                ])
+                for metric in metrics
+            }
+            comparisons.append(dict(
+                baseline=list(left), candidate=list(right), pairs=len(left_rows),
+                initial_hash_match=a["initial_hashes"] == b["initial_hashes"],
+                delta_candidate_minus_baseline=differences,
+            ))
+    (args.root / "route-comparisons.json").write_text(
+        json.dumps(comparisons, indent=2, allow_nan=False) + "\n"
+    )
+
 
 if __name__ == "__main__":
     main()
