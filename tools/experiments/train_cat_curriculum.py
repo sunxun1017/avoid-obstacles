@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -476,6 +477,13 @@ def evaluate(
         raise ValueError("Terminal gate evaluation requires the original training disturbances")
 
     protocol = json.loads((root / "protocol.json").read_text())
+    if terminal_gate:
+        git = ["git", "-C", str(CODE)]
+        if subprocess.check_output([*git, "status", "--porcelain"], text=True).strip():
+            raise ValueError("Terminal gate evaluation requires a clean committed checkout")
+        evaluation_code_commit = subprocess.check_output(
+            [*git, "rev-parse", "HEAD"], text=True,
+        ).strip()
     count = 32 if smoke else 128 if terminal_gate else protocol["evaluation_episodes"]
     env = make_env(
         root, level, num_envs=count, seed=seed, execution_profile=execution_profile
@@ -529,6 +537,8 @@ def evaluate(
         if terminal_gate:
             result["contact_sampling"] = "physics_substep"
             result["protocol_sha256"] = sha256(root / "protocol.json")
+            result["evaluation_code_commit"] = evaluation_code_commit
+            result["training_seed"] = protocol["ppo"]["seed"]
         result.update(
             checkpoint=str(checkpoint),
             checkpoint_sha256=sha256(checkpoint),

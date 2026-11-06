@@ -43,6 +43,7 @@ def gate_from_evaluations(reports):
     first = reports[0]
     stage = first["training_stage"]
     digest = first["checkpoint_sha256"]
+    provenance = ("protocol_sha256", "evaluation_code_commit", "training_seed")
     cohorts = {}
     for report in reports:
         result = report["terminal_v1"]
@@ -56,11 +57,13 @@ def gate_from_evaluations(reports):
             or result["protocol"] != VERSION
             or "diagnostic_override" in report
             or report["seed"] in cohorts
+            or any(report[key] != first[key] for key in provenance)
         ):
             raise ValueError("Reports must use the same update-600 checkpoint, stage and full protocol")
         cohorts[report["seed"]] = (result["success_count"], result["episodes"])
     return dict(
         protocol=VERSION, stage=stage, checkpoint_sha256=digest,
+        **{key: first[key] for key in provenance},
         completed_updates=600, passed=promotion_passed(600, cohorts),
         success_count=sum(s for s, _ in cohorts.values()), episodes=sum(n for _, n in cohorts.values()),
         by_seed={seed: {"success_count": s, "episodes": n} for seed, (s, n) in cohorts.items()},
