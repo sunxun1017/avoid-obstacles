@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 
 
+TERMINAL_LIMITS = ("terminal_distance", "terminal_linear_speed", "terminal_angular_speed")
 METRICS = (
     "landing_peak_bw", "landing_down_m_s", "landing_pitch_excursion_deg",
     "landing_knee_ankle_velocity_rms", "landing_knee_ankle_target_step_deg",
@@ -43,7 +44,11 @@ def episode_metrics(physics, control, manifest):
     p = physics[physics[:, 10].astype(bool)]
     if len(p) != len(c) * hz // manifest["control_hz"]:
         raise ValueError(f"Misaligned telemetry: {len(p)} physics vs {len(c)} control")
-    row = dict.fromkeys(METRICS)
+    row = dict.fromkeys((*METRICS, *TERMINAL_LIMITS))
+    if len(c) == 20 * manifest["control_hz"]:
+        final = c[-(manifest["control_hz"] // 2):, :3]
+        limits_exceeded = (final[:, 0] > 0.1, final[:, 1] >= 0.2, final[:, 2] >= 0.2)
+        row.update({key: bool(v.any()) for key, v in zip(TERMINAL_LIMITS, limits_exceeded)})
     foot = p[:, 2:8].reshape(-1, 2, 3)
     fz = np.abs(p[:, :2]) / bw
     touchdown = []
@@ -167,6 +172,16 @@ def main():
                 "strict_success": sum(b["strict_success"] for _, b in pairs),
             },
             "paired_metrics": {},
+        }
+        report[str(seed)]["terminal_thresholds_exceeded"] = {
+            label: {
+                key: sum(row[key] is True for row in model if row[key] is not None)
+                for key in TERMINAL_LIMITS
+            } | {"full_horizon_episodes": sum(row[TERMINAL_LIMITS[0]] is not None for row in model)}
+            for label, model in (
+                ("balance50", [a for a, _ in pairs]),
+                ("balance100", [b for _, b in pairs]),
+            )
         }
         for metric in METRICS:
             eligible = [(a[metric], b[metric]) for a, b in pairs if a[metric] is not None and b[metric] is not None]
