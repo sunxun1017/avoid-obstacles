@@ -458,8 +458,12 @@ def evaluate(
     execution_profile="author_playback",
     smoke=False,
     disable_push=False,
+    terminal_gate=False,
 ):
+    from contextlib import nullcontext
+
     from evaluate_cat_checkpoint import evaluate_cohort
+    from embodied_learning.evaluation.cat_substep_contacts import capture_prohibited_contacts
 
     from embodied_learning.policies.field_policy import load_teacher
     from embodied_learning.protocols.imitation import PolicyContract
@@ -468,8 +472,11 @@ def evaluate(
     if disable_push and execution_profile != "source_train":
         raise ValueError("Disabling only pushes requires source_train.")
 
+    if terminal_gate and (disable_push or execution_profile != "source_train"):
+        raise ValueError("Terminal gate evaluation requires the original training disturbances")
+
     protocol = json.loads((root / "protocol.json").read_text())
-    count = 32 if smoke else protocol["evaluation_episodes"]
+    count = 32 if smoke else 128 if terminal_gate else protocol["evaluation_episodes"]
     env = make_env(
         root, level, num_envs=count, seed=seed, execution_profile=execution_profile
     )
@@ -513,10 +520,15 @@ def evaluate(
         output.mkdir(parents=True, exist_ok=False)
         from cat_motion_probe import record_motion
 
-        with evaluation_push_mode(env, disable_push), record_motion(env, output):
+        contacts = capture_prohibited_contacts(env) if terminal_gate else nullcontext()
+        with evaluation_push_mode(env, disable_push), record_motion(env, output), contacts:
             result = evaluate_cohort(
-                env, policy, episodes=count, episode_path=output / "episodes.jsonl"
+                env, policy, episodes=count, episode_path=output / "episodes.jsonl",
+                terminal_gate=terminal_gate,
             )
+        if terminal_gate:
+            result["contact_sampling"] = "physics_substep"
+            result["protocol_sha256"] = sha256(root / "protocol.json")
         result.update(
             checkpoint=str(checkpoint),
             checkpoint_sha256=sha256(checkpoint),
@@ -566,8 +578,11 @@ def main():
     parser.add_argument("--seed", type=int, default=20261020)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--disable-push", action="store_true")
+    parser.add_argument("--terminal-gate", action="store_true")
     args = parser.parse_args()
     torch.set_num_threads(4)
+    if args.terminal_gate and args.command != "evaluate":
+        parser.error("--terminal-gate applies only to evaluation")
     root = args.root.resolve()
     if args.command in ("train", "evaluate"):
         protocol = json.loads((root / "protocol.json").read_text())
@@ -611,6 +626,7 @@ def main():
             execution_profile=args.execution_profile,
             smoke=args.smoke,
             disable_push=args.disable_push,
+            terminal_gate=args.terminal_gate,
         )
 
 

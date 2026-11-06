@@ -34,3 +34,34 @@ def promotion_passed(update, cohorts):
     if any(total != 128 or not 0 <= successes <= total for successes, total in cohorts.values()):
         raise ValueError("Expected 128 evaluated episodes per seed and valid counts")
     return sum(successes for successes, _ in cohorts.values()) >= 226
+
+
+def gate_from_evaluations(reports):
+    """Join two held-out cohorts with one fixed checkpoint and stage."""
+    if len(reports) != 2:
+        raise ValueError("Expected exactly two evaluation reports")
+    first = reports[0]
+    stage = first["training_stage"]
+    digest = first["checkpoint_sha256"]
+    cohorts = {}
+    for report in reports:
+        result = report["terminal_v1"]
+        if (
+            report["training_stage"] != stage
+            or report["evaluation_stage"] != stage
+            or report["checkpoint_sha256"] != digest
+            or report["completed_updates"] != 600
+            or report["execution_profile"] != "source_train"
+            or report["contact_sampling"] != "physics_substep"
+            or result["protocol"] != VERSION
+            or "diagnostic_override" in report
+            or report["seed"] in cohorts
+        ):
+            raise ValueError("Reports must use the same update-600 checkpoint, stage and full protocol")
+        cohorts[report["seed"]] = (result["success_count"], result["episodes"])
+    return dict(
+        protocol=VERSION, stage=stage, checkpoint_sha256=digest,
+        completed_updates=600, passed=promotion_passed(600, cohorts),
+        success_count=sum(s for s, _ in cohorts.values()), episodes=sum(n for _, n in cohorts.values()),
+        by_seed={seed: {"success_count": s, "episodes": n} for seed, (s, n) in cohorts.items()},
+    )

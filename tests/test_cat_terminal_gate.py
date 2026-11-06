@@ -48,3 +48,30 @@ def test_gate_requires_update_600_and_two_distinct_128_episode_cohorts():
                             (600, {7: (129, 128), 8: (128, 128)})]:
         with pytest.raises(ValueError):
             promotion_passed(update, cohorts)
+
+
+def _gate_report(seed, successes):
+    return {
+        "completed_updates": 600, "training_stage": 0, "evaluation_stage": 0,
+        "checkpoint_sha256": "a" * 64, "seed": seed, "execution_profile": "source_train",
+        "contact_sampling": "physics_substep",
+        "terminal_v1": {
+            "protocol": "cat_terminal_20s_v1", "episodes": 128, "success_count": successes,
+        },
+    }
+
+
+def test_gate_joins_same_checkpoint_evaluations_and_rejects_diagnostics():
+    from embodied_learning.evaluation.cat_terminal_gate import gate_from_evaluations
+
+    a, b = _gate_report(9, 112), _gate_report(10, 113)
+    assert gate_from_evaluations([a, b])["passed"] is False
+    a["terminal_v1"]["success_count"] += 1
+    assert gate_from_evaluations([a, b])["passed"] is True
+    for patch in (
+        {"seed": 9}, {"checkpoint_sha256": "b" * 64},
+        {"training_stage": 1}, {"completed_updates": 599},
+        {"contact_sampling": "control_step"}, {"diagnostic_override": {"push": False}},
+    ):
+        with pytest.raises(ValueError):
+            gate_from_evaluations([a, b | patch])
