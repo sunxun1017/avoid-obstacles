@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from embodied_learning.evaluation.cat_route_probe import first_stop_after_landing
-from summarize_cat_landing_stance import episode_metrics, stats
+from summarize_cat_landing_stance import TERMINAL_LIMITS, episode_metrics, stats
 
 
 def route_metrics(control, motion, names, hz, landing_time):
@@ -87,7 +87,7 @@ def main():
     rows = [row for group in groups.values() for row in group]
     fixed = {"run_id", "route", "label", "evaluation_seed", "slot", "code_commit",
              "config_sha256", "checkpoint_sha256", "success", "strict_success", "failure_reason"}
-    metrics = sorted(set().union(*(row.keys() for row in rows)) - fixed)
+    metrics = sorted(set().union(*(row.keys() for row in rows)) - fixed - set(TERMINAL_LIMITS))
     fields = list(dict.fromkeys(k for row in rows for k in row))
     with (args.root / "episode-metrics.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
@@ -99,6 +99,11 @@ def main():
             route=key[0], label=key[1], seed=key[2], episodes=len(group),
             success=sum(row["success"] for row in group),
             strict_success=sum(row["strict_success"] for row in group),
+            terminal_thresholds_exceeded={
+                name: {"n": sum(row.get(name) is not None for row in group),
+                       "exceeded": sum(row.get(name) is True for row in group)}
+                for name in TERMINAL_LIMITS
+            },
             metrics={k: stats([row[k] for row in group if row.get(k) is not None]) for k in metrics},
         ))
     (args.root / "route-summary.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
