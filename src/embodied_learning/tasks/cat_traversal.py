@@ -785,6 +785,7 @@ class CatTaskState:
                 **{k: v.clone() for k, v in flags.items()},
                 "goal": self.ever_goal.clone(),
                 "physical_collision": self.ever_physical_collision.clone(),
+                "prohibited_contact": self.ever_collision.clone(),
                 "success": (
                     self.ever_goal
                     & ~self.ever_collision

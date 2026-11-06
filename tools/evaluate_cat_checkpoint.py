@@ -21,6 +21,12 @@ from unittest.mock import patch
 
 import torch
 
+from embodied_learning.evaluation.cat_terminal_gate import (
+    VERSION as TERMINAL_PROTOCOL,
+    classify_terminal,
+    update_hold,
+)
+
 
 def wilson(successes, total):
     z = 1.959963984540054
@@ -48,7 +54,7 @@ def distribution(values):
 
 
 @torch.inference_mode()
-def evaluate_cohort(env, policy, *, episodes, episode_path=None):
+def evaluate_cohort(env, policy, *, episodes, episode_path=None, terminal_gate=False):
     """Consume terminal snapshots, ignoring later episodes in completed slots."""
     if episodes < env.num_envs or episodes < 1:
         raise ValueError("episodes must be at least num_envs and positive")
@@ -59,6 +65,11 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
     completed = torch.zeros_like(quota)
     age = torch.zeros_like(quota)
     first_goal = torch.zeros_like(quota)
+    if terminal_gate:
+        ordinary_hold = torch.zeros_like(quota)
+        strict_hold = torch.zeros_like(quota)
+        contact = torch.zeros_like(quota, dtype=torch.bool)
+        reached_v1 = torch.zeros_like(contact)
     first_goal_speed = torch.full(
         (env.num_envs,), math.nan, device=device, dtype=torch.float64
     )
@@ -124,6 +135,13 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
                 sums["pre_goal_" + name][pre_goal] += metrics[name][
                     pre_goal
                 ].double()
+            if terminal_gate:
+                ordinary_hold, strict_hold = update_hold(
+                    ordinary_hold, strict_hold, metrics["goal_distance"],
+                    metrics["root_speed"], metrics["root_angular_speed"],
+                )
+                reached_v1 |= active & (metrics["goal_distance"] <= 0.1)
+                contact |= active & outcomes["prohibited_contact"].bool()
             done = dones.bool() & active
             for slot in done.nonzero().flatten().tolist():
                 length = int(age[slot])
@@ -163,9 +181,21 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
                         record[name] = None
                 if not all(math.isfinite(x) for x in record["sums"].values()):
                     raise ValueError("Nonfinite episode metric; investigate physics")
+                if terminal_gate:
+                    success, strict, reason = classify_terminal(
+                        length, int(ordinary_hold[slot]), int(strict_hold[slot]),
+                        invalid=flags["invalid"], fall=flags["fall"],
+                        contact=bool(contact[slot]), reached=bool(reached_v1[slot]),
+                    )
+                    record["terminal_v1"] = dict(
+                        success=success, strict_success=strict, failure_reason=reason
+                    )
                 records.append(record)
                 if stream:
                     stream.write(json.dumps(record, allow_nan=False) + "\n")
+            if terminal_gate:
+                ordinary_hold[done] = strict_hold[done] = 0
+                contact[done] = reached_v1[done] = False
             completed[done] += 1
             age[done] = first_goal[done] = 0
             first_goal_speed[done] = math.nan
@@ -231,7 +261,21 @@ def evaluate_cohort(env, policy, *, episodes, episode_path=None):
         ever="At least one qualifying step during the designated episode.",
         final="Qualifies on the terminal step before automatic reset.",
     )
+    terminal_summary = {}
+    if terminal_gate:
+        scores = [r["terminal_v1"] for r in records]
+        count = sum(r["success"] for r in scores)
+        terminal_summary["terminal_v1"] = dict(
+            protocol=TERMINAL_PROTOCOL, success_count=count, episodes=episodes,
+            success_wilson_95=wilson(count, episodes),
+            strict_success_count=sum(r["strict_success"] for r in scores),
+            failures={
+                reason: sum(r["failure_reason"] == reason for r in scores)
+                for reason in ("invalid", "fall", "prohibited_contact", "not_reached", "not_settled")
+            },
+        )
     return dict(
+        **terminal_summary,
         episodes=episodes,
         envs=env.num_envs,
         simulation_steps=step,
@@ -292,6 +336,7 @@ def main():
     parser.add_argument("--episodes", type=int, default=1000)
     parser.add_argument("--num-envs", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=20261019)
+    parser.add_argument("--terminal-gate", action="store_true")
     args = parser.parse_args()
     if not 1 <= args.num_envs <= args.episodes:
         parser.error("Require 1 <= num-envs <= episodes")
@@ -335,6 +380,7 @@ def main():
             policy,
             episodes=args.episodes,
             episode_path=args.result_dir / "episodes.jsonl",
+            terminal_gate=args.terminal_gate,
         )
 
     with patch("embodied_learning.algorithms.dagger.evaluate_student", evaluate):
