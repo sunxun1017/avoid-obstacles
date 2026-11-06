@@ -1,0 +1,114 @@
+# 支持 # 中文注释；旧 JSON 文件仅为兼容保留，日后请编辑本 YAML。
+# 机器人型号；训练入口要求 unitree_g1
+robot: unitree_g1
+# 训练方案标记；具体阶段由命令行 ppo / dagger 选择
+method: paper_field_ppo_dagger
+# 公开源码的 11 个身体查询点；实际点位在 Python 中定义
+body_schema: published_code_11
+# 随机种子；可用命令行 --seed 覆盖
+seed: 42
+# 场景列表；坐标单位米，顺序为 [x, y, z]
+scenes:
+  # 场景标识，通过 --scene 选择
+  - id: wall_detour
+    # 势场网格第一个采样点的位置，不是机器人起点
+    origin: [-2.5, -2.5, -0.2]
+    # X/Y/Z 方向的网格采样点数
+    shape: [51, 51, 23]
+    # 网格间距，单位米
+    voxel_size: 0.1
+    # 轴对齐长方体障碍；物理环境与离线势场共用
+    boxes:
+      # 障碍物中心 [x, y, z]
+      - center: [0.0, 0.0, 0.75]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.15, 0.7, 0.75]
+    # 候选根节点初始位置；每次重置随机选择
+    starts:
+      - [-1.5, 0.0, 0.8]
+      - [-1.5, 0.3, 0.8]
+    # 候选导航目标；与起点独立随机选择
+    goals:
+      - [1.5, 0.8, 0.8]
+      - [1.5, -0.8, 0.8]
+  # 场景标识，通过 --scene 选择
+  - id: passage
+    # 势场网格第一个采样点的位置，不是机器人起点
+    origin: [-2.5, -2.5, -0.2]
+    # X/Y/Z 方向的网格采样点数
+    shape: [51, 51, 23]
+    # 网格间距，单位米
+    voxel_size: 0.1
+    # 轴对齐长方体障碍；物理环境与离线势场共用
+    boxes:
+      # 障碍物中心 [x, y, z]
+      - center: [0.0, 0.65, 0.75]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.8, 0.15, 0.75]
+      # 障碍物中心 [x, y, z]
+      - center: [0.0, -0.65, 0.75]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.8, 0.15, 0.75]
+    # 候选根节点初始位置；每次重置随机选择
+    starts:
+      - [-1.5, 0.0, 0.8]
+      - [-1.5, 0.15, 0.8]
+    # 候选导航目标；与起点独立随机选择
+    goals:
+      - [1.5, 0.0, 0.8]
+      - [1.5, 0.2, 0.8]
+  # 场景标识，通过 --scene 选择
+  - id: hurdle_crouch
+    # 势场网格第一个采样点的位置，不是机器人起点
+    origin: [-2.5, -2.5, -0.2]
+    # X/Y/Z 方向的网格采样点数
+    shape: [51, 51, 23]
+    # 网格间距，单位米
+    voxel_size: 0.1
+    # 轴对齐长方体障碍；物理环境与离线势场共用
+    boxes:
+      # 障碍物中心 [x, y, z]
+      - center: [-0.3, 0.0, 1.18]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.25, 0.9, 0.12]
+      # 障碍物中心 [x, y, z]
+      - center: [0.6, 0.0, 0.12]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.2, 0.5, 0.12]
+    # 候选根节点初始位置；每次重置随机选择
+    starts:
+      - [-1.5, 0.0, 0.8]
+      - [-1.5, 0.2, 0.8]
+    # 候选导航目标；与起点独立随机选择
+    goals:
+      - [1.5, 0.0, 0.8]
+      - [1.5, -0.3, 0.8]
+task:
+  episode_length_s: 20.0
+  field:
+    eta: 1.0
+    xi: 1.0
+    influence_radius: 0.5
+    min_distance: 0.02
+    urgency_scale: 1.0
+    distance_scale: 1.0
+    min_approach_speed: 0.5
+    empty_scene_distance: 1.0
+  rewards:
+    vmf_weight: 1.0
+    concentration_scale: 1.0
+    speed_weight: 1.0
+    alive_weight: 30.0
+    goal_weight: 50.0
+    collision_weight: 50.0
+    fall_weight: 50.0
+    invalid_weight: 50.0
+    tilt_weight: 0.05
+    energy_weight: 1.0e-05
+    joint_limit_weight: 1.0
+    action_rate_weight: 0.1
+  training:
+    observation_noise: false
+    push_velocity: 0.0
+    push_interval_s: 2.0
+    field_warmup_steps: 0

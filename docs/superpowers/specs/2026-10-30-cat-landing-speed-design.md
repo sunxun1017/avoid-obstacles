@@ -1,0 +1,9 @@
+# CAT near-ground landing-speed pilot
+
+User approved the previous diagnosis and the proposed single-factor landing-speed reward experiment. Preserve old nominal hip pitch100/2, knee200/4, ankle30/2, stage4 geometry, noise, RFI, pushes, field settings and all existing reward scales.
+
+Add an opt-in reward rate: sum over feet of clamp(1 - sole_height/0.05,0,1) * relu(-foot_site_vertical_velocity - 0.5)^2, weighted -0.1 in the pilot. Sole height is the exact lowest enabled native foot sphere/capsule geometry relative to the flat ground plane. Gate independently of gait masks, including phase0. Accumulate each physics substep and convert integral to a control reward rate so 50Hz cannot miss a fast landing. Upward motion and descent above5cm contribute zero; gentle descent <=0.5m/s contributes zero. Preserve historical contracts and numerical behavior when absent.
+
+Implementation choices are experimental defaults selected by the agent:5cm,0.5m/s,weight0.1 and32updates. These are not previously measured optima. Alternatives rejected for this first pilot: global joint-speed penalty already harmed success; force-only penalty can encourage contact avoidance and adds more measurement coupling. No changes to PD, action mapping, observation dimensions or clipping.
+
+A declared, hashed same-stage Actor-only transfer may change only the new landing schema. Critic and optimizer remain fresh; full resume stays strict. Baseline and candidate both start old stage4update480, train32updates/4096envs/160steps with matching initialization. Evaluate256 episodes on seed20261030 and independently record32 first-episode 500Hz force/body/joint traces. Report success, obstacle contacts, impact peaks/impulses and post-bar angular motion. No automatic promotion or difficulty increase. Preserve experiment directories and user changes.

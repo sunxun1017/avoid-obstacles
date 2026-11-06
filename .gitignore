@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Training artifacts
+checkpoints/
+outputs/
+runs/
+*.pt
+*.pth
+*.onnx
+*.mp4
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.idea/

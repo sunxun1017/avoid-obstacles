@@ -1,0 +1,151 @@
+# 支持 # 中文注释；旧 JSON 文件仅为兼容保留，日后请编辑本 YAML。
+# 机器人型号；训练入口要求 unitree_g1
+robot: unitree_g1
+# 训练方案标记；具体阶段由命令行 ppo / dagger 选择
+method: public_source_g1cat_ppo_dagger
+# 公开源码的 11 个身体查询点；实际点位在 Python 中定义
+body_schema: published_code_11
+# 随机种子；可用命令行 --seed 覆盖
+seed: 42
+# 场景列表；坐标单位米，顺序为 [x, y, z]
+scenes:
+  # 场景标识，通过 --scene 选择
+  - id: wall_detour
+    # 势场网格第一个采样点的位置，不是机器人起点
+    origin: [-2.5, -2.5, -0.2]
+    # X/Y/Z 方向的网格采样点数
+    shape: [126, 126, 56]
+    # 网格间距，单位米
+    voxel_size: 0.04
+    # 轴对齐长方体障碍；物理环境与离线势场共用
+    boxes:
+      # 障碍物中心 [x, y, z]
+      - center: [0.0, 0.0, 0.75]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.15, 0.7, 0.75]
+    # 候选根节点初始位置；每次重置随机选择
+    starts:
+      - [-1.5, 0.0, 0.8]
+      - [-1.5, 0.3, 0.8]
+    # 候选导航目标；与起点独立随机选择
+    goals:
+      - [1.5, 0.8, 0.8]
+      - [1.5, -0.8, 0.8]
+  # 场景标识，通过 --scene 选择
+  - id: passage
+    # 势场网格第一个采样点的位置，不是机器人起点
+    origin: [-2.5, -2.5, -0.2]
+    # X/Y/Z 方向的网格采样点数
+    shape: [126, 126, 56]
+    # 网格间距，单位米
+    voxel_size: 0.04
+    # 轴对齐长方体障碍；物理环境与离线势场共用
+    boxes:
+      # 障碍物中心 [x, y, z]
+      - center: [0.0, 0.65, 0.75]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.8, 0.15, 0.75]
+      # 障碍物中心 [x, y, z]
+      - center: [0.0, -0.65, 0.75]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.8, 0.15, 0.75]
+    # 候选根节点初始位置；每次重置随机选择
+    starts:
+      - [-1.5, 0.0, 0.8]
+      - [-1.5, 0.15, 0.8]
+    # 候选导航目标；与起点独立随机选择
+    goals:
+      - [1.5, 0.0, 0.8]
+      - [1.5, 0.2, 0.8]
+  # 场景标识，通过 --scene 选择
+  - id: hurdle_crouch
+    # 势场网格第一个采样点的位置，不是机器人起点
+    origin: [-2.5, -2.5, -0.2]
+    # X/Y/Z 方向的网格采样点数
+    shape: [126, 126, 56]
+    # 网格间距，单位米
+    voxel_size: 0.04
+    # 轴对齐长方体障碍；物理环境与离线势场共用
+    boxes:
+      # 障碍物中心 [x, y, z]
+      - center: [-0.3, 0.0, 1.18]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.25, 0.9, 0.12]
+      # 障碍物中心 [x, y, z]
+      - center: [0.6, 0.0, 0.12]
+        # 半尺寸；完整长宽高等于这些值的两倍
+        half_size: [0.2, 0.5, 0.12]
+    # 候选根节点初始位置；每次重置随机选择
+    starts:
+      - [-1.5, 0.0, 0.8]
+      - [-1.5, 0.2, 0.8]
+    # 候选导航目标；与起点独立随机选择
+    goals:
+      - [1.5, 0.0, 0.8]
+      - [1.5, -0.3, 0.8]
+task:
+  # 预设观测噪声的倍率；0 关闭，1 使用源版幅度
+  noise_level: 1.0
+  # 随机化 P/D 增益倍率
+  random_pd: true
+  # 开启随机关节力矩扰动
+  random_rfi: true
+  # 开启周期性水平速度推扰
+  push: true
+  # 脚部势场奖励权重，不是地面生成开关
+  ground: 1.0
+  # 手、膝、肩势场奖励权重
+  lateral: 1.0
+  # 头部势场奖励权重
+  overhead: 1.0
+  # 障碍内部穿入距离阈值（米），使用 sdf < -threshold
+  term_collision_threshold: 0.04
+# 选择任务实现；cat_source_v1 为公开源码迁移版
+task_profile: cat_source_v1
+# 作者源码提交记录，不会自动下载代码
+source_commit: 866ba392f1c1e84b92ad75fa66550f26e8af8e48
+# 势场版本标识，用于缓存兼容性检查
+source_profile:
+  version: cat_source_v1
+ppo:
+  # Actor 隐藏层宽度
+  hidden_dims: [256, 128, 64]
+  # Critic 隐藏层宽度
+  critic_hidden_dims: [512, 256, 128]
+  # 是否开启网络端观测统计归一化
+  normalization: false
+  # 未来奖励折扣因子
+  gamma: 0.97
+  # 优化器学习率
+  learning_rate: 0.0003
+  # 每轮 PPO 更新前每个环境采集的控制步数
+  rollout_steps: 20
+  # 每批采样数据重复优化的轮数
+  epochs: 4
+  # PPO 分批数；可用命令行 --mini-batches 覆盖
+  mini_batches: 4
+# 下面仅记录源码固定常量；修改此块不会改变运行参数
+source_semantics:
+  # 策略控制周期（秒），0.02 对应 50 Hz
+  control_dt: 0.02
+  # 物理周期（秒），每个控制步执行 10 个物理步
+  simulation_dt: 0.002
+  # 每次重置随机采样的步态频率范围（Hz）
+  gait_frequency: [1.3, 1.5]
+  # 摆动脚抬升奖励目标参数（米）
+  foot_height: 0.07
+  # 腿部关节目标累计增量倍率：target += 0.5 * action
+  action_scale: 0.5
+  # 每回合最大控制步数；1000 步对应 20 秒
+  episode_steps: 1000
+  fields:
+    # 测地距离场的目标种子半径（米），不是成功判据
+    goal_radius: 0.12
+    # 引导场最大速度尺度（米/秒）
+    v_max: 0.6
+    # 目标附近水平减速半径（米）
+    slowdown_radius: 0.3
+    # 障碍附近引导方向过渡宽度，单位网格间距
+    r_proj_voxels: 5
+    # null 表示不设置源版 SDF 截断上限
+    sdf_max: null

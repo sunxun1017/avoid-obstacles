@@ -1,0 +1,508 @@
+{
+  "launch": {
+    "root": "/home/sunxun/embodied-learning/runs/cat-risk-guidance-stage4-20261102-01",
+    "branch": "feat/cat-risk-guidance-transition",
+    "source_commit": "04eaa34",
+    "jobs": [
+      {
+        "arm": "risk",
+        "pid": 237058,
+        "gpu_index": 5,
+        "gpu_uuid": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281"
+      },
+      {
+        "arm": "control5",
+        "pid": 237059,
+        "gpu_index": 6,
+        "gpu_uuid": "GPU-35960ade-feb7-18fb-1e03-2d17a6af7e7f"
+      }
+    ],
+    "monitor_pid": 237060,
+    "additional_updates_per_arm": 600,
+    "chunk_updates": 40,
+    "evaluation_updates": [
+      40,
+      80,
+      120,
+      160,
+      200,
+      240,
+      280,
+      320,
+      360,
+      400,
+      440,
+      480,
+      520,
+      560,
+      600
+    ],
+    "starting_actor": "5x best320",
+    "initialization": "Same Actor; matched fresh Critic/Adam; full strict resume between chunks",
+    "matched_initial_environment_hashes": true,
+    "stage": 4,
+    "smoothness_weights": {
+      "smoothness_action": -0.005,
+      "smoothness_joint": -5e-06
+    },
+    "automatic_promotion": false,
+    "existing25x400_trial_untouched": true,
+    "launched_at": 1793599868.0511525
+  },
+  "run-selection": {
+    "parent": "/home/sunxun/embodied-learning/runs/cat-smoothness5-stage4-20261102-01/smooth5/chunks/update-0320/latest.pt",
+    "parent_sha256": "24d0aa110df8a2ba4322d2853c9f9242599a829562ad415b84973c48d7461a06",
+    "branch": "feat/cat-risk-guidance-transition",
+    "stage": 4,
+    "arms": [
+      "control5",
+      "risk"
+    ],
+    "additional_updates_per_arm": 600,
+    "risk_guidance": {
+      "version": "sdf_predictive_blend_v1",
+      "near_m": 0.05,
+      "far_m": 0.35,
+      "margin_m": 0.05,
+      "horizon_s": 0.2,
+      "free_gain": 0.25
+    },
+    "smoothness_weights": {
+      "smoothness_action": -0.005,
+      "smoothness_joint": -5e-06
+    },
+    "automatic_promotion": false,
+    "prior_fixes_retained": true,
+    "existing25x_trial_untouched": true,
+    "source_files": 90
+  },
+  "startup-verification": {
+    "passed": true,
+    "arms": {
+      "control5": {
+        "actor_exact_parent": true,
+        "actor_hash": "9944c253e9735016316ec94e1541d1927d5c26f90c5af2d8d1f1e15f0f5d4b52",
+        "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+        "optimizer_initially_empty": true,
+        "observed_updates": 5,
+        "latest_losses": {
+          "value": 0.05540961469523609,
+          "surrogate": -0.0033653137234637143,
+          "entropy": -2.2338075544685125,
+          "global_grad_norm": 0.7452568493317813
+        }
+      },
+      "risk": {
+        "actor_exact_parent": true,
+        "actor_hash": "9944c253e9735016316ec94e1541d1927d5c26f90c5af2d8d1f1e15f0f5d4b52",
+        "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+        "optimizer_initially_empty": true,
+        "observed_updates": 2,
+        "latest_losses": {
+          "value": 0.05329014829476364,
+          "surrogate": -0.007026578184121474,
+          "entropy": -1.1533282976597548,
+          "global_grad_norm": 1.0433480506762862
+        }
+      }
+    },
+    "matched_fresh_critic": true
+  },
+  "protocols": {
+    "control5": {
+      "experiment": "control5",
+      "curriculum_profile": "foundation_v1",
+      "progression": "manual",
+      "stage_initialization": "actor_only",
+      "foot_radius_m": 0.3,
+      "source_interpolation": "xyz_weights_v1",
+      "optimization_profile": "brax_0_12_3_v1",
+      "training_envs": 4096,
+      "total_updates": 600,
+      "chunk_updates": 40,
+      "evaluation_episodes": 256,
+      "evaluation_profile": "source_train",
+      "gate_seed": 20261102,
+      "final_seed": 20261105,
+      "ppo": {
+        "iterations": 611,
+        "rollout_steps": 160,
+        "hidden_dims": [
+          256,
+          128,
+          64
+        ],
+        "critic_hidden_dims": [
+          512,
+          256,
+          128
+        ],
+        "normalization": false,
+        "gamma": 0.97,
+        "learning_rate": 0.0003,
+        "epochs": 4,
+        "mini_batches": 32,
+        "save_interval": 16,
+        "seed": 42,
+        "optimization_profile": "brax_0_12_3_v1",
+        "source_unroll_steps": 20
+      },
+      "initialization": "actor_only",
+      "active_training_stage": 4,
+      "autopromotion": false,
+      "requested_environment_transitions": 393216000,
+      "planned_environment_transitions": 393216000,
+      "parent_control_run": "cat-pd30-rfi0375-stage1-20261026-01",
+      "intervention": {
+        "version": "root_linear_v1",
+        "stop_radius_m": 0.08,
+        "retiming_goal_radius_m": 0.35,
+        "retiming_min_point_clearance_m": 0.3,
+        "near_goal_speed_m_s": "min(.315, 1.05 * root_goal_xy_distance)",
+        "command_deadband_m_s": 0.01,
+        "actor_command": "same_current_command_as_reward",
+        "gait": "restartable_train_and_playback"
+      },
+      "comparison": "Only risk-basedGFobservation/reward transition; matched5x320Actor,freshCritic/Adam;600updates; stage4/PD/noise/priorfixesunchanged",
+      "control_intervention": {
+        "version": "cat_ankle_pd30_2_history_v1",
+        "ankle_joints": [
+          "left_ankle_pitch_joint",
+          "left_ankle_roll_joint",
+          "right_ankle_pitch_joint",
+          "right_ankle_roll_joint"
+        ],
+        "kp": 30.0,
+        "kd": 2.0,
+        "random_pd": true,
+        "random_pd_scale_range": [
+          0.75,
+          1.25
+        ],
+        "reward_action_history": "previous_two_controls_v1",
+        "actor_previous_action_timing": "unchanged_latest_executed_control",
+        "vertical_velocity_reward": "unchanged_absent",
+        "root_tracking_weight": 1.0,
+        "initial_phase_rule": "unchanged_legacy_playback_restart",
+        "no_new_posture_or_landing_reward": true
+      },
+      "post_training_evaluation": {
+        "execution_profile": "source_train",
+        "seed": 20261026,
+        "episodes": 256,
+        "additional_conditions": [
+          "source_train_no_push"
+        ]
+      },
+      "reward_intervention": {
+        "term": "feetgf",
+        "version": "root_displacement_0p5s_v1",
+        "before": null,
+        "after": "root_displacement_0p5s_v1",
+        "window_s": 0.5,
+        "other_terms_and_weights": "unchanged"
+      },
+      "rfi_amplitude_multiplier": 0.375,
+      "parent_stage1_refinement_history": {
+        "version": "cat_stage1_pd30_rfi0375_reward_restore_v1",
+        "parent_sha256": "03e3ec23d182cd5328c56a333b6ec454b6ab02957eca16501e6e9ebfd2e71a18",
+        "parent_experiment": "cat-smooth7-retrain-20261025-01",
+        "parent_protocol_sha256": "f707c65af4b2d42cd2f417ec6ef60c554dedfbd6afb6332b994ad8be70103d09",
+        "smoothness_action_before": -0.007,
+        "smoothness_action_after": -0.001,
+        "rfi_amplitude_multiplier_before": 1.0,
+        "rfi_amplitude_multiplier_after": 0.375
+      },
+      "pilot_parent": "/home/sunxun/embodied-learning/runs/cat-smoothness5-stage4-20261102-01/smooth5/chunks/update-0320/latest.pt",
+      "reward_smoothness_action_weight": -0.005,
+      "reward_smoothness_joint_weight": -5e-06,
+      "risk_guidance_refinement": {
+        "version": "cat_risk_guidance_actor_transfer_v1",
+        "parent_sha256": "24d0aa110df8a2ba4322d2853c9f9242599a829562ad415b84973c48d7461a06",
+        "parent_experiment": "smooth5",
+        "parent_protocol_sha256": "e6288ca1ac03072a1d15a6eae59523332dc88dac5a6f91049cd8c594a11bfbee",
+        "before": null,
+        "after": null
+      }
+    },
+    "risk": {
+      "experiment": "risk",
+      "curriculum_profile": "foundation_v1",
+      "progression": "manual",
+      "stage_initialization": "actor_only",
+      "foot_radius_m": 0.3,
+      "source_interpolation": "xyz_weights_v1",
+      "optimization_profile": "brax_0_12_3_v1",
+      "training_envs": 4096,
+      "total_updates": 600,
+      "chunk_updates": 40,
+      "evaluation_episodes": 256,
+      "evaluation_profile": "source_train",
+      "gate_seed": 20261102,
+      "final_seed": 20261105,
+      "ppo": {
+        "iterations": 611,
+        "rollout_steps": 160,
+        "hidden_dims": [
+          256,
+          128,
+          64
+        ],
+        "critic_hidden_dims": [
+          512,
+          256,
+          128
+        ],
+        "normalization": false,
+        "gamma": 0.97,
+        "learning_rate": 0.0003,
+        "epochs": 4,
+        "mini_batches": 32,
+        "save_interval": 16,
+        "seed": 42,
+        "optimization_profile": "brax_0_12_3_v1",
+        "source_unroll_steps": 20
+      },
+      "initialization": "actor_only",
+      "active_training_stage": 4,
+      "autopromotion": false,
+      "requested_environment_transitions": 393216000,
+      "planned_environment_transitions": 393216000,
+      "parent_control_run": "cat-pd30-rfi0375-stage1-20261026-01",
+      "intervention": {
+        "version": "root_linear_v1",
+        "stop_radius_m": 0.08,
+        "retiming_goal_radius_m": 0.35,
+        "retiming_min_point_clearance_m": 0.3,
+        "near_goal_speed_m_s": "min(.315, 1.05 * root_goal_xy_distance)",
+        "command_deadband_m_s": 0.01,
+        "actor_command": "same_current_command_as_reward",
+        "gait": "restartable_train_and_playback"
+      },
+      "comparison": "Only risk-basedGFobservation/reward transition; matched5x320Actor,freshCritic/Adam;600updates; stage4/PD/noise/priorfixesunchanged",
+      "control_intervention": {
+        "version": "cat_ankle_pd30_2_history_v1",
+        "ankle_joints": [
+          "left_ankle_pitch_joint",
+          "left_ankle_roll_joint",
+          "right_ankle_pitch_joint",
+          "right_ankle_roll_joint"
+        ],
+        "kp": 30.0,
+        "kd": 2.0,
+        "random_pd": true,
+        "random_pd_scale_range": [
+          0.75,
+          1.25
+        ],
+        "reward_action_history": "previous_two_controls_v1",
+        "actor_previous_action_timing": "unchanged_latest_executed_control",
+        "vertical_velocity_reward": "unchanged_absent",
+        "root_tracking_weight": 1.0,
+        "initial_phase_rule": "unchanged_legacy_playback_restart",
+        "no_new_posture_or_landing_reward": true
+      },
+      "post_training_evaluation": {
+        "execution_profile": "source_train",
+        "seed": 20261026,
+        "episodes": 256,
+        "additional_conditions": [
+          "source_train_no_push"
+        ]
+      },
+      "reward_intervention": {
+        "term": "feetgf",
+        "version": "root_displacement_0p5s_v1",
+        "before": null,
+        "after": "root_displacement_0p5s_v1",
+        "window_s": 0.5,
+        "other_terms_and_weights": "unchanged"
+      },
+      "rfi_amplitude_multiplier": 0.375,
+      "parent_stage1_refinement_history": {
+        "version": "cat_stage1_pd30_rfi0375_reward_restore_v1",
+        "parent_sha256": "03e3ec23d182cd5328c56a333b6ec454b6ab02957eca16501e6e9ebfd2e71a18",
+        "parent_experiment": "cat-smooth7-retrain-20261025-01",
+        "parent_protocol_sha256": "f707c65af4b2d42cd2f417ec6ef60c554dedfbd6afb6332b994ad8be70103d09",
+        "smoothness_action_before": -0.007,
+        "smoothness_action_after": -0.001,
+        "rfi_amplitude_multiplier_before": 1.0,
+        "rfi_amplitude_multiplier_after": 0.375
+      },
+      "pilot_parent": "/home/sunxun/embodied-learning/runs/cat-smoothness5-stage4-20261102-01/smooth5/chunks/update-0320/latest.pt",
+      "reward_smoothness_action_weight": -0.005,
+      "reward_smoothness_joint_weight": -5e-06,
+      "risk_guidance_refinement": {
+        "version": "cat_risk_guidance_actor_transfer_v1",
+        "parent_sha256": "24d0aa110df8a2ba4322d2853c9f9242599a829562ad415b84973c48d7461a06",
+        "parent_experiment": "smooth5",
+        "parent_protocol_sha256": "e6288ca1ac03072a1d15a6eae59523332dc88dac5a6f91049cd8c594a11bfbee",
+        "before": null,
+        "after": {
+          "version": "sdf_predictive_blend_v1",
+          "near_m": 0.05,
+          "far_m": 0.35,
+          "margin_m": 0.05,
+          "horizon_s": 0.2,
+          "free_gain": 0.25
+        }
+      },
+      "risk_guidance": {
+        "version": "sdf_predictive_blend_v1",
+        "near_m": 0.05,
+        "far_m": 0.35,
+        "margin_m": 0.05,
+        "horizon_s": 0.2,
+        "free_gain": 0.25
+      }
+    }
+  },
+  "preflight": {
+    "control5": {
+      "passed": true,
+      "scales": {
+        "tracking_orientation": 2.0,
+        "tracking_root_field": 1.0,
+        "body_motion": -0.5,
+        "body_rotation": 1.0,
+        "foot_contact": -1.0,
+        "foot_clearance": -15.0,
+        "foot_slip": -0.5,
+        "foot_balance": -30.0,
+        "straight_knee": -30.0,
+        "foot_far": 0.0,
+        "smoothness_joint": -5e-06,
+        "smoothness_action": -0.005,
+        "joint_limits": -1.0,
+        "joint_torque": -0.0001,
+        "headgf": 1.0,
+        "handsgf": 1.0,
+        "feetgf": 1.0,
+        "headdf": 1.0,
+        "handsdf": 1.0,
+        "feetdf": 1.0,
+        "kneesdf": 1.0,
+        "shldsdf": 1.0
+      },
+      "non_gf_rewards_exact": true,
+      "gf_changed_slot_terms": 0,
+      "reward_audit_calls": 302,
+      "min_alpha": 1.0,
+      "max_alpha": 0.0,
+      "free_gain_features_verified": 0,
+      "unrelated_contract_exact": true,
+      "transfer": {
+        "migration": "cat_curriculum_actor_only_v1",
+        "parent_checkpoint": "/home/sunxun/embodied-learning/runs/cat-smoothness5-stage4-20261102-01/smooth5/chunks/update-0320/latest.pt",
+        "parent_sha256": "24d0aa110df8a2ba4322d2853c9f9242599a829562ad415b84973c48d7461a06",
+        "parent_completed_iterations": 320,
+        "parent_curriculum": {
+          "stage": 4,
+          "experiment": "smooth5",
+          "protocol_sha256": "e6288ca1ac03072a1d15a6eae59523332dc88dac5a6f91049cd8c594a11bfbee",
+          "robot_fingerprint": "417590efd7802713d002985194cff14c714db936f864833bef29a5fe202543ed",
+          "smoothness_refinement": {
+            "version": "cat_smoothness_actor_transfer_v1",
+            "parent_sha256": "22505bcb518ef36eb3b064e3ec7e7eed2f510c02154bec098a6e769ef3903e1f",
+            "parent_experiment": "baseline",
+            "parent_protocol_sha256": "ec658e0befdd674cb06f181931d54cbe93ecb288cb8bf208654bc034897fd414",
+            "before": {
+              "smoothness_action": -0.001,
+              "smoothness_joint": -1e-06
+            },
+            "after": {
+              "smoothness_action": -0.005,
+              "smoothness_joint": -5e-06
+            }
+          }
+        },
+        "contract_changes": {},
+        "actor_restored": true,
+        "actor_normalizer_restored": true,
+        "critic_restored": false,
+        "optimizer_restored": false,
+        "rng_restored": false,
+        "counters_restored": false
+      }
+    },
+    "risk": {
+      "passed": true,
+      "scales": {
+        "tracking_orientation": 2.0,
+        "tracking_root_field": 1.0,
+        "body_motion": -0.5,
+        "body_rotation": 1.0,
+        "foot_contact": -1.0,
+        "foot_clearance": -15.0,
+        "foot_slip": -0.5,
+        "foot_balance": -30.0,
+        "straight_knee": -30.0,
+        "foot_far": 0.0,
+        "smoothness_joint": -5e-06,
+        "smoothness_action": -0.005,
+        "joint_limits": -1.0,
+        "joint_torque": -0.0001,
+        "headgf": 1.0,
+        "handsgf": 1.0,
+        "feetgf": 1.0,
+        "headdf": 1.0,
+        "handsdf": 1.0,
+        "feetdf": 1.0,
+        "kneesdf": 1.0,
+        "shldsdf": 1.0
+      },
+      "non_gf_rewards_exact": true,
+      "gf_changed_slot_terms": 28619,
+      "reward_audit_calls": 348,
+      "min_alpha": 0.0,
+      "max_alpha": 1.0,
+      "free_gain_features_verified": 78905,
+      "unrelated_contract_exact": true,
+      "transfer": {
+        "migration": "cat_curriculum_actor_only_v1",
+        "parent_checkpoint": "/home/sunxun/embodied-learning/runs/cat-smoothness5-stage4-20261102-01/smooth5/chunks/update-0320/latest.pt",
+        "parent_sha256": "24d0aa110df8a2ba4322d2853c9f9242599a829562ad415b84973c48d7461a06",
+        "parent_completed_iterations": 320,
+        "parent_curriculum": {
+          "stage": 4,
+          "experiment": "smooth5",
+          "protocol_sha256": "e6288ca1ac03072a1d15a6eae59523332dc88dac5a6f91049cd8c594a11bfbee",
+          "robot_fingerprint": "417590efd7802713d002985194cff14c714db936f864833bef29a5fe202543ed",
+          "smoothness_refinement": {
+            "version": "cat_smoothness_actor_transfer_v1",
+            "parent_sha256": "22505bcb518ef36eb3b064e3ec7e7eed2f510c02154bec098a6e769ef3903e1f",
+            "parent_experiment": "baseline",
+            "parent_protocol_sha256": "ec658e0befdd674cb06f181931d54cbe93ecb288cb8bf208654bc034897fd414",
+            "before": {
+              "smoothness_action": -0.001,
+              "smoothness_joint": -1e-06
+            },
+            "after": {
+              "smoothness_action": -0.005,
+              "smoothness_joint": -5e-06
+            }
+          }
+        },
+        "contract_changes": {
+          "risk_guidance": {
+            "before": null,
+            "after": {
+              "version": "sdf_predictive_blend_v1",
+              "near_m": 0.05,
+              "far_m": 0.35,
+              "margin_m": 0.05,
+              "horizon_s": 0.2,
+              "free_gain": 0.25
+            }
+          }
+        },
+        "actor_restored": true,
+        "actor_normalizer_restored": true,
+        "critic_restored": false,
+        "optimizer_restored": false,
+        "rng_restored": false,
+        "counters_restored": false
+      }
+    }
+  }
+}

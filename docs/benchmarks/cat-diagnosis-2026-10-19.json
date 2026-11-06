@@ -1,0 +1,1921 @@
+{
+  "date": "2026-10-19",
+  "status": "diagnostic_and_isolated_representation_probe_complete",
+  "new_inference_episodes": 3448,
+  "new_training_iterations": 0,
+  "protocol": {
+    "seed": 20261019,
+    "first_batch": "7 variants x 64 environments, one designated first episode per slot",
+    "isolation_batch": "3 single-perturbation overrides x 1000 environments, one designated first episode per slot",
+    "control_dt_s": 0.02,
+    "horizon_s": 20,
+    "physical_contacts": "Control-step contacts latched across each episode; not every physics substep.",
+    "source_success": "Within 0.1m at least once without monitored collision/failure during whole episode. Does not require staying at goal.",
+    "comparator": "Earlier 1000-episode wall_15800 baseline is historical, same checkpoint/seed/core production code, not a fresh paired causal run. Different options can change random draw consumption.",
+    "overrides": "Single-factor diagnostic flags apply after strict checkpoint validation without rebuilding the initial cached observation; RFI/PD controller overrides target first episodes only. The separate CLI --no-perturbations path rebuilds initial observations without noise."
+  },
+  "historical_wall_1000_baseline": {
+    "path": "runs/cat-expert-eval-20261019-da73d21/wall_15800",
+    "evaluation": {
+      "episodes": 1000,
+      "envs": 1000,
+      "simulation_steps": 1000,
+      "included_transitions": 1000000,
+      "elapsed_seconds": 37.700683617033064,
+      "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+      "outcomes": {
+        "fall": 0,
+        "collision": 0,
+        "invalid": 0,
+        "timeout": 1000,
+        "goal": 892,
+        "physical_collision": 59,
+        "success": 835,
+        "timeout_without_goal": 108
+      },
+      "rates": {
+        "fall": 0.0,
+        "collision": 0.0,
+        "invalid": 0.0,
+        "timeout": 1.0,
+        "goal": 0.892,
+        "physical_collision": 0.059,
+        "success": 0.835,
+        "timeout_without_goal": 0.108
+      },
+      "wilson_95": {
+        "fall": [
+          2.168404344971009e-19,
+          0.0038267584855551234
+        ],
+        "collision": [
+          2.168404344971009e-19,
+          0.0038267584855551234
+        ],
+        "invalid": [
+          2.168404344971009e-19,
+          0.0038267584855551234
+        ],
+        "timeout": [
+          0.996173241514445,
+          1.0
+        ],
+        "goal": [
+          0.8712410199098767,
+          0.9097588014374481
+        ],
+        "physical_collision": [
+          0.04601429821280047,
+          0.07536090277145915
+        ],
+        "success": [
+          0.8107207516702334,
+          0.8567153201444447
+        ],
+        "timeout_without_goal": [
+          0.09024119856255189,
+          0.12875898009012332
+        ]
+      },
+      "mean_step_reward": 0.2839191676528629,
+      "mean_root_speed": 0.27408115666467003,
+      "stop_command_fraction": 0.770187,
+      "settled_stop_fraction": 0.0,
+      "pre_goal_stop_command_fraction": 0.2699296656098506,
+      "pre_goal_settled_stop_fraction": 0.0,
+      "duration_seconds": {
+        "count": 1000,
+        "mean": 20.0,
+        "median": 20.0,
+        "p95": 20.0
+      },
+      "first_goal_seconds": {
+        "count": 892,
+        "mean": 4.636367713004485,
+        "median": 4.58,
+        "p95": 5.6000000000000005
+      },
+      "successful_first_goal_seconds": {
+        "count": 835,
+        "mean": 4.646922155688623,
+        "median": 4.6000000000000005,
+        "p95": 5.6000000000000005
+      },
+      "final_goal_distance": {
+        "count": 1000,
+        "mean": 0.76235025889799,
+        "median": 0.7665214240550995,
+        "p95": 1.1876839399337769
+      },
+      "min_goal_distance": {
+        "count": 1000,
+        "mean": 0.05895231891708681,
+        "median": 0.04821977950632572,
+        "p95": 0.11397334672510621
+      },
+      "metric_definitions": {
+        "settled_stop": {
+          "linear_speed_below_m_s": 0.1,
+          "angular_speed_below_rad_s": 0.1,
+          "continuous_seconds": 0.5,
+          "control_dt_seconds": 0.02
+        },
+        "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+        "physical_collision": "Any observed obstacle contact during the episode.",
+        "stop_command": "Source command vector norm below 0.2; not actual speed."
+      },
+      "evaluation_overrides": {}
+    }
+  },
+  "findings": [
+    {
+      "id": "sparse_body_geometry",
+      "finding": "Every episode in both hurdle variants contacts the low bar while all 11 query SDF values remain positive at first contact. First contacts include foot geometry in 62/64 baseline and 64/64 quiet episodes; the other two baseline first contacts involve the shin. All terminate by low head height, none by inverted up axis.",
+      "implication": "Body query points do not certify the full collision envelope. More informative sensing alone has not been shown to fix the learned crossing behavior."
+    },
+    {
+      "id": "goal_overshoot",
+      "finding": "All-perturbations-off wall runs settle, but only after overshooting. Source one-way gait latch prevents returning to goal. The detailed 8-slot trace and 64-slot event analysis is linked below.",
+      "implication": "Near-field extent and stopping transitions must use measured velocity and calibrated braking/latency; changing far representation cannot by itself repair low-level overshoot."
+    },
+    {
+      "id": "perturbation_dependent_settling",
+      "finding": "Separately disabling RFI, observation noise, or random PD leaves zero settled-step fraction across each 1000-episode cohort. No single-factor cause is established.",
+      "implication": "Aggregate quiet improvement does not justify attributing instability to one perturbation or changing production randomization."
+    },
+    {
+      "id": "counterfactual_not_fix",
+      "finding": "Actor stop-command coherence did not improve settling; naive rearming produced 47/64 fall terminations.",
+      "implication": "Neither inference-only intervention is an accepted fix; production behavior stays unchanged."
+    }
+  ],
+  "related_artifacts": {
+    "stopping_analysis": "docs/benchmarks/cat-stopping-diagnosis-2026-10-19.json",
+    "geometry_audit": "docs/benchmarks/cat-geometry-audit-2026-10-19.json",
+    "occlusion_probe": "docs/benchmarks/occlusion-probe-2026-10-19.json",
+    "prototype_description": "tools/experiments/README.md"
+  },
+  "server_integrity": {
+    "server_main_head": "c06dd8fae2c9d13d2e829f3a1480c6c6a3936d94",
+    "server_main_status": "",
+    "checkpoint_sha256_after": {
+      "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9"
+    }
+  },
+  "verification": {
+    "cohort_jsonl_outcomes_and_step_metrics_recomputed": true,
+    "targeted_tests_passed": 41,
+    "prototype_cases_independently_replayed": 32,
+    "static_geometry_independently_replayed": true,
+    "full_repository_tests": "Not passing on this CPU-only local machine: existing test_scan.py initializes CUDA during collection, test_adapter.py requires CUDA. No full-suite success claim.",
+    "post_run_diagnostic_hardening": "After these experiments, a finite-placeholder field query plus diagnostic_field_valid flag and two NaN/Inf tests were added. All recorded episodes had invalid=false; existing data remain attributed to their original 26f42f9/6e6a153 commits."
+  },
+  "cases": [
+    {
+      "name": "hurdle_base",
+      "run_path": "runs/cat-diagnosis-20261019-26f42f9/hurdle_base",
+      "metadata": {
+        "commit": "26f42f9d0f938bdac1fed7e2f9b27fbbaec0c26f",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/hurdle_crouch/model_2999.pt",
+        "checkpoint_sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+        "scene": "hurdle_crouch",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": false,
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 64,
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 335,
+        "included_transitions": 17269,
+        "elapsed_seconds": 12.502881875261664,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 64,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 0,
+          "goal": 0,
+          "physical_collision": 64,
+          "success": 0,
+          "timeout_without_goal": 0
+        },
+        "rates": {
+          "fall": 1.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 0.0,
+          "goal": 0.0,
+          "physical_collision": 1.0,
+          "success": 0.0,
+          "timeout_without_goal": 0.0
+        },
+        "wilson_95": {
+          "fall": [
+            0.9433759402071946,
+            1.0
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.0,
+            0.05662405979280534
+          ],
+          "goal": [
+            0.0,
+            0.05662405979280534
+          ],
+          "physical_collision": [
+            0.9433759402071946,
+            1.0
+          ],
+          "success": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout_without_goal": [
+            0.0,
+            0.05662405979280534
+          ]
+        },
+        "mean_step_reward": 0.1636904609379657,
+        "mean_root_speed": 0.5056159884928669,
+        "stop_command_fraction": 0.023047078580114656,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.023047078580114656,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 5.3965625,
+          "median": 5.35,
+          "p95": 6.048
+        },
+        "first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "successful_first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.7381537249311805,
+          "median": 0.7285546660423279,
+          "p95": 0.8379883855581283
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.735342132858932,
+          "median": 0.7309757173061371,
+          "p95": 0.7828756034374237
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/left_foot4_collision | obstacle_2_1/collision": 37,
+          "robot/left_foot5_collision | obstacle_2_1/collision": 38,
+          "robot/right_foot5_collision | obstacle_2_1/collision": 15,
+          "robot/right_foot4_collision | obstacle_2_1/collision": 15,
+          "robot/left_foot3_collision | obstacle_2_1/collision": 5,
+          "robot/right_foot3_collision | obstacle_2_1/collision": 1,
+          "robot/left_shin_collision | obstacle_2_1/collision": 3
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 0,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 64
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 64,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "a29c5fd2fa2638b778c2e06a4765ed0ea87d6709ff2121bb5606adb0946a10b9",
+        "metadata.json": "c61a02d5a18a4ddba50dc6561ea5859a5d34ae7b2c87ecf408bb0689c8254b07",
+        "events.json": "cc02c20eb11c5c2aef301f06b87665104257c36731355e984be7c10df7c27bd1",
+        "episodes.jsonl": "1535748b538f4bdc5899f4ba171867a32ae3a06bf817d698d149566c0fc3b0f5",
+        "trace.npz": "caf6b8bb49b57ad8f1a78b1f9acd24486d5b5906c92a8a3b2462b224bfe87c61"
+      },
+      "first_physical_contact": {
+        "count": 64,
+        "all_11_point_sdf_positive_count": 64,
+        "minimum_point_sdf_mean_m": 0.10341905662789941,
+        "time_mean_s": 3.7490625,
+        "any_foot_geom_count": 62,
+        "first_example": {
+          "slot": 51,
+          "step": 137,
+          "root": [
+            0.34155797958374023,
+            -0.16562843322753906,
+            0.5593570470809937
+          ],
+          "head_z": 0.9285991191864014,
+          "up_z": 0.8442893028259277,
+          "sdf": [
+            0.2023886740207672,
+            0.19558218121528625,
+            0.4588049054145813,
+            0.09340778738260269,
+            0.18477797508239746,
+            0.1779027283191681,
+            0.15923310816287994,
+            0.27308475971221924,
+            0.31691259145736694,
+            0.3679235577583313,
+            0.3111202120780945
+          ],
+          "contacts": [
+            {
+              "geoms": [
+                "robot/left_foot4_collision",
+                "obstacle_2_1/collision"
+              ],
+              "distance": -0.0008878353983163834,
+              "normal": [
+                1.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "geoms": [
+                "robot/left_foot5_collision",
+                "obstacle_2_1/collision"
+              ],
+              "distance": -0.0018558148294687271,
+              "normal": [
+                1.0,
+                0.0,
+                0.0
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "hurdle_quiet",
+      "run_path": "runs/cat-diagnosis-20261019-26f42f9/hurdle_quiet",
+      "metadata": {
+        "commit": "26f42f9d0f938bdac1fed7e2f9b27fbbaec0c26f",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/g1-cat-tanh-20261009/specialists/hurdle_crouch/model_2999.pt",
+        "checkpoint_sha256": "6a4aa5d28e254375918fa24711c2ef147ef6cdb357a2bb8bcc46cbbdce477d2b",
+        "scene": "hurdle_crouch",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": true,
+        "disable_push": false,
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 64,
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 288,
+        "included_transitions": 16901,
+        "elapsed_seconds": 9.945170206949115,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 64,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 0,
+          "goal": 0,
+          "physical_collision": 64,
+          "success": 0,
+          "timeout_without_goal": 0
+        },
+        "rates": {
+          "fall": 1.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 0.0,
+          "goal": 0.0,
+          "physical_collision": 1.0,
+          "success": 0.0,
+          "timeout_without_goal": 0.0
+        },
+        "wilson_95": {
+          "fall": [
+            0.9433759402071946,
+            1.0
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.0,
+            0.05662405979280534
+          ],
+          "goal": [
+            0.0,
+            0.05662405979280534
+          ],
+          "physical_collision": [
+            0.9433759402071946,
+            1.0
+          ],
+          "success": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout_without_goal": [
+            0.0,
+            0.05662405979280534
+          ]
+        },
+        "mean_step_reward": 0.17507135924084596,
+        "mean_root_speed": 0.5061538907117988,
+        "stop_command_fraction": 0.027276492515235784,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.027276492515235784,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 5.2815625,
+          "median": 5.29,
+          "p95": 5.597
+        },
+        "first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "successful_first_goal_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "p95": null
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.7462062258273363,
+          "median": 0.7289406955242157,
+          "p95": 0.8493480026721955
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.7385886311531067,
+          "median": 0.7303692400455475,
+          "p95": 0.7875251948833466
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/left_foot5_collision | obstacle_2_1/collision": 42,
+          "robot/right_foot5_collision | obstacle_2_1/collision": 15,
+          "robot/right_foot4_collision | obstacle_2_1/collision": 8,
+          "robot/left_foot4_collision | obstacle_2_1/collision": 43
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 0,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 64
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "evaluation_overrides": {
+          "noise_level": 0.0,
+          "push": false,
+          "random_pd": false,
+          "random_rfi": false
+        }
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 64,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "485c4138e500d330349cc41d8c0c69c859f801c85a7e36c35d2236499f4c592a",
+        "metadata.json": "906a60901eb4b69c669ff8a03a60584f1f797b414b653e10ef3d4af528e07583",
+        "events.json": "2cbff8eed5b8ff87a0ed44a60d4eed35b4e260979437d2b7be7556b9f1fd7f78",
+        "episodes.jsonl": "6a75df6dc27aa05dbb3a9f988d1070ce64b01f3671b2df76f387242a95bca50b",
+        "trace.npz": "2837f06efabc178be2bea8e2fe968bd19ad02f1f65aaead31ca69c9dca5f90fe"
+      },
+      "first_physical_contact": {
+        "count": 64,
+        "all_11_point_sdf_positive_count": 64,
+        "minimum_point_sdf_mean_m": 0.09388133633183315,
+        "time_mean_s": 3.7325,
+        "any_foot_geom_count": 64,
+        "first_example": {
+          "slot": 1,
+          "step": 153,
+          "root": [
+            0.35158300399780273,
+            0.017419815063476562,
+            0.5597794055938721
+          ],
+          "head_z": 0.9271900653839111,
+          "up_z": 0.8426114916801453,
+          "sdf": [
+            0.18967677652835846,
+            0.2050532102584839,
+            0.4520810842514038,
+            0.09469455480575562,
+            0.18085363507270813,
+            0.17359308898448944,
+            0.25508713722229004,
+            0.1995934695005417,
+            0.32751572132110596,
+            0.40619128942489624,
+            0.30580317974090576
+          ],
+          "contacts": [
+            {
+              "geoms": [
+                "robot/left_foot5_collision",
+                "obstacle_2_1/collision"
+              ],
+              "distance": -0.0008944328874349594,
+              "normal": [
+                0.9973206520080566,
+                0.0,
+                0.07315433770418167
+              ]
+            },
+            {
+              "geoms": [
+                "robot/left_foot5_collision",
+                "obstacle_2_1/collision"
+              ],
+              "distance": -0.0008944328874349594,
+              "normal": [
+                0.9973206520080566,
+                0.0,
+                0.07315433770418167
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wall_base",
+      "run_path": "runs/cat-diagnosis-20261019-26f42f9/wall_base",
+      "metadata": {
+        "commit": "26f42f9d0f938bdac1fed7e2f9b27fbbaec0c26f",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": false,
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 64,
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 64000,
+        "elapsed_seconds": 33.453435752075166,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 0,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 64,
+          "goal": 59,
+          "physical_collision": 1,
+          "success": 58,
+          "timeout_without_goal": 5
+        },
+        "rates": {
+          "fall": 0.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 1.0,
+          "goal": 0.921875,
+          "physical_collision": 0.015625,
+          "success": 0.90625,
+          "timeout_without_goal": 0.078125
+        },
+        "wilson_95": {
+          "fall": [
+            0.0,
+            0.05662405979280534
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.9433759402071946,
+            1.0
+          ],
+          "goal": [
+            0.8298046264583709,
+            0.9661688230914496
+          ],
+          "physical_collision": [
+            0.002763541923337505,
+            0.08334101600094265
+          ],
+          "success": [
+            0.810171204003544,
+            0.9563217474148016
+          ],
+          "timeout_without_goal": [
+            0.03383117690855046,
+            0.17019537354162906
+          ]
+        },
+        "mean_step_reward": 0.28432212937916074,
+        "mean_root_speed": 0.2746734198279828,
+        "stop_command_fraction": 0.77503125,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.22055002165439586,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 20.0,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 59,
+          "mean": 4.566779661016949,
+          "median": 4.4,
+          "p95": 5.566
+        },
+        "successful_first_goal_seconds": {
+          "count": 58,
+          "mean": 4.573448275862069,
+          "median": 4.48,
+          "p95": 5.569
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.7640407441649586,
+          "median": 0.7774296700954437,
+          "p95": 1.166813021898269
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.04915015499864239,
+          "median": 0.045535048469901085,
+          "p95": 0.10181024707853793
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/pelvis_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 1,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 0,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "bcc4660ff27dc419fba160650e4f895e36215c6382c912c9946c5c7c0f2c9814",
+        "metadata.json": "0b85411376578a2bb9b847a8f786742b1eafc26b4cdb98250ae17e4e28a93944",
+        "events.json": "6d9eb15494d63e1bc0df69e906f8e05e958bbfaba591b0e92671f9065c381e73",
+        "episodes.jsonl": "029736dc6258bc63cbf7c4d5c74c81d54660f6c91864063a18304b7dccbc4908",
+        "trace.npz": "0d99e57bb28b675870c80bb8d89ddf656988a04f85a97f6455b4765064f2c425"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 1145,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.08543997257947922,
+        "angular_speed_mean_radps": 0.5191147327423096,
+        "linear_below_01_fraction": 0.8489082969432314,
+        "angular_below_01_fraction": 0.01834061135371179,
+        "instantaneous_both_below_01_fraction": 0.017467248908296942,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    },
+    {
+      "name": "wall_coherent",
+      "run_path": "runs/cat-diagnosis-20261019-26f42f9/wall_coherent",
+      "metadata": {
+        "commit": "26f42f9d0f938bdac1fed7e2f9b27fbbaec0c26f",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "coherent_stop",
+        "no_perturbations": false,
+        "disable_push": false,
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 64,
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 64000,
+        "elapsed_seconds": 32.79301300412044,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 0,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 64,
+          "goal": 59,
+          "physical_collision": 1,
+          "success": 58,
+          "timeout_without_goal": 5
+        },
+        "rates": {
+          "fall": 0.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 1.0,
+          "goal": 0.921875,
+          "physical_collision": 0.015625,
+          "success": 0.90625,
+          "timeout_without_goal": 0.078125
+        },
+        "wilson_95": {
+          "fall": [
+            0.0,
+            0.05662405979280534
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.9433759402071946,
+            1.0
+          ],
+          "goal": [
+            0.8298046264583709,
+            0.9661688230914496
+          ],
+          "physical_collision": [
+            0.002763541923337505,
+            0.08334101600094265
+          ],
+          "success": [
+            0.810171204003544,
+            0.9563217474148016
+          ],
+          "timeout_without_goal": [
+            0.03383117690855046,
+            0.17019537354162906
+          ]
+        },
+        "mean_step_reward": 0.28444721410594914,
+        "mean_root_speed": 0.27437954862561037,
+        "stop_command_fraction": 0.774859375,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.2228993636069464,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 20.0,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 59,
+          "mean": 4.590508474576271,
+          "median": 4.54,
+          "p95": 5.602
+        },
+        "successful_first_goal_seconds": {
+          "count": 58,
+          "mean": 4.597241379310344,
+          "median": 4.550000000000001,
+          "p95": 5.603000000000001
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.7794559097383171,
+          "median": 0.7759968638420105,
+          "p95": 1.2414193511009206
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.0530974473876995,
+          "median": 0.050480641424655914,
+          "p95": 0.10177912339568138
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/pelvis_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 1,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "coherent_stop",
+        "diagnostic_disable_push": false,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 0,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "f5b609902bcdee3910fe687115c4709644be41ba02362a11ccd2897e61bb851a",
+        "metadata.json": "bb38adf6696f2185b4a402be509cd1abeaa36fa00f5e954ecdfe37b7d2154f7d",
+        "events.json": "44bca2f08a98ad0069f50b2603dc3c86ac839ef080b0b628585155f33ba11e19",
+        "episodes.jsonl": "31bb78bbd54eb2c0e005d6b46d40ac925f44e2d646f3b7abf874334b19dfe145",
+        "trace.npz": "2b2679f2416ed6bc9557b8e1050bbe1d175830b956ee12a5725abd20496b9a8f"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 1145,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.08751725405454636,
+        "angular_speed_mean_radps": 0.5206674933433533,
+        "linear_below_01_fraction": 0.8305676855895197,
+        "angular_below_01_fraction": 0.01572052401746725,
+        "instantaneous_both_below_01_fraction": 0.014847161572052401,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    },
+    {
+      "name": "wall_no_push",
+      "run_path": "runs/cat-diagnosis-20261019-26f42f9/wall_no_push",
+      "metadata": {
+        "commit": "26f42f9d0f938bdac1fed7e2f9b27fbbaec0c26f",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": true,
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 64,
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 64000,
+        "elapsed_seconds": 33.78727186983451,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 0,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 64,
+          "goal": 63,
+          "physical_collision": 1,
+          "success": 62,
+          "timeout_without_goal": 1
+        },
+        "rates": {
+          "fall": 0.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 1.0,
+          "goal": 0.984375,
+          "physical_collision": 0.015625,
+          "success": 0.96875,
+          "timeout_without_goal": 0.015625
+        },
+        "wilson_95": {
+          "fall": [
+            0.0,
+            0.05662405979280534
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.9433759402071946,
+            1.0
+          ],
+          "goal": [
+            0.9166589839990573,
+            0.9972364580766624
+          ],
+          "physical_collision": [
+            0.002763541923337505,
+            0.08334101600094265
+          ],
+          "success": [
+            0.8930270822904169,
+            0.9913878616538281
+          ],
+          "timeout_without_goal": [
+            0.002763541923337505,
+            0.08334101600094265
+          ]
+        },
+        "mean_step_reward": 0.28641292872905294,
+        "mean_root_speed": 0.25099230271853956,
+        "stop_command_fraction": 0.774734375,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.06824791572416468,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 20.0,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 63,
+          "mean": 4.594603174603174,
+          "median": 4.6000000000000005,
+          "p95": 5.618
+        },
+        "successful_first_goal_seconds": {
+          "count": 62,
+          "mean": 4.601290322580645,
+          "median": 4.6000000000000005,
+          "p95": 5.619
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.7465550983324647,
+          "median": 0.7391805648803711,
+          "p95": 0.9146321624517436
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.0481475494307233,
+          "median": 0.046505989506840706,
+          "p95": 0.09505028687417505
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/pelvis_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 1,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": true,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 0,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "c3fb0aea05b9e185c51f66f7439587f7a0ade5326c038398babc7dc89add9477",
+        "metadata.json": "ef9685510995a3375676d4ad9c81f7b7e586f5e8fedb39765051055507fa45b0",
+        "events.json": "a7e66a752db14c684017c76907a89059461dac75ac34cd7bd1c2e646ebce1f58",
+        "episodes.jsonl": "544fbe09d9d1630512c6ec4833f749b85f04ce8a4b8801ce187c79e2d984bd7a",
+        "trace.npz": "6103941670741d6b7f7cba502e5c001643843fc0373d1934c8bd4ab244d98999"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 1145,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.05722423642873764,
+        "angular_speed_mean_radps": 0.455564022064209,
+        "linear_below_01_fraction": 0.9344978165938864,
+        "angular_below_01_fraction": 0.01222707423580786,
+        "instantaneous_both_below_01_fraction": 0.01222707423580786,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    },
+    {
+      "name": "wall_quiet",
+      "run_path": "runs/cat-diagnosis-20261019-26f42f9/wall_quiet",
+      "metadata": {
+        "commit": "26f42f9d0f938bdac1fed7e2f9b27fbbaec0c26f",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": true,
+        "disable_push": false,
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 64,
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 64000,
+        "elapsed_seconds": 30.367591408081353,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 0,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 64,
+          "goal": 59,
+          "physical_collision": 0,
+          "success": 59,
+          "timeout_without_goal": 5
+        },
+        "rates": {
+          "fall": 0.0,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 1.0,
+          "goal": 0.921875,
+          "physical_collision": 0.0,
+          "success": 0.921875,
+          "timeout_without_goal": 0.078125
+        },
+        "wilson_95": {
+          "fall": [
+            0.0,
+            0.05662405979280534
+          ],
+          "collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.9433759402071946,
+            1.0
+          ],
+          "goal": [
+            0.8298046264583709,
+            0.9661688230914496
+          ],
+          "physical_collision": [
+            0.0,
+            0.05662405979280534
+          ],
+          "success": [
+            0.8298046264583709,
+            0.9661688230914496
+          ],
+          "timeout_without_goal": [
+            0.03383117690855046,
+            0.17019537354162906
+          ]
+        },
+        "mean_step_reward": 0.29134893551389224,
+        "mean_root_speed": 0.219565961651272,
+        "stop_command_fraction": 0.769359375,
+        "settled_stop_fraction": 0.672890625,
+        "pre_goal_stop_command_fraction": 0.20763325997101292,
+        "pre_goal_settled_stop_fraction": 0.172956143647002,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 20.0,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 59,
+          "mean": 4.62,
+          "median": 4.48,
+          "p95": 5.6819999999999995
+        },
+        "successful_first_goal_seconds": {
+          "count": 59,
+          "mean": 4.62,
+          "median": 4.48,
+          "p95": 5.6819999999999995
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 0.7822976103052497,
+          "median": 0.7861383855342865,
+          "p95": 0.8577093333005904
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.062256441480712965,
+          "median": 0.06284711323678493,
+          "p95": 0.10162328742444514
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {},
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 0,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "evaluation_overrides": {
+          "noise_level": 0.0,
+          "push": false,
+          "random_pd": false,
+          "random_rfi": false
+        }
+      },
+      "any_settled_episode_count": 64,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 0,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "672885755d739444ff01b58c1b8df5fcda0a8e7ad9e60b49257f4944046d4531",
+        "metadata.json": "da443475c9acff8e0f4ccaf7d975f308d283dcca8e6dd21efa60b4b69b0e8f06",
+        "events.json": "dd9d007e518d5f2aa284b346fc885be143e0eed2fc00e98d4755e5d78d916cc6",
+        "episodes.jsonl": "4585d454060c1f4f9968a40aea41d7886d55344b2741d0f6c3e6891a28216de0",
+        "trace.npz": "67da8f55c397e614afac77965de7edcedee71f698c3e04caa78efde14470b2b3"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 1149,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.012114266864955425,
+        "angular_speed_mean_radps": 0.020634088665246964,
+        "linear_below_01_fraction": 0.9869451697127938,
+        "angular_below_01_fraction": 0.9782419495213229,
+        "instantaneous_both_below_01_fraction": 0.9730200174064404,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    },
+    {
+      "name": "wall_rearm",
+      "run_path": "runs/cat-diagnosis-20261019-26f42f9/wall_rearm",
+      "metadata": {
+        "commit": "26f42f9d0f938bdac1fed7e2f9b27fbbaec0c26f",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 64,
+        "seed": 20261019,
+        "variant": "rearm",
+        "no_perturbations": false,
+        "disable_push": false,
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 64,
+      "evaluation": {
+        "episodes": 64,
+        "envs": 64,
+        "simulation_steps": 1000,
+        "included_transitions": 35860,
+        "elapsed_seconds": 34.67208297504112,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 47,
+          "collision": 9,
+          "invalid": 0,
+          "timeout": 8,
+          "goal": 64,
+          "physical_collision": 6,
+          "success": 8,
+          "timeout_without_goal": 0
+        },
+        "rates": {
+          "fall": 0.734375,
+          "collision": 0.140625,
+          "invalid": 0.0,
+          "timeout": 0.125,
+          "goal": 1.0,
+          "physical_collision": 0.09375,
+          "success": 0.125,
+          "timeout_without_goal": 0.0
+        },
+        "wilson_95": {
+          "fall": [
+            0.6151712627143486,
+            0.8270362092577739
+          ],
+          "collision": [
+            0.0757857255603086,
+            0.24616281741577023
+          ],
+          "invalid": [
+            0.0,
+            0.05662405979280534
+          ],
+          "timeout": [
+            0.06472242663330453,
+            0.22774561821129946
+          ],
+          "goal": [
+            0.9433759402071946,
+            1.0
+          ],
+          "physical_collision": [
+            0.04367825258519838,
+            0.18982879599645597
+          ],
+          "success": [
+            0.06472242663330453,
+            0.22774561821129946
+          ],
+          "timeout_without_goal": [
+            0.0,
+            0.05662405979280534
+          ]
+        },
+        "mean_step_reward": 0.2122418768826922,
+        "mean_root_speed": 0.6459771203785177,
+        "stop_command_fraction": 0.34841048522030116,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.027875723504756835,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 64,
+          "mean": 11.20625,
+          "median": 9.46,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 64,
+          "mean": 4.6971875,
+          "median": 4.59,
+          "p95": 5.68
+        },
+        "successful_first_goal_seconds": {
+          "count": 8,
+          "mean": 4.94,
+          "median": 4.720000000000001,
+          "p95": 6.122
+        },
+        "final_goal_distance": {
+          "count": 64,
+          "mean": 1.0973405332188122,
+          "median": 0.9053778350353241,
+          "p95": 2.130102980136871
+        },
+        "min_goal_distance": {
+          "count": 64,
+          "mean": 0.039850770743214525,
+          "median": 0.03343796543776989,
+          "p95": 0.0858660604804754
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/pelvis_collision | obstacle_0_0/collision": 1,
+          "robot/head_collision | obstacle_0_0/collision": 4,
+          "robot/right_shoulder_yaw_collision | obstacle_0_0/collision": 1,
+          "robot/right_hand_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 6,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "rearm",
+        "diagnostic_disable_push": false,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 3,
+      "terminal_low_head_count": 47,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "4d8d16a4f4ac45a5a5df6688e0653b0d01b5244975db8b352b2047b10df906bf",
+        "metadata.json": "95746f0577167a3f67aea5df8957159cda3a211da85f42e724d3cdf9cbf9f3b8",
+        "events.json": "5b9d81e2bbd29065e3ead2411f9a4433529bd24c43dccecc41c8240cd8b5d4eb",
+        "episodes.jsonl": "b8e85d398f3edf01be138996f4ec09596c3813b5837726daa54bd559eca884da",
+        "trace.npz": "9b7a82f355acdd016ec164c5e442d0876861acb23a6332a7f81980a7c52a427f"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 101,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.10808511078357697,
+        "angular_speed_mean_radps": 0.6230640411376953,
+        "linear_below_01_fraction": 0.7722772277227723,
+        "angular_below_01_fraction": 0.009900990099009901,
+        "instantaneous_both_below_01_fraction": 0.009900990099009901,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    },
+    {
+      "name": "wall_no_noise",
+      "run_path": "runs/cat-diagnosis-isolation-20261019-6e6a153/wall_no_noise",
+      "metadata": {
+        "commit": "6e6a1539095bd842bc52ac1564c30afc84f26b73",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 1000,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": false,
+        "disable_rfi": false,
+        "disable_observation_noise": true,
+        "disable_random_pd": false,
+        "override_timing": "After strict checkpoint load, before first rollout action; initial cached observation retains the original noise. Controller overrides apply to the designated first episode only; later resets are excluded.",
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 1000,
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 998001,
+        "elapsed_seconds": 40.6526486328803,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 3,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 997,
+          "goal": 907,
+          "physical_collision": 24,
+          "success": 883,
+          "timeout_without_goal": 90
+        },
+        "rates": {
+          "fall": 0.003,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 0.997,
+          "goal": 0.907,
+          "physical_collision": 0.024,
+          "success": 0.883,
+          "timeout_without_goal": 0.09
+        },
+        "wilson_95": {
+          "fall": [
+            0.0010207838811386186,
+            0.008783014053503173
+          ],
+          "collision": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.9912169859464969,
+            0.9989792161188614
+          ],
+          "goal": [
+            0.8874087442345036,
+            0.9234762743582547
+          ],
+          "physical_collision": [
+            0.016180168466636995,
+            0.03546290561161149
+          ],
+          "success": [
+            0.8615970906192936,
+            0.9014716123807713
+          ],
+          "timeout_without_goal": [
+            0.07379614931508309,
+            0.1093417926430721
+          ]
+        },
+        "mean_step_reward": 0.28543095374469496,
+        "mean_root_speed": 0.2672338139501248,
+        "stop_command_fraction": 0.7672767862958053,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.23038077028858484,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 19.960019999999997,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 907,
+          "mean": 4.6478941565600875,
+          "median": 4.54,
+          "p95": 5.64
+        },
+        "successful_first_goal_seconds": {
+          "count": 883,
+          "mean": 4.653499433748585,
+          "median": 4.54,
+          "p95": 5.64
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.7835408622920513,
+          "median": 0.7808719277381897,
+          "p95": 1.195190948247909
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.057503956416854636,
+          "median": 0.05068172886967659,
+          "p95": 0.1091723009943962
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/pelvis_collision | obstacle_0_0/collision": 24
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 24,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "diagnostic_disable_rfi": false,
+        "diagnostic_disable_observation_noise": true,
+        "diagnostic_disable_random_pd": false,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 3,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "5b2b08e503691106a4d3482368d164c5823cbc59e735b5535868d06d941f0e02",
+        "metadata.json": "7ba3ab96c10b407b593153bfd2e8a13e2d7105a92aced302db0fa3693de05f99",
+        "events.json": "0b7abd54ea9483002cf250c14eb1617c24caa6e0ba5a8006028a925b6d6c8fe0",
+        "episodes.jsonl": "9f98def72385ca90e71d1b78980624a826acd6a97d086b10bc08424bf46aa7e7",
+        "trace.npz": "36f52d0c309fe37a4447db6e5512a5acab91dedbb904fd1ea3dd962ccce47c60"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 1142,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.07130882143974304,
+        "angular_speed_mean_radps": 0.4555319845676422,
+        "linear_below_01_fraction": 0.8765323992994746,
+        "angular_below_01_fraction": 0.023642732049036778,
+        "instantaneous_both_below_01_fraction": 0.02276707530647986,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    },
+    {
+      "name": "wall_no_pd",
+      "run_path": "runs/cat-diagnosis-isolation-20261019-6e6a153/wall_no_pd",
+      "metadata": {
+        "commit": "6e6a1539095bd842bc52ac1564c30afc84f26b73",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 1000,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": false,
+        "disable_rfi": false,
+        "disable_observation_noise": false,
+        "disable_random_pd": true,
+        "override_timing": "After strict checkpoint load, before first rollout action; initial cached observation retains the original noise. Controller overrides apply to the designated first episode only; later resets are excluded.",
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 1000,
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 998668,
+        "elapsed_seconds": 41.201249960344285,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 2,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 998,
+          "goal": 886,
+          "physical_collision": 50,
+          "success": 834,
+          "timeout_without_goal": 114
+        },
+        "rates": {
+          "fall": 0.002,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 0.998,
+          "goal": 0.886,
+          "physical_collision": 0.05,
+          "success": 0.834,
+          "timeout_without_goal": 0.114
+        },
+        "wilson_95": {
+          "fall": [
+            0.000548643588120728,
+            0.007262807863492177
+          ],
+          "collision": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.9927371921365079,
+            0.9994513564118793
+          ],
+          "goal": [
+            0.8648073995463684,
+            0.904238342902783
+          ],
+          "physical_collision": [
+            0.03813026239274882,
+            0.06531382024425081
+          ],
+          "success": [
+            0.8096691971622607,
+            0.8557745281693885
+          ],
+          "timeout_without_goal": [
+            0.09576165709721693,
+            0.13519260045363163
+          ]
+        },
+        "mean_step_reward": 0.2846448297426188,
+        "mean_root_speed": 0.27299842186965734,
+        "stop_command_fraction": 0.7697643260823417,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.27637711764391165,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 19.97336,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 886,
+          "mean": 4.599255079006773,
+          "median": 4.5200000000000005,
+          "p95": 5.5600000000000005
+        },
+        "successful_first_goal_seconds": {
+          "count": 834,
+          "mean": 4.607314148681056,
+          "median": 4.5200000000000005,
+          "p95": 5.58
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.7383893463909627,
+          "median": 0.7314938306808472,
+          "p95": 1.1616664350032806
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.055416353120235726,
+          "median": 0.04791839420795441,
+          "p95": 0.11686694659292697
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/right_foot2_collision | obstacle_0_0/collision": 1,
+          "robot/right_foot3_collision | obstacle_0_0/collision": 3,
+          "robot/pelvis_collision | obstacle_0_0/collision": 46,
+          "robot/left_foot3_collision | obstacle_0_0/collision": 1,
+          "robot/left_foot4_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 50,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "diagnostic_disable_rfi": false,
+        "diagnostic_disable_observation_noise": false,
+        "diagnostic_disable_random_pd": true,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 0,
+      "terminal_low_head_count": 2,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "f5beff6da656e5de64a077d9abd224c428940dfd2b3ff2d019741d417e19dc7a",
+        "metadata.json": "f2b5b92c5755161199af4092c885990042bdead28b8a8334fc6db0c403441b7f",
+        "events.json": "df3876a0b31340a5689cea65f538c6ee10a0e50b4d955b63a2dcf724558cc5c1",
+        "episodes.jsonl": "9c7997017e258f3ca1b7c05c71ac18c1ea2161d083406753ed199a9ef3984b72",
+        "trace.npz": "d54e337a53a22506cf35fd41a2849b1916607ba2c6641d5fc8ecd9e7538348bc"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 1156,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.07763123512268066,
+        "angular_speed_mean_radps": 0.4876239597797394,
+        "linear_below_01_fraction": 0.846885813148789,
+        "angular_below_01_fraction": 0.012110726643598616,
+        "instantaneous_both_below_01_fraction": 0.010380622837370242,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    },
+    {
+      "name": "wall_no_rfi",
+      "run_path": "runs/cat-diagnosis-isolation-20261019-6e6a153/wall_no_rfi",
+      "metadata": {
+        "commit": "6e6a1539095bd842bc52ac1564c30afc84f26b73",
+        "checkpoint": "/home/sunxun/embodied-learning/runs/cat-source-20261015-222713-gpu6/specialists/wall_detour/model_15800.pt",
+        "checkpoint_sha256": "88b2babaf85662143ed51d5c6ed4f4dd9ad62218ee7ea8437d8b9912885318a9",
+        "scene": "wall_detour",
+        "num_envs": 1000,
+        "seed": 20261019,
+        "variant": "baseline",
+        "no_perturbations": false,
+        "disable_push": false,
+        "disable_rfi": true,
+        "disable_observation_noise": false,
+        "disable_random_pd": false,
+        "override_timing": "After strict checkpoint load, before first rollout action; initial cached observation retains the original noise. Controller overrides apply to the designated first episode only; later resets are excluded.",
+        "cuda_visible_devices": "GPU-85e7e48b-2491-8a40-b7d0-a30086acb430"
+      },
+      "episodes": 1000,
+      "evaluation": {
+        "episodes": 1000,
+        "envs": 1000,
+        "simulation_steps": 1000,
+        "included_transitions": 998688,
+        "elapsed_seconds": 39.10946638835594,
+        "sampling": "Fixed per-slot quotas; all designated episodes complete; later resets excluded",
+        "outcomes": {
+          "fall": 2,
+          "collision": 0,
+          "invalid": 0,
+          "timeout": 998,
+          "goal": 862,
+          "physical_collision": 61,
+          "success": 804,
+          "timeout_without_goal": 136
+        },
+        "rates": {
+          "fall": 0.002,
+          "collision": 0.0,
+          "invalid": 0.0,
+          "timeout": 0.998,
+          "goal": 0.862,
+          "physical_collision": 0.061,
+          "success": 0.804,
+          "timeout_without_goal": 0.136
+        },
+        "wilson_95": {
+          "fall": [
+            0.000548643588120728,
+            0.007262807863492177
+          ],
+          "collision": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "invalid": [
+            2.168404344971009e-19,
+            0.0038267584855551234
+          ],
+          "timeout": [
+            0.9927371921365079,
+            0.9994513564118793
+          ],
+          "goal": [
+            0.8392340001264323,
+            0.8819954267300257
+          ],
+          "physical_collision": [
+            0.0477797751260337,
+            0.07758011882428367
+          ],
+          "success": [
+            0.7782523359291924,
+            0.8274209949115903
+          ],
+          "timeout_without_goal": [
+            0.1161420645496615,
+            0.15864381562782268
+          ]
+        },
+        "mean_step_reward": 0.28641874592458855,
+        "mean_root_speed": 0.2685663637941346,
+        "stop_command_fraction": 0.766820067929123,
+        "settled_stop_fraction": 0.0,
+        "pre_goal_stop_command_fraction": 0.310887069330311,
+        "pre_goal_settled_stop_fraction": 0.0,
+        "duration_seconds": {
+          "count": 1000,
+          "mean": 19.97376,
+          "median": 20.0,
+          "p95": 20.0
+        },
+        "first_goal_seconds": {
+          "count": 862,
+          "mean": 4.669257540603248,
+          "median": 4.58,
+          "p95": 5.68
+        },
+        "successful_first_goal_seconds": {
+          "count": 804,
+          "mean": 4.681492537313433,
+          "median": 4.58,
+          "p95": 5.68
+        },
+        "final_goal_distance": {
+          "count": 1000,
+          "mean": 0.7922167580202222,
+          "median": 0.7937522530555725,
+          "p95": 1.2539110422134399
+        },
+        "min_goal_distance": {
+          "count": 1000,
+          "mean": 0.06432843362918357,
+          "median": 0.058476658537983894,
+          "p95": 0.12094643935561179
+        },
+        "metric_definitions": {
+          "settled_stop": {
+            "linear_speed_below_m_s": 0.1,
+            "angular_speed_below_rad_s": 0.1,
+            "continuous_seconds": 0.5,
+            "control_dt_seconds": 0.02
+          },
+          "success": "Reached within 0.1 m at least once, with no observed obstacle or monitored self contact or source collision during the episode, and no fall/invalid termination. Uses the source 20 s horizon.",
+          "physical_collision": "Any observed obstacle contact during the episode.",
+          "stop_command": "Source command vector norm below 0.2; not actual speed."
+        },
+        "first_contact_pairs": {
+          "robot/right_foot2_collision | obstacle_0_0/collision": 2,
+          "robot/right_foot3_collision | obstacle_0_0/collision": 1,
+          "robot/pelvis_collision | obstacle_0_0/collision": 51,
+          "robot/right_thigh_collision | obstacle_0_0/collision": 7,
+          "robot/left_foot4_collision | obstacle_0_0/collision": 2,
+          "robot/left_foot3_collision | obstacle_0_0/collision": 1,
+          "robot/left_hand_collision | obstacle_0_0/collision": 1,
+          "robot/left_thigh_collision | obstacle_0_0/collision": 1
+        },
+        "episodes_with_contact_by_obstacle": {
+          "cat_obstacle_0_0": 61,
+          "cat_obstacle_1_0": 0,
+          "cat_obstacle_1_1": 0,
+          "cat_obstacle_2_0": 0,
+          "cat_obstacle_2_1": 0
+        },
+        "diagnostic_variant": "baseline",
+        "diagnostic_disable_push": false,
+        "diagnostic_disable_rfi": true,
+        "diagnostic_disable_observation_noise": false,
+        "diagnostic_disable_random_pd": false,
+        "evaluation_overrides": {}
+      },
+      "any_settled_episode_count": 0,
+      "endpoint_within_01m_count": 1,
+      "terminal_low_head_count": 2,
+      "terminal_inverted_count": 0,
+      "source_hashes": {
+        "evaluation.json": "23d5f17b514a15b983bb3e7737fc1e3da70e1b11994112035a68d345d0996bb1",
+        "metadata.json": "9b191a4f9fbf06afc44d3026d10e838d8eb1fcfa70563a7d5c6579f1aeb5c2f2",
+        "events.json": "46cb0dca2318ac65b12aa0f7cc8ce87aabc44ff92bd38fd32294ac0d53b598ec",
+        "episodes.jsonl": "a0af85c6da85f28e4811ab1da051d029c18cfe4c1ea0b3f08c9bbb18a4dba324",
+        "trace.npz": "e37445bb0c941a9989369086708d4b7d271ec1baf41c0389d50453cd21cd1e02"
+      },
+      "first_8_slots_fully_stopped_samples": {
+        "count": 1144,
+        "sampling_seconds": 0.1,
+        "linear_speed_mean_mps": 0.07492644339799881,
+        "angular_speed_mean_radps": 0.2664429545402527,
+        "linear_below_01_fraction": 0.8592657342657343,
+        "angular_below_01_fraction": 0.1346153846153846,
+        "instantaneous_both_below_01_fraction": 0.1284965034965035,
+        "limitation": "Decimated correlated samples, not all-episode population or exact continuous settling duration."
+      }
+    }
+  ]
+}

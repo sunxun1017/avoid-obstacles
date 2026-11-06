@@ -1,0 +1,106 @@
+{
+  "launch": {
+    "root": "/home/sunxun/embodied-learning/runs/cat-navigation-v2-stage4-20261102-01",
+    "branch": "feat/cat-risk-guidance-transition",
+    "source_commit": "d13abb1",
+    "jobs": [
+      {
+        "arm": "corrected",
+        "pid": 1269311,
+        "gpu_index": 5,
+        "gpu_uuid": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281"
+      },
+      {
+        "arm": "control",
+        "pid": 1269312,
+        "gpu_index": 6,
+        "gpu_uuid": "GPU-35960ade-feb7-18fb-1e03-2d17a6af7e7f"
+      }
+    ],
+    "monitor_pid": 1269313,
+    "additional_updates_per_arm": 800,
+    "chunk_updates": 40,
+    "starting_actor": "risk600",
+    "initialization": "Matched Actor; fresh matched Critic/Adam; strict full resume between chunks",
+    "stage": 4,
+    "navigation": "root query + clear-space planar arrival blend versus unchanged root_linear_v1",
+    "routes": "9 starts x9 goals",
+    "smoothness_weights": {
+      "smoothness_action": -0.001,
+      "smoothness_joint": -1e-06
+    },
+    "risk_transition_preserved": true,
+    "all_source_perturbations_on": true,
+    "automatic_promotion": false,
+    "launched_at": 1793616984.2881274
+  },
+  "selection": {
+    "parent": "/home/sunxun/embodied-learning/runs/cat-risk-guidance-stage4-20261102-01/risk/chunks/update-0600/latest.pt",
+    "parent_sha256": "3441c7666adb616b85ba8888eb5efcf0bd3c8b37eefeebfbee60e3db5284935e",
+    "stage": 4,
+    "additional_updates_per_arm": 800,
+    "arms": [
+      "corrected",
+      "control"
+    ],
+    "navigation_randomization": "9x9 reset pools",
+    "smoothness_action": -0.001,
+    "smoothness_joint": -1e-06,
+    "risk_guidance": {
+      "version": "sdf_predictive_blend_v1",
+      "near_m": 0.05,
+      "far_m": 0.35,
+      "margin_m": 0.05,
+      "horizon_s": 0.2,
+      "free_gain": 0.25
+    },
+    "automatic_promotion": false,
+    "prior_runs_untouched": true
+  },
+  "startup": {
+    "corrected": {
+      "actor_hash": "bbee43fa63295b8754da8488b48916d68c314ce91e7fc25a4f6ac874ee036722",
+      "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+      "optimizer_empty": true,
+      "updates_observed": 1,
+      "last_loss": {
+        "value": 0.07171239565286669,
+        "surrogate": 0.0014128001298843174,
+        "entropy": -4.831956289708614,
+        "global_grad_norm": 2.293947432655841
+      }
+    },
+    "control": {
+      "actor_hash": "bbee43fa63295b8754da8488b48916d68c314ce91e7fc25a4f6ac874ee036722",
+      "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+      "optimizer_empty": true,
+      "updates_observed": 1,
+      "last_loss": {
+        "value": 0.07171039440800087,
+        "surrogate": 0.0013882902893216365,
+        "entropy": -4.833034347742796,
+        "global_grad_norm": 2.2917488333769143
+      }
+    }
+  },
+  "validation": {
+    "tests_passed": 599,
+    "tests_skipped": 34,
+    "independent_review": "No outstanding findings",
+    "frozen_empty_no_push": {
+      "corrected": {
+        "goal": 256,
+        "falls": 0,
+        "away_from_goal_command_episodes": 0,
+        "restart_episodes": 24
+      },
+      "control": {
+        "goal": 256,
+        "falls": 0,
+        "away_from_goal_command_episodes": 1,
+        "restart_episodes": 11
+      }
+    }
+  },
+  "state": "running_not_finished"
+}

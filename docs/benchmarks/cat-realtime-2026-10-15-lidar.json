@@ -1,0 +1,188 @@
+{
+  "device": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "python": "3.11.15",
+  "torch": "2.7.1+cu126",
+  "sensor": "lidar",
+  "grid": [
+    126,
+    126,
+    56
+  ],
+  "voxel_size": 0.04,
+  "valid_rays": 4030,
+  "repeats": 20,
+  "warmup": 5,
+  "startup_seconds": 6.2392962169979,
+  "sensor_latency": {
+    "count": 5,
+    "p50_ms": 0.875063007697463,
+    "p95_ms": 1.3625799940200523,
+    "max_ms": 1.4247959916247055
+  },
+  "workload": "stationary real sensor rays; alternating goal y +/- 0.02 m",
+  "source": {
+    "fresh": {
+      "fusion": {
+        "count": 20,
+        "p50_ms": 68.57721599953948,
+        "p95_ms": 70.2183447079733,
+        "max_ms": 70.43716200860217
+      },
+      "morphology": {
+        "count": 20,
+        "p50_ms": 13.20014099474065,
+        "p95_ms": 15.079683049407326,
+        "max_ms": 20.099122993997298
+      },
+      "field": {
+        "count": 20,
+        "p50_ms": 798.0893189960625,
+        "p95_ms": 811.5276769021875,
+        "max_ms": 818.0620219936827
+      },
+      "pipeline": {
+        "count": 20,
+        "p50_ms": 885.050061995571,
+        "p95_ms": 899.2384323093574,
+        "max_ms": 901.7830319935456
+      }
+    },
+    "unchanged_scan": {
+      "count": 20,
+      "p50_ms": 86.78134350338951,
+      "p95_ms": 88.80817455501528,
+      "max_ms": 89.2717660026392
+    },
+    "fresh_builds": 20,
+    "cached_new_builds": 0,
+    "changed_map_field_only": {
+      "count": 20,
+      "p50_ms": 803.3163604995934,
+      "p95_ms": 852.9466848049196,
+      "max_ms": 855.2263390010921
+    }
+  },
+  "cuda": {
+    "fresh": {
+      "fusion": {
+        "count": 20,
+        "p50_ms": 0.4191275002085604,
+        "p95_ms": 1.3220312997873407,
+        "max_ms": 1.53521700121928
+      },
+      "morphology": {
+        "count": 20,
+        "p50_ms": 15.166945995588321,
+        "p95_ms": 16.27567449613707,
+        "max_ms": 16.338839996024035
+      },
+      "field": {
+        "count": 20,
+        "p50_ms": 37.12007350259228,
+        "p95_ms": 39.61477099801414,
+        "max_ms": 40.282525995280594
+      },
+      "pipeline": {
+        "count": 20,
+        "p50_ms": 55.89234499348095,
+        "p95_ms": 59.230344404204516,
+        "max_ms": 60.0503729947377
+      }
+    },
+    "unchanged_scan": {
+      "count": 20,
+      "p50_ms": 18.217195007309783,
+      "p95_ms": 19.357209908775985,
+      "max_ms": 20.30808199197054
+    },
+    "fresh_builds": 20,
+    "cached_new_builds": 0,
+    "changed_map_field_only": {
+      "count": 20,
+      "p50_ms": 38.82389049977064,
+      "p95_ms": 41.19439354108181,
+      "max_ms": 41.916289992514066
+    }
+  },
+  "source_comparison": {
+    "sdf": {
+      "p50_m": 0.001909017562866211,
+      "p95_m": 0.003493189811706543,
+      "p99_m": 0.005369603633880615,
+      "max_m": 0.00739896297454834
+    },
+    "geodesic": {
+      "p50_m": 0.0035262107849121094,
+      "p95_m": 0.01798778772354126,
+      "p99_m": 0.024392426013946533,
+      "max_m": 0.04422652721405029
+    },
+    "direction_deg": {
+      "p50": 0.634890079498291,
+      "p95": 2.832554578781128,
+      "max": 32.663124084472656
+    },
+    "reachable_disagreement": 0
+  },
+  "worker_start_seconds": 1.1813369250012329,
+  "worker_first_publication_seconds": 0.8369449019955937,
+  "async": {
+    "foreground": {
+      "count": 120,
+      "p50_ms": 0.7272385046235286,
+      "p95_ms": 12.635855755797818,
+      "max_ms": 16.280659998301417
+    },
+    "measurement_age": {
+      "count": 20,
+      "p50_ms": 89.99600050447043,
+      "p95_ms": 91.63303106251988,
+      "max_ms": 94.4924180075759
+    },
+    "worker_pipeline": {
+      "count": 20,
+      "p50_ms": 64.01248500333168,
+      "p95_ms": 70.22459360669019,
+      "max_ms": 72.59331599925645
+    },
+    "accepted_publications": 20,
+    "measured_window_seconds": 2.0004255050007487,
+    "full_window_hz": 9.99786105758394,
+    "publication_hz": 10.006841176961887,
+    "versions": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26
+    ],
+    "diagnostics": {
+      "submitted_sequence": 26,
+      "published_sequence": 26,
+      "dropped_scans": 0,
+      "worker_alive": true,
+      "build_counts": [
+        26
+      ],
+      "errors": [
+        ""
+      ],
+      "last_update_seconds": 0.06800072400073987
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "launch": {
+    "root": "/home/sunxun/embodied-learning/runs/cat-stop10-stage4-20261103-01",
+    "branch": "feat/cat-risk-guidance-transition",
+    "source_commit": "cdd6c3b",
+    "jobs": [
+      {
+        "arm": "candidate",
+        "pid": 938508,
+        "gpu_index": 6,
+        "gpu_uuid": "GPU-35960ade-feb7-18fb-1e03-2d17a6af7e7f"
+      },
+      {
+        "arm": "control",
+        "pid": 938509,
+        "gpu_index": 1,
+        "gpu_uuid": "GPU-724bc291-93b1-186c-1965-eb918f905ffc"
+      }
+    ],
+    "monitor_pid": 938510,
+    "additional_updates_per_arm": 800,
+    "chunk_updates": 40,
+    "starting_actor": "navigation_v2_corrected800",
+    "initialization": "Matched Actor; fresh matched Critic/Adam; strict full resume between chunks",
+    "stage": 4,
+    "navigation": "both root_planar_blend_v2; candidate stop8_resume10_v1; control unchanged stop behavior",
+    "routes": "9 starts x9 goals",
+    "smoothness_weights": {
+      "smoothness_action": -0.001,
+      "smoothness_joint": -1e-06
+    },
+    "risk_transition_preserved": true,
+    "stop_m": 0.08,
+    "resume_m": 0.1,
+    "normal_fade_s": 0.2,
+    "urgent_balance_bypass": true,
+    "all_source_perturbations_on": true,
+    "automatic_promotion": false,
+    "launched_at": 1793672405.0738845
+  },
+  "selection": {
+    "parent": "/home/sunxun/embodied-learning/runs/cat-navigation-v2-stage4-20261102-01/corrected/continuations/oom-recovery-01/update-0800/latest.pt",
+    "parent_sha256": "6bbd50af428f2214ee4f8be469d0355c5a2c4b545faac924887fc7b4b1fa83f7",
+    "source_commit": "cdd6c3b",
+    "additional_updates_per_arm": 800,
+    "stop_m": 0.08,
+    "resume_m": 0.1,
+    "normal_fade_s": 0.2,
+    "urgent_speed_m_s": 0.35,
+    "urgent_gyro_rad_s": 0.8,
+    "emergency_nonzero_navigation_bypass": true,
+    "risk_preserved": true,
+    "original_smoothness": true,
+    "routes": "9x9",
+    "old_trial_complete_and_preserved": true
+  },
+  "startup": {
+    "candidate": {
+      "actor_hash": "e54b759618490f1886a5ff01445b67e176992833412e9685cba5bf0ab787d7e8",
+      "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+      "optimizer_empty": true,
+      "observed_updates": 1,
+      "last_loss": {
+        "value": 0.07377353809897613,
+        "surrogate": 0.0012724570908233535,
+        "entropy": -2.3541056495159864,
+        "global_grad_norm": 2.099868099670857
+      }
+    },
+    "control": {
+      "actor_hash": "e54b759618490f1886a5ff01445b67e176992833412e9685cba5bf0ab787d7e8",
+      "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+      "optimizer_empty": true,
+      "observed_updates": 0,
+      "last_loss": null
+    }
+  },
+  "tests": {
+    "passed": 605,
+    "skipped": 34
+  },
+  "review": "No actionable blockers",
+  "state": "running"
+}

@@ -1,0 +1,320 @@
+"""Native mjlab G1 known-geometry field task; no sensors or online mapping.
+
+Contact sensors classify physical obstacle contact only. Mocap obstacle
+entities permit distinct scenes in batched worlds sharing one MuJoCo model.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import replace
+from typing import Any
+
+import mujoco
+import numpy as np
+import torch
+from mjlab.entity import EntityCfg
+from mjlab.envs import ManagerBasedRlEnv
+from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.observation_manager import ObservationTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
+from mjlab.rl import RslRlVecEnvWrapper
+from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.tasks.velocity.config.g1.env_cfgs import unitree_g1_flat_env_cfg
+
+from embodied_learning.data.field_scenes import SceneManifest
+from embodied_learning.robots.g1 import G1_ADDED_SITES, G1_BODY_SCHEMA
+from embodied_learning.tasks.field_assets import FieldBank
+from embodied_learning.tasks.field_traversal import (
+    FieldTaskState,
+)
+
+
+def _field_obs(env: Any) -> torch.Tensor:
+    # Native forward refreshes kinematics after reward/reset at the same step.
+    env.field_state._key = None
+    return env.field_state.observation(env)
+
+
+def _field_reward(env: Any) -> torch.Tensor:
+    return env.field_state.reward(env)
+
+
+def _termination(env: Any, name: str) -> torch.Tensor:
+    return env.field_state.outcomes(env)[name]
+
+
+def _reset_field(env: Any, env_ids: torch.Tensor | None) -> None:
+    state = env.field_state
+    if env_ids is None:
+        env_ids = torch.arange(env.num_envs, device=env.device)
+    count = len(env_ids)
+    allowed = torch.tensor(state.allowed, device=env.device)
+    selected = allowed[torch.randint(len(allowed), (count,), device=env.device)]
+    state.scene_ids[env_ids] = selected
+    robot = env.scene["robot"]
+    roots = robot.data.default_root_state[env_ids].clone()
+    roots[:, 3:7] = roots.new_tensor([1.0, 0.0, 0.0, 0.0])
+    roots[:, 7:] = 0.0
+    for scene_id, scene in enumerate(state.manifest.scenes):
+        slots = env_ids[selected == scene_id]
+        if slots.numel() == 0:
+            continue
+        start_ids = torch.randint(
+            len(scene.starts), (len(slots),), device=env.device
+        )
+        goal_ids = torch.randint(len(scene.goals), (len(slots),), device=env.device)
+        starts = roots.new_tensor(scene.starts)[start_ids]
+        roots[selected == scene_id, :3] = starts + env.scene.env_origins[slots]
+        state.goal_ids[slots] = goal_ids
+        state.goals[slots] = roots.new_tensor(scene.goals)[goal_ids]
+    robot.write_root_state_to_sim(roots, env_ids=env_ids)
+    robot.write_joint_state_to_sim(
+        robot.data.default_joint_pos[env_ids],
+        robot.data.default_joint_vel[env_ids],
+        env_ids=env_ids,
+    )
+    for scene_id, scene in enumerate(state.manifest.scenes):
+        for box_id, box in enumerate(scene.boxes):
+            pose = torch.zeros(count, 7, device=env.device)
+            pose[:, 3] = 1.0
+            pose[:, :3] = pose.new_tensor(box.center)
+            pose[selected != scene_id, 2] = -100.0
+            pose[:, :3] += env.scene.env_origins[env_ids]
+            env.scene[f"obstacle_{scene_id}_{box_id}"].write_mocap_pose_to_sim(
+                pose,
+                env_ids=env_ids,
+            )
+    state.generation += 1
+
+
+def _box_spec(half_size: tuple[float, float, float]) -> mujoco.MjSpec:
+    spec = mujoco.MjSpec()
+    body = spec.worldbody.add_body(name="box")
+    body.add_geom(
+        name="collision",
+        type=mujoco.mjtGeom.mjGEOM_BOX,
+        size=half_size,
+        rgba=(0.6, 0.4, 0.2, 1),
+        friction=(1.0, 0.005, 0.001),
+    )
+    return spec
+
+
+class FieldEnv(RslRlVecEnvWrapper):
+    """Training adapter exposing independent scene IDs and ordered metadata."""
+
+    def __init__(self, native: ManagerBasedRlEnv) -> None:
+        super().__init__(native, clip_actions=5.0)
+        self.field_state = native.field_state
+        self.scene_ids = self.field_state.scene_ids
+        self.schema = {
+            "body_sites": list(G1_BODY_SCHEMA),
+            "scene_hash": self.field_state.manifest.identity,
+            "scene_names": [s.id for s in self.field_state.manifest.scenes],
+            "joint_names": list(native.scene["robot"].joint_names),
+            "action_names": native.action_manager.get_term("joint_pos").target_names,
+            "action_scale": native.action_manager.get_term("joint_pos")
+            .scale[0]
+            .flatten()
+            .tolist(),
+            "action_offset": native.scene["robot"]
+            .data.default_joint_pos[0]
+            .tolist(),
+            "action_clip": 5.0,
+            "task": self.field_state.settings,
+            "physics": dict(
+                timestep=native.physics_dt, decimation=native.cfg.decimation
+            ),
+            "observation": "proprio+field_guidance+body_velocity+sdf_v1",
+        }
+
+    @property
+    def training_step(self) -> int:
+        """Global control steps used by the optional field curriculum."""
+        return self.unwrapped.common_step_counter
+
+    @training_step.setter
+    def training_step(self, value: int) -> None:
+        self.unwrapped.common_step_counter = value
+        self.field_state.generation += 1
+
+    def reset_slots(self, slots: torch.Tensor) -> None:
+        """Reset selected slots, then refresh native kinematics and sensors."""
+        self.unwrapped._reset_idx(slots)
+        self.unwrapped.sim.forward()
+        self.field_state.generation += 1
+
+    def step(self, actions: torch.Tensor) -> tuple:
+        result = super().step(actions)
+        result[3]["field_outcomes"] = self.field_state.step_outcomes
+        log = result[3].setdefault("log", {})
+        log["Field/goal_distance"] = self.field_state.goal_distance.mean()
+        for name, flag in self.field_state.step_outcomes.items():
+            log[f"Field/{name}"] = flag.float().mean()
+        return result
+
+
+def make_field_env(
+    manifest: SceneManifest,
+    bank: FieldBank,
+    *,
+    scene_ids: tuple[str, ...],
+    num_envs: int,
+    device: str,
+    seed: int,
+    options: dict | None = None,
+) -> FieldEnv:
+    """Build one real G1 per slot with reset-routed known scene geometry."""
+    names = tuple(s.id for s in manifest.scenes)
+    if num_envs < 1 or not scene_ids or any(n not in names for n in scene_ids):
+        raise ValueError("Invalid environment count or scene selection.")
+    state = FieldTaskState(
+        manifest,
+        bank,
+        tuple(names.index(n) for n in scene_ids),
+        num_envs,
+        device,
+        options,
+    )
+    validate_g1_clearance(manifest)
+    cfg = unitree_g1_flat_env_cfg()
+    cfg.episode_length_s = state.settings["episode_length_s"]
+    cfg.seed = seed
+    cfg.scene.num_envs = num_envs
+    cfg.commands, cfg.curriculum, cfg.metrics = {}, {}, {}
+    push = cfg.events["push_robot"]
+    cfg.events = {"field_reset": EventTermCfg(func=_reset_field, mode="reset")}
+    if state.training.push_velocity > 0:
+        scale = state.training.push_velocity
+        push.interval_range_s = (
+            state.training.push_interval_s,
+            state.training.push_interval_s,
+        )
+        push.params["velocity_range"] = {"x": (-scale, scale), "y": (-scale, scale)}
+        cfg.events["push_robot"] = push
+    cfg.scene.sensors = ()
+    original = cfg.scene.entities["robot"].spec_fn
+
+    def robot_spec() -> mujoco.MjSpec:
+        spec = original()
+        for name, (body_name, pos) in G1_ADDED_SITES.items():
+            spec.body(body_name).add_site(name=name, pos=pos, size=(0.01, 0, 0))
+        return spec
+
+    cfg.scene.entities["robot"] = replace(
+        cfg.scene.entities["robot"], spec_fn=robot_spec
+    )
+    contacts = []
+    for scene_id, scene in enumerate(manifest.scenes):
+        for box_id, box in enumerate(scene.boxes):
+            entity_name = f"obstacle_{scene_id}_{box_id}"
+            cfg.scene.entities[entity_name] = EntityCfg(
+                spec_fn=lambda half=box.half_size: _box_spec(half),
+                init_state=EntityCfg.InitialStateCfg(pos=(0.0, 0.0, -100.0)),
+            )
+            contacts.append(
+                ContactSensorCfg(
+                    name=f"contact_{scene_id}_{box_id}",
+                    primary=ContactMatch(
+                        mode="subtree", pattern="pelvis", entity="robot"
+                    ),
+                    secondary=ContactMatch(
+                        mode="body", pattern="box", entity=entity_name
+                    ),
+                    fields=("found",),
+                    reduce="netforce",
+                    num_slots=1,
+                )
+            )
+    cfg.scene.sensors = tuple(contacts)
+    for group_name, group in cfg.observations.items():
+        group.terms = {
+            k: v
+            for k, v in cfg.observations["actor"].terms.items()
+            if k != "command"
+        }
+        group.terms["body_fields"] = ObservationTermCfg(func=_field_obs)
+        group.enable_corruption = (
+            group_name == "actor" and state.training.observation_noise
+        )
+    cfg.rewards = {k: cfg.rewards[k] for k in ("dof_pos_limits", "action_rate_l2")}
+    cfg.rewards["dof_pos_limits"].weight = -state.rewards.joint_limit_weight
+    cfg.rewards["action_rate_l2"].weight = -state.rewards.action_rate_weight
+    cfg.rewards["field"] = RewardTermCfg(func=_field_reward, weight=1.0)
+    cfg.terminations = {
+        name: TerminationTermCfg(
+            func=_termination,
+            params={"name": name},
+            time_out=(name == "timeout"),
+        )
+        for name in ("goal", "collision", "fall", "invalid", "timeout")
+    }
+
+    class NativeFieldEnv(ManagerBasedRlEnv):
+        def __init__(self) -> None:
+            self.field_state = state
+            self.field_contact_names = tuple(s.name for s in contacts)
+            super().__init__(cfg=cfg, device=device)
+
+    return FieldEnv(NativeFieldEnv())
+
+
+def validate_g1_clearance(
+    manifest: SceneManifest, *, joint_positions: dict[str, float] | None = None
+) -> None:
+    """CPU narrow-phase checks at every declared start/goal in the default pose.
+
+    Use native robot collision shapes, excluding support ground. This is an
+    initial-pose legality check, not a proof that articulated traversal exists.
+    """
+    from mjlab.asset_zoo.robots import get_g1_robot_cfg
+    from mjlab.entity import Entity
+
+    cfg = get_g1_robot_cfg()
+    for scene in manifest.scenes:
+        spec = Entity(cfg).spec
+        for name, (body_name, pos) in G1_ADDED_SITES.items():
+            spec.body(body_name).add_site(name=name, pos=pos, size=(0.01, 0, 0))
+        for i, box in enumerate(scene.boxes):
+            body = spec.worldbody.add_body(name=f"check_box_{i}", pos=box.center)
+            body.add_geom(
+                name=f"check_box_geom_{i}",
+                type=mujoco.mjtGeom.mjGEOM_BOX,
+                size=box.half_size,
+            )
+        model = spec.compile()
+        data = mujoco.MjData(model)
+        obstacle_ids = {
+            model.geom(f"check_box_geom_{i}").id for i in range(len(scene.boxes))
+        }
+        site_ids = [model.site(n).id for n in G1_BODY_SCHEMA]
+        for point in (*scene.starts, *scene.goals):
+            mujoco.mj_resetData(model, data)
+            data.qpos[:3] = point
+            data.qpos[3:7] = (1.0, 0.0, 0.0, 0.0)
+            for j in range(1, model.njnt):
+                name = model.joint(j).name
+                for pattern, angle in (
+                    cfg.init_state.joint_pos
+                    if joint_positions is None
+                    else joint_positions
+                ).items():
+                    if re.fullmatch(pattern, name):
+                        data.qpos[model.jnt_qposadr[j]] = angle
+            mujoco.mj_forward(model, data)
+            sites = data.site_xpos[site_ids]
+            lower = np.asarray(scene.origin)
+            upper = lower + (np.asarray(scene.shape) - 1) * scene.voxel_size
+            if (
+                np.any(sites < lower)
+                or np.any(sites > upper)
+                or any(
+                    c.geom1 in obstacle_ids or c.geom2 in obstacle_ids
+                    for c in data.contact
+                )
+            ):
+                raise ValueError(
+                    f"G1 clearance invalid in scene {scene.id}: {point}."
+                )

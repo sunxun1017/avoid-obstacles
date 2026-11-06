@@ -1,0 +1,1217 @@
+{
+  "date": "2026-10-30",
+  "state": "training",
+  "experiment_root": "/home/sunxun/embodied-learning/runs/cat-landing-speed-stage4-pilot-20261030-01",
+  "intervention": {
+    "version": "sole_descent_substep_v1",
+    "height_m": 0.05,
+    "speed_m_s": 0.5,
+    "weight": 0.1
+  },
+  "old_pd": {
+    "version": "cat_ankle_pd30_2_v1",
+    "joint_names": [
+      "left_hip_pitch_joint",
+      "left_hip_roll_joint",
+      "left_hip_yaw_joint",
+      "left_knee_joint",
+      "left_ankle_pitch_joint",
+      "left_ankle_roll_joint",
+      "right_hip_pitch_joint",
+      "right_hip_roll_joint",
+      "right_hip_yaw_joint",
+      "right_knee_joint",
+      "right_ankle_pitch_joint",
+      "right_ankle_roll_joint",
+      "waist_yaw_joint",
+      "waist_roll_joint",
+      "waist_pitch_joint",
+      "left_shoulder_pitch_joint",
+      "left_shoulder_roll_joint",
+      "left_shoulder_yaw_joint",
+      "left_elbow_joint",
+      "left_wrist_roll_joint",
+      "left_wrist_pitch_joint",
+      "left_wrist_yaw_joint",
+      "right_shoulder_pitch_joint",
+      "right_shoulder_roll_joint",
+      "right_shoulder_yaw_joint",
+      "right_elbow_joint",
+      "right_wrist_roll_joint",
+      "right_wrist_pitch_joint",
+      "right_wrist_yaw_joint"
+    ],
+    "kp": [
+      100.0,
+      100.0,
+      100.0,
+      200.0,
+      30.0,
+      30.0,
+      100.0,
+      100.0,
+      100.0,
+      200.0,
+      30.0,
+      30.0,
+      300.0,
+      300.0,
+      300.0,
+      90.0,
+      60.0,
+      20.0,
+      60.0,
+      20.0,
+      20.0,
+      20.0,
+      90.0,
+      60.0,
+      20.0,
+      60.0,
+      20.0,
+      20.0,
+      20.0
+    ],
+    "kd": [
+      2.0,
+      2.0,
+      2.0,
+      4.0,
+      2.0,
+      2.0,
+      2.0,
+      2.0,
+      2.0,
+      4.0,
+      2.0,
+      2.0,
+      10.0,
+      10.0,
+      10.0,
+      2.0,
+      2.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      2.0,
+      2.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "startup_verification": {
+    "passed": true,
+    "preflight32env_physical_state_matches": true,
+    "formal_actor_and_fresh_critic_match": true,
+    "records": {
+      "baseline": {
+        "initial_hashes": {
+          "q": "91d38437ddd9da6b83c061050f3b8ad5550052ac401965757ddcabd42ffdd920",
+          "root": "fac19724b33edcf8ae1439f0b3bf27a9b2679b32e7a50f0e7d8923632c372507",
+          "kp": "c5483f8ee6b4aa9d4a16acfff1374ac7825533c7936047640bc5dafeb1d6cc11",
+          "kd": "025ba7f4b0899018cfabca73309e0e4a57836c3ccaae1e1715f21b0552376800",
+          "rfi": "4d268bf8a6300fc79e07e66ef2db027628a6a564b717874f2ea9eb96267e077e"
+        },
+        "pd": {
+          "version": "cat_ankle_pd30_2_v1",
+          "joint_names": [
+            "left_hip_pitch_joint",
+            "left_hip_roll_joint",
+            "left_hip_yaw_joint",
+            "left_knee_joint",
+            "left_ankle_pitch_joint",
+            "left_ankle_roll_joint",
+            "right_hip_pitch_joint",
+            "right_hip_roll_joint",
+            "right_hip_yaw_joint",
+            "right_knee_joint",
+            "right_ankle_pitch_joint",
+            "right_ankle_roll_joint",
+            "waist_yaw_joint",
+            "waist_roll_joint",
+            "waist_pitch_joint",
+            "left_shoulder_pitch_joint",
+            "left_shoulder_roll_joint",
+            "left_shoulder_yaw_joint",
+            "left_elbow_joint",
+            "left_wrist_roll_joint",
+            "left_wrist_pitch_joint",
+            "left_wrist_yaw_joint",
+            "right_shoulder_pitch_joint",
+            "right_shoulder_roll_joint",
+            "right_shoulder_yaw_joint",
+            "right_elbow_joint",
+            "right_wrist_roll_joint",
+            "right_wrist_pitch_joint",
+            "right_wrist_yaw_joint"
+          ],
+          "kp": [
+            100.0,
+            100.0,
+            100.0,
+            200.0,
+            30.0,
+            30.0,
+            100.0,
+            100.0,
+            100.0,
+            200.0,
+            30.0,
+            30.0,
+            300.0,
+            300.0,
+            300.0,
+            90.0,
+            60.0,
+            20.0,
+            60.0,
+            20.0,
+            20.0,
+            20.0,
+            90.0,
+            60.0,
+            20.0,
+            60.0,
+            20.0,
+            20.0,
+            20.0
+          ],
+          "kd": [
+            2.0,
+            2.0,
+            2.0,
+            4.0,
+            2.0,
+            2.0,
+            2.0,
+            2.0,
+            2.0,
+            4.0,
+            2.0,
+            2.0,
+            10.0,
+            10.0,
+            10.0,
+            2.0,
+            2.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            2.0,
+            2.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "actor_hash": "c24125e37ffbbb7167dc3842a42ae7345b87efd76e8e5095b0a5072af8b9a766",
+        "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+        "optimizer_empty": true,
+        "smoke": {
+          "actor_exact_parent": true,
+          "fresh_critic": true,
+          "optimizer_empty": true,
+          "actor_hash": "c24125e37ffbbb7167dc3842a42ae7345b87efd76e8e5095b0a5072af8b9a766",
+          "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684"
+        },
+        "finite_losses": true,
+        "completed_updates": 5,
+        "status": {
+          "state": "training",
+          "pid": 2916017,
+          "time": 1793327704.7759342,
+          "gpu_uuid": "GPU-724bc291-93b1-186c-1965-eb918f905ffc",
+          "updates": 32,
+          "envs": 4096
+        }
+      },
+      "landing010": {
+        "initial_hashes": {
+          "q": "91d38437ddd9da6b83c061050f3b8ad5550052ac401965757ddcabd42ffdd920",
+          "root": "fac19724b33edcf8ae1439f0b3bf27a9b2679b32e7a50f0e7d8923632c372507",
+          "kp": "c5483f8ee6b4aa9d4a16acfff1374ac7825533c7936047640bc5dafeb1d6cc11",
+          "kd": "025ba7f4b0899018cfabca73309e0e4a57836c3ccaae1e1715f21b0552376800",
+          "rfi": "4d268bf8a6300fc79e07e66ef2db027628a6a564b717874f2ea9eb96267e077e"
+        },
+        "pd": {
+          "version": "cat_ankle_pd30_2_v1",
+          "joint_names": [
+            "left_hip_pitch_joint",
+            "left_hip_roll_joint",
+            "left_hip_yaw_joint",
+            "left_knee_joint",
+            "left_ankle_pitch_joint",
+            "left_ankle_roll_joint",
+            "right_hip_pitch_joint",
+            "right_hip_roll_joint",
+            "right_hip_yaw_joint",
+            "right_knee_joint",
+            "right_ankle_pitch_joint",
+            "right_ankle_roll_joint",
+            "waist_yaw_joint",
+            "waist_roll_joint",
+            "waist_pitch_joint",
+            "left_shoulder_pitch_joint",
+            "left_shoulder_roll_joint",
+            "left_shoulder_yaw_joint",
+            "left_elbow_joint",
+            "left_wrist_roll_joint",
+            "left_wrist_pitch_joint",
+            "left_wrist_yaw_joint",
+            "right_shoulder_pitch_joint",
+            "right_shoulder_roll_joint",
+            "right_shoulder_yaw_joint",
+            "right_elbow_joint",
+            "right_wrist_roll_joint",
+            "right_wrist_pitch_joint",
+            "right_wrist_yaw_joint"
+          ],
+          "kp": [
+            100.0,
+            100.0,
+            100.0,
+            200.0,
+            30.0,
+            30.0,
+            100.0,
+            100.0,
+            100.0,
+            200.0,
+            30.0,
+            30.0,
+            300.0,
+            300.0,
+            300.0,
+            90.0,
+            60.0,
+            20.0,
+            60.0,
+            20.0,
+            20.0,
+            20.0,
+            90.0,
+            60.0,
+            20.0,
+            60.0,
+            20.0,
+            20.0,
+            20.0
+          ],
+          "kd": [
+            2.0,
+            2.0,
+            2.0,
+            4.0,
+            2.0,
+            2.0,
+            2.0,
+            2.0,
+            2.0,
+            4.0,
+            2.0,
+            2.0,
+            10.0,
+            10.0,
+            10.0,
+            2.0,
+            2.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            2.0,
+            2.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "actor_hash": "c24125e37ffbbb7167dc3842a42ae7345b87efd76e8e5095b0a5072af8b9a766",
+        "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684",
+        "optimizer_empty": true,
+        "smoke": {
+          "actor_exact_parent": true,
+          "fresh_critic": true,
+          "optimizer_empty": true,
+          "actor_hash": "c24125e37ffbbb7167dc3842a42ae7345b87efd76e8e5095b0a5072af8b9a766",
+          "critic_hash": "dcc4530b552fbb20d3f0669f7b38916298696e88b6aef79daf3111f666f49684"
+        },
+        "finite_losses": true,
+        "completed_updates": 10,
+        "status": {
+          "state": "training",
+          "pid": 2910821,
+          "time": 1793327580.3381577,
+          "gpu_uuid": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+          "updates": 32,
+          "envs": 4096
+        }
+      }
+    }
+  },
+  "preflight": {
+    "passed": true,
+    "arm": "landing010",
+    "contract": {
+      "schema": {
+        "task_profile": "cat_source_v1",
+        "field_cache_identity": "e01bfa7ea07a8067a7490b0220ef6774b5265b3c187c353f57c4768d3ebf418f",
+        "robot_model_identity": "ee3b135d60c5a4b891202fcb0e86b591d05c15e68d8fffc536a4b8d9fbe18c6c",
+        "source_commit": "866ba392f1c1e84b92ad75fa66550f26e8af8e48",
+        "scene_hash": "97ec1f3256cf17b52b7e370a2ddd6d8a5cdbc309edc9ef326de300b1add6825f",
+        "scene_names": [
+          "wall_detour",
+          "passage",
+          "hurdle_crouch"
+        ],
+        "body_sites": [
+          "head",
+          "imu_in_pelvis",
+          "imu_in_torso",
+          "left_foot",
+          "right_foot",
+          "left_palm",
+          "right_palm",
+          "left_knee",
+          "right_knee",
+          "left_shoulder",
+          "right_shoulder"
+        ],
+        "joint_names": [
+          "left_hip_pitch_joint",
+          "left_hip_roll_joint",
+          "left_hip_yaw_joint",
+          "left_knee_joint",
+          "left_ankle_pitch_joint",
+          "left_ankle_roll_joint",
+          "right_hip_pitch_joint",
+          "right_hip_roll_joint",
+          "right_hip_yaw_joint",
+          "right_knee_joint",
+          "right_ankle_pitch_joint",
+          "right_ankle_roll_joint",
+          "waist_yaw_joint",
+          "waist_roll_joint",
+          "waist_pitch_joint",
+          "left_shoulder_pitch_joint",
+          "left_shoulder_roll_joint",
+          "left_shoulder_yaw_joint",
+          "left_elbow_joint",
+          "left_wrist_roll_joint",
+          "left_wrist_pitch_joint",
+          "left_wrist_yaw_joint",
+          "right_shoulder_pitch_joint",
+          "right_shoulder_roll_joint",
+          "right_shoulder_yaw_joint",
+          "right_elbow_joint",
+          "right_wrist_roll_joint",
+          "right_wrist_pitch_joint",
+          "right_wrist_yaw_joint"
+        ],
+        "action_names": [
+          "left_hip_pitch_joint",
+          "left_hip_roll_joint",
+          "left_hip_yaw_joint",
+          "left_knee_joint",
+          "left_ankle_pitch_joint",
+          "left_ankle_roll_joint",
+          "right_hip_pitch_joint",
+          "right_hip_roll_joint",
+          "right_hip_yaw_joint",
+          "right_knee_joint",
+          "right_ankle_pitch_joint",
+          "right_ankle_roll_joint"
+        ],
+        "obs_joint_names": [
+          "left_hip_pitch_joint",
+          "left_hip_roll_joint",
+          "left_hip_yaw_joint",
+          "left_knee_joint",
+          "left_ankle_pitch_joint",
+          "left_ankle_roll_joint",
+          "right_hip_pitch_joint",
+          "right_hip_roll_joint",
+          "right_hip_yaw_joint",
+          "right_knee_joint",
+          "right_ankle_pitch_joint",
+          "right_ankle_roll_joint",
+          "waist_yaw_joint",
+          "waist_roll_joint",
+          "waist_pitch_joint",
+          "left_shoulder_pitch_joint",
+          "left_shoulder_roll_joint",
+          "left_shoulder_yaw_joint",
+          "left_elbow_joint",
+          "right_shoulder_pitch_joint",
+          "right_shoulder_roll_joint",
+          "right_shoulder_yaw_joint",
+          "right_elbow_joint"
+        ],
+        "action_scale": 0.5,
+        "action_transform": "latent_tanh_v1",
+        "reward_action_history": "previous_two_controls_v1",
+        "task": {
+          "noise_level": 1.0,
+          "random_pd": true,
+          "random_rfi": true,
+          "push": true,
+          "ground": 1.0,
+          "lateral": 1.0,
+          "overhead": 1.0,
+          "term_collision_threshold": 0.04,
+          "command_deadband_m_s": 0.01,
+          "arrival_control": "root_linear_v1",
+          "feetgf_progress_gate": "root_displacement_0p5s_v1"
+        },
+        "source_profile": {
+          "version": "cat_source_v1"
+        },
+        "physics": {
+          "timestep": 0.002,
+          "decimation": 10
+        },
+        "observation": "cat_source_actor162_critic250_v1",
+        "normalization": false,
+        "rfi_amplitude_multiplier": 0.375,
+        "foot_guidance_experiment": {
+          "version": "cat_foot_guidance_v1",
+          "foot_projection_radius_m": 0.3,
+          "other_sites_projection_radius": "5 * voxel_size",
+          "foot_site_indices": [
+            3,
+            4
+          ],
+          "sdf": "original_point_sdf",
+          "source_interpolation": "unchanged",
+          "base_cache_identity": "4a1534dda2cfccaab9d3aac54287326d72e984a0adedae7c5b9cf1a86e7875cf",
+          "foot_manifest_identity": "4fbc8beeba4ec8aa375e71a41287add9c923a6c2a66a856d57a0c9bc77d467ff"
+        },
+        "controller_pd": {
+          "version": "cat_ankle_pd30_2_v1",
+          "joint_names": [
+            "left_hip_pitch_joint",
+            "left_hip_roll_joint",
+            "left_hip_yaw_joint",
+            "left_knee_joint",
+            "left_ankle_pitch_joint",
+            "left_ankle_roll_joint",
+            "right_hip_pitch_joint",
+            "right_hip_roll_joint",
+            "right_hip_yaw_joint",
+            "right_knee_joint",
+            "right_ankle_pitch_joint",
+            "right_ankle_roll_joint",
+            "waist_yaw_joint",
+            "waist_roll_joint",
+            "waist_pitch_joint",
+            "left_shoulder_pitch_joint",
+            "left_shoulder_roll_joint",
+            "left_shoulder_yaw_joint",
+            "left_elbow_joint",
+            "left_wrist_roll_joint",
+            "left_wrist_pitch_joint",
+            "left_wrist_yaw_joint",
+            "right_shoulder_pitch_joint",
+            "right_shoulder_roll_joint",
+            "right_shoulder_yaw_joint",
+            "right_elbow_joint",
+            "right_wrist_roll_joint",
+            "right_wrist_pitch_joint",
+            "right_wrist_yaw_joint"
+          ],
+          "kp": [
+            100.0,
+            100.0,
+            100.0,
+            200.0,
+            30.0,
+            30.0,
+            100.0,
+            100.0,
+            100.0,
+            200.0,
+            30.0,
+            30.0,
+            300.0,
+            300.0,
+            300.0,
+            90.0,
+            60.0,
+            20.0,
+            60.0,
+            20.0,
+            20.0,
+            20.0,
+            90.0,
+            60.0,
+            20.0,
+            60.0,
+            20.0,
+            20.0,
+            20.0
+          ],
+          "kd": [
+            2.0,
+            2.0,
+            2.0,
+            4.0,
+            2.0,
+            2.0,
+            2.0,
+            2.0,
+            2.0,
+            4.0,
+            2.0,
+            2.0,
+            10.0,
+            10.0,
+            10.0,
+            2.0,
+            2.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            2.0,
+            2.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "reward_smoothness_action_weight": -0.001,
+        "foot_landing_speed": {
+          "version": "sole_descent_substep_v1",
+          "height_m": 0.05,
+          "speed_m_s": 0.5,
+          "weight": 0.1
+        },
+        "source_interpolation": "xyz_weights_v1",
+        "optimization_profile": "brax_0_12_3_v1",
+        "policy_activation": "swish"
+      },
+      "actor_dim": 162,
+      "critic_dim": 250,
+      "action_dim": 12,
+      "hidden_dims": [
+        256,
+        128,
+        64
+      ],
+      "activation": "swish",
+      "normalization": false,
+      "critic_hidden_dims": [
+        512,
+        256,
+        128
+      ]
+    },
+    "initial_hashes": {
+      "q": "91d38437ddd9da6b83c061050f3b8ad5550052ac401965757ddcabd42ffdd920",
+      "root": "fac19724b33edcf8ae1439f0b3bf27a9b2679b32e7a50f0e7d8923632c372507",
+      "kp": "c5483f8ee6b4aa9d4a16acfff1374ac7825533c7936047640bc5dafeb1d6cc11",
+      "kd": "025ba7f4b0899018cfabca73309e0e4a57836c3ccaae1e1715f21b0552376800",
+      "rfi": "4d268bf8a6300fc79e07e66ef2db027628a6a564b717874f2ea9eb96267e077e"
+    },
+    "transfer": {
+      "migration": "cat_curriculum_actor_only_v1",
+      "parent_checkpoint": "/home/sunxun/embodied-learning/runs/cat-feetgf-progress-stage1-20261026-01/stage4-session-gpu6/chunks/update-0480/latest.pt",
+      "parent_sha256": "b127bcf7bf7613460f7252694612dfb291e4c63ace4fb292b6d8c82f11bf4a83",
+      "parent_completed_iterations": 480,
+      "parent_curriculum": {
+        "stage": 4,
+        "experiment": "cat-feetgf-progress-stage1-20261026-01",
+        "protocol_sha256": "610a3854634b5f54178c070eb64f574bb913590050e0f8415db43e53a8f13987",
+        "robot_fingerprint": "417590efd7802713d002985194cff14c714db936f864833bef29a5fe202543ed",
+        "feetgf_progress_refinement": {
+          "version": "cat_feetgf_progress_actor_transfer_v1",
+          "parent_sha256": "59394bf0e67858f417c2df7fad21bb76c19db9452f5e6b67c1194e6954bb647a",
+          "parent_experiment": "cat-pd30-rfi0375-stage1-20261026-01",
+          "parent_protocol_sha256": "ef2fc5d11fe00bd4055348ac8154c07bbec4f1224cb3ec5131fd57e9df8e76d4",
+          "before": null,
+          "after": "root_displacement_0p5s_v1"
+        }
+      },
+      "contract_changes": {
+        "foot_landing_speed": {
+          "before": null,
+          "after": {
+            "version": "sole_descent_substep_v1",
+            "height_m": 0.05,
+            "speed_m_s": 0.5,
+            "weight": 0.1
+          }
+        }
+      },
+      "actor_restored": true,
+      "actor_normalizer_restored": true,
+      "critic_restored": false,
+      "optimizer_restored": false,
+      "rng_restored": false,
+      "counters_restored": false
+    },
+    "actual_pd": {
+      "version": "cat_ankle_pd30_2_v1",
+      "joint_names": [
+        "left_hip_pitch_joint",
+        "left_hip_roll_joint",
+        "left_hip_yaw_joint",
+        "left_knee_joint",
+        "left_ankle_pitch_joint",
+        "left_ankle_roll_joint",
+        "right_hip_pitch_joint",
+        "right_hip_roll_joint",
+        "right_hip_yaw_joint",
+        "right_knee_joint",
+        "right_ankle_pitch_joint",
+        "right_ankle_roll_joint",
+        "waist_yaw_joint",
+        "waist_roll_joint",
+        "waist_pitch_joint",
+        "left_shoulder_pitch_joint",
+        "left_shoulder_roll_joint",
+        "left_shoulder_yaw_joint",
+        "left_elbow_joint",
+        "left_wrist_roll_joint",
+        "left_wrist_pitch_joint",
+        "left_wrist_yaw_joint",
+        "right_shoulder_pitch_joint",
+        "right_shoulder_roll_joint",
+        "right_shoulder_yaw_joint",
+        "right_elbow_joint",
+        "right_wrist_roll_joint",
+        "right_wrist_pitch_joint",
+        "right_wrist_yaw_joint"
+      ],
+      "kp": [
+        100.0,
+        100.0,
+        100.0,
+        200.0,
+        30.0,
+        30.0,
+        100.0,
+        100.0,
+        100.0,
+        200.0,
+        30.0,
+        30.0,
+        300.0,
+        300.0,
+        300.0,
+        90.0,
+        60.0,
+        20.0,
+        60.0,
+        20.0,
+        20.0,
+        20.0,
+        90.0,
+        60.0,
+        20.0,
+        60.0,
+        20.0,
+        20.0,
+        20.0
+      ],
+      "kd": [
+        2.0,
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        10.0,
+        10.0,
+        10.0,
+        2.0,
+        2.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        2.0,
+        2.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "actual_scales": {
+      "tracking_orientation": 2.0,
+      "tracking_root_field": 1.0,
+      "body_motion": -0.5,
+      "body_rotation": 1.0,
+      "foot_contact": -1.0,
+      "foot_clearance": -15.0,
+      "foot_slip": -0.5,
+      "foot_balance": -30.0,
+      "straight_knee": -30.0,
+      "foot_far": 0.0,
+      "smoothness_joint": -1e-06,
+      "smoothness_action": -0.001,
+      "joint_limits": -1.0,
+      "joint_torque": -0.0001,
+      "headgf": 1.0,
+      "handsgf": 1.0,
+      "feetgf": 1.0,
+      "headdf": 1.0,
+      "handsdf": 1.0,
+      "feetdf": 1.0,
+      "kneesdf": 1.0,
+      "shldsdf": 1.0,
+      "foot_landing_speed": -0.1
+    },
+    "max_landing_rate": 11.409185409545898,
+    "positive_slot_controls": 1949,
+    "neutral_phase_integrated_cost": 15.72728443145752,
+    "unrelated_contract_exact": true
+  },
+  "launch": {
+    "root": "/home/sunxun/embodied-learning/runs/cat-landing-speed-stage4-pilot-20261030-01",
+    "launched_at": 1793327530.3531027,
+    "jobs": [
+      {
+        "arm": "baseline",
+        "pid": 2910820,
+        "gpu_index": 1,
+        "gpu_uuid": "GPU-724bc291-93b1-186c-1965-eb918f905ffc"
+      },
+      {
+        "arm": "landing010",
+        "pid": 2910821,
+        "gpu_index": 5,
+        "gpu_uuid": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281"
+      }
+    ],
+    "updates_per_arm": 32,
+    "envs": 4096,
+    "rollout_steps": 160,
+    "automatic_promotion": false
+  },
+  "review": {
+    "important_finding": "Pre-step sampling duplicated the first derived state and missed the last2ms state.",
+    "resolution": "Post-sim.step sampling, no extra forward; real MuJoCo regression RED\u2192GREEN confirms all10states once and final-only event cost0.4."
+  },
+  "tests": {
+    "isolated": "522passed34skipped before additional unchanged-baseline transfer regression;27targeted passed afterwards",
+    "main": "557passed,1pre-existingMULTICCDwarning,83.65s",
+    "targeted": "27passed"
+  },
+  "automatic_promotion": false,
+  "extension": {
+    "budget": {
+      "total_updates": 128,
+      "initial_updates": 32,
+      "additional_updates": 96,
+      "chunk_updates": 32,
+      "per_arm_total_transitions": 83886080,
+      "checkpoint_evaluations": [
+        32,
+        64,
+        96,
+        128
+      ],
+      "success_episodes": 256,
+      "impact_episodes": 32,
+      "full_state_resume": true,
+      "old_protocols_unchanged": true,
+      "automatic_promotion": false,
+      "requested_at": 1793329083.888614
+    },
+    "jobs": [
+      {
+        "arm": "baseline",
+        "pid": 2987790,
+        "gpu_index": 1,
+        "gpu_uuid": "GPU-724bc291-93b1-186c-1965-eb918f905ffc",
+        "protocol_sha256": "ec658e0befdd674cb06f181931d54cbe93ecb288cb8bf208654bc034897fd414"
+      },
+      {
+        "arm": "landing010",
+        "pid": 2987791,
+        "gpu_index": 5,
+        "gpu_uuid": "GPU-de0e690a-9b65-1acb-6bfe-fccce34ed281",
+        "protocol_sha256": "c1368281c7b30c32f53d36e9c3f5c6ffd9cec210703074221faad33a6739b26d"
+      }
+    ],
+    "monitor_pid": 2987792,
+    "root": "/home/sunxun/embodied-learning/runs/cat-landing-speed-stage4-pilot-20261030-01"
+  },
+  "initial32_results": {
+    "baseline": {
+      "rates": {
+        "fall": 0.0,
+        "collision": 0.0,
+        "invalid": 0.0,
+        "timeout": 1.0,
+        "goal": 1.0,
+        "physical_collision": 0.15625,
+        "success": 0.84375,
+        "timeout_without_goal": 0.0
+      },
+      "first_goal_seconds": {
+        "count": 256,
+        "mean": 5.7953906250000005,
+        "median": 5.94,
+        "p95": 6.78
+      },
+      "phases": {
+        "approach": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 2.4277490973472595,
+            "median": 2.373608350753784,
+            "p95": 3.0669297218322753,
+            "max": 3.3878495693206787
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.0001752424435688,
+            "median": 1.0071773200631142,
+            "p95": 1.0156583304673432,
+            "max": 1.020109539449215
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.636189670713531,
+            "median": 0.6220001392215491,
+            "p95": 0.8247565472625196,
+            "max": 0.864397455893457
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 1.710172913968563,
+            "median": 1.6441895961761475,
+            "p95": 2.285366344451904,
+            "max": 2.609973669052124
+          }
+        },
+        "crossing": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 8.462979778647423,
+            "median": 6.353587865829468,
+            "p95": 7.834077405929565,
+            "max": 73.47079467773438
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.2108188787231944,
+            "median": 0.9942029509209478,
+            "p95": 1.0287083475992083,
+            "max": 8.94756074667534
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.9168566580665808,
+            "median": 0.8956191667938984,
+            "p95": 1.100519971392914,
+            "max": 1.1548079392295094
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 3.018054634332657,
+            "median": 2.9637731313705444,
+            "p95": 3.8238075613975524,
+            "max": 5.306102752685547
+          }
+        },
+        "pre_cross_1s": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 8.462979778647423,
+            "median": 6.353587865829468,
+            "p95": 7.834077405929565,
+            "max": 73.47079467773438
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.114892343372776,
+            "median": 0.9665550215393305,
+            "p95": 1.0297408873200415,
+            "max": 6.109420216888189
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.8753981634667143,
+            "median": 0.879933702684939,
+            "p95": 1.0145666276693344,
+            "max": 1.0809700013995172
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 3.002318538725376,
+            "median": 2.9637731313705444,
+            "p95": 3.8238075613975524,
+            "max": 5.306102752685547
+          }
+        },
+        "post_cross_1s": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 5.276552930474281,
+            "median": 5.216638088226318,
+            "p95": 6.705828046798706,
+            "max": 7.1107892990112305
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.0052807687575678,
+            "median": 1.0081940926462414,
+            "p95": 1.0547327267691493,
+            "max": 1.0593385056108235
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 1.1732218793496723,
+            "median": 1.1900016767047346,
+            "p95": 1.2991094214059413,
+            "max": 1.5615278292745352
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 4.236255742609501,
+            "median": 4.26589822769165,
+            "p95": 5.830505847930908,
+            "max": 6.243074417114258
+          }
+        },
+        "late": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 3.4112800024449825,
+            "median": 3.651460289955139,
+            "p95": 6.232402968406677,
+            "max": 6.990121364593506
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.0005820451822385,
+            "median": 1.0000906846877187,
+            "p95": 1.0035830063883215,
+            "max": 1.0045135196391493
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.44575016224572395,
+            "median": 0.4459478016106295,
+            "p95": 0.6069660970642929,
+            "max": 0.6263945677992888
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 2.6808632109314203,
+            "median": 2.652547001838684,
+            "p95": 5.108261919021606,
+            "max": 5.276952743530273
+          }
+        }
+      }
+    },
+    "landing010": {
+      "rates": {
+        "fall": 0.0,
+        "collision": 0.0,
+        "invalid": 0.0,
+        "timeout": 1.0,
+        "goal": 1.0,
+        "physical_collision": 0.140625,
+        "success": 0.859375,
+        "timeout_without_goal": 0.0
+      },
+      "first_goal_seconds": {
+        "count": 256,
+        "mean": 5.609609375,
+        "median": 5.44,
+        "p95": 6.835
+      },
+      "phases": {
+        "approach": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 2.53697844222188,
+            "median": 2.5381804704666138,
+            "p95": 3.28072452545166,
+            "max": 3.5565083026885986
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.0007972791455688,
+            "median": 1.0090594074726105,
+            "p95": 1.0167528899431229,
+            "max": 1.0232298706769942
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.6689804008433129,
+            "median": 0.6660953279808164,
+            "p95": 0.8161805749777704,
+            "max": 0.8695586620271206
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 1.840185459703207,
+            "median": 1.8161611557006836,
+            "p95": 2.434005045890808,
+            "max": 2.6984174251556396
+          }
+        },
+        "crossing": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 6.0939547419548035,
+            "median": 6.189245939254761,
+            "p95": 7.1388554811477665,
+            "max": 7.21075439453125
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 0.9812340356948508,
+            "median": 0.9885601132830475,
+            "p95": 1.0220931996985307,
+            "max": 1.0262050485128866
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.8897823631110491,
+            "median": 0.8609193931572793,
+            "p95": 1.025573790851323,
+            "max": 1.0340830308414812
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 2.883700367063284,
+            "median": 2.8807653188705444,
+            "p95": 3.5059489488601683,
+            "max": 3.78403639793396
+          }
+        },
+        "pre_cross_1s": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 6.0939547419548035,
+            "median": 6.189245939254761,
+            "p95": 7.1388554811477665,
+            "max": 7.21075439453125
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 0.9740493652094155,
+            "median": 0.9726721981167793,
+            "p95": 1.0097345060408116,
+            "max": 1.0192923483252525
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.8550928221239009,
+            "median": 0.8354684863388538,
+            "p95": 0.9673641285002232,
+            "max": 1.0083381166905165
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 2.8421318866312504,
+            "median": 2.848775625228882,
+            "p95": 3.5059489488601683,
+            "max": 3.78403639793396
+          }
+        },
+        "post_cross_1s": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 5.043141454458237,
+            "median": 4.860754013061523,
+            "p95": 6.355048656463623,
+            "max": 6.801882266998291
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.011607700629742,
+            "median": 1.0136899786666036,
+            "p95": 1.0580063216993585,
+            "max": 1.0643536396324635
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 1.1634191806537566,
+            "median": 1.1837054606489836,
+            "p95": 1.3774501025401056,
+            "max": 1.437873217344284
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 4.69079253077507,
+            "median": 4.7489402294158936,
+            "p95": 6.299664092063904,
+            "max": 6.570927143096924
+          }
+        },
+        "late": {
+          "slots": 32,
+          "single_foot_peak_BW": {
+            "n": 32,
+            "mean": 3.489650623872876,
+            "median": 3.815036177635193,
+            "p95": 6.233574247360229,
+            "max": 6.572916507720947
+          },
+          "mean_total_fz_BW": {
+            "n": 32,
+            "mean": 1.0003085767128423,
+            "median": 1.0000282391039654,
+            "p95": 1.0029236054530368,
+            "max": 1.0039566832706333
+          },
+          "omega_mean": {
+            "n": 32,
+            "mean": 0.43481499846578847,
+            "median": 0.46830918463761917,
+            "p95": 0.5924442791121546,
+            "max": 0.6332020100841764
+          },
+          "omega_peak": {
+            "n": 32,
+            "mean": 2.786038702353835,
+            "median": 2.748380661010742,
+            "p95": 4.549511361122131,
+            "max": 5.104394435882568
+          }
+        }
+      }
+    }
+  }
+}
