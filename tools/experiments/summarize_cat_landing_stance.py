@@ -11,10 +11,23 @@ import numpy as np
 TERMINAL_LIMITS = ("terminal_distance", "terminal_linear_speed", "terminal_angular_speed")
 METRICS = (
     "landing_peak_bw", "landing_down_m_s", "landing_pitch_excursion_deg",
+    "landing_impulse_10ms_bw_s", "landing_impulse_50ms_bw_s", "landing_peak_after_contact_ms",
     "landing_knee_ankle_velocity_rms", "landing_knee_ankle_target_step_deg",
     "stance_joint_velocity_rms", "stance_target_step_rms_deg",
     "stance_foot_slip_m_s", "stance_torso_pitch_rms_deg",
 )
+
+
+def landing_force_metrics(force_bw, hz):
+    """Single-foot vertical force window, normalized by robot weight."""
+    if len(force_bw) != round(0.05 * hz):
+        raise ValueError("Landing force window must cover 50 ms")
+    return dict(
+        landing_peak_bw=float(force_bw.max()),
+        landing_impulse_10ms_bw_s=float(force_bw[:round(0.01 * hz)].sum() / hz),
+        landing_impulse_50ms_bw_s=float(force_bw.sum() / hz),
+        landing_peak_after_contact_ms=float(force_bw.argmax() * 1000 / hz),
+    )
 
 
 def episode_metrics(physics, control, manifest):
@@ -89,7 +102,7 @@ def episode_metrics(physics, control, manifest):
             landing_knee_ankle_target_step_deg=float(np.rad2deg(np.sqrt(np.mean(target_change[side_joints]**2)))),
             landing_time_s=(i + 1) / hz,
             landing_foot=side,
-            landing_peak_bw=float(fz[i:end, side].max()),
+            **landing_force_metrics(fz[i:end, side], hz),
             landing_down_m_s=float(-p[i - round(0.006 * hz):i, 8 + side].mean()),
             landing_pitch_excursion_deg=float(np.rad2deg(np.abs(c[control_index:after, 3] - c[before, 3]).max())),
         )
