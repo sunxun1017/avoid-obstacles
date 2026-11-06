@@ -10,10 +10,10 @@ import numpy as np
 
 METRICS = (
     "landing_peak_bw", "landing_down_m_s", "landing_pitch_excursion_deg",
+    "landing_knee_ankle_velocity_rms", "landing_knee_ankle_target_step_deg",
     "stance_joint_velocity_rms", "stance_target_step_rms_deg",
     "stance_foot_slip_m_s", "stance_torso_pitch_rms_deg",
 )
-KEYS = ("evaluation_seed", "slot")
 
 
 def episode_metrics(physics, control, manifest):
@@ -56,10 +56,15 @@ def episode_metrics(physics, control, manifest):
                 continue
             if on[i:i + round(0.01 * hz)].sum() < round(0.006 * hz):
                 continue
-            nearby = foot[pre:i + 1, side]
-            if not (front - 0.2 <= nearby[0, 0] <= back
-                    and back < nearby[-1, 0] <= back + 0.45
-                    and abs(nearby[-1, 1] - lateral) <= half_width):
+            earlier_contact = np.flatnonzero(on[:pre])
+            if not len(earlier_contact):
+                continue
+            swing = foot[earlier_contact[-1]:i + 1, side]
+            above_hurdle = (
+                (swing[:, 0] >= front) & (swing[:, 0] <= back)
+                & (np.abs(swing[:, 1] - lateral) <= half_width)
+            )
+            if not (swing[0, 0] < front and swing[-1, 0] > back and above_hurdle.any()):
                 continue
             touchdown.append((i, side, end))
             break
@@ -68,7 +73,14 @@ def episode_metrics(physics, control, manifest):
         control_index = i * manifest["control_hz"] // hz
         before = max(0, control_index - 1)
         after = min(len(c), control_index + round(0.25 * manifest["control_hz"]))
+        side_joints = [
+            j for j in legs if manifest["joint_names"][j].startswith(("left_", "right_")[side])
+        ]
+        target_change = c[control_index, 8 + 2 * n:8 + 3 * n] - c[before, 8 + 2 * n:8 + 3 * n]
+        measured_velocity = c[before, 8 + n:8 + 2 * n]
         row.update(
+            landing_knee_ankle_velocity_rms=float(np.sqrt(np.mean(measured_velocity[side_joints]**2))),
+            landing_knee_ankle_target_step_deg=float(np.rad2deg(np.sqrt(np.mean(target_change[side_joints]**2)))),
             landing_time_s=(i + 1) / hz,
             landing_peak_bw=float(fz[i:end, side].max()),
             landing_down_m_s=float(-p[i - round(0.006 * hz):i, 8 + side].mean()),
@@ -110,7 +122,8 @@ def main():
     by_seed = {}
     for path in sorted(args.root.glob("*/traces.npz")):
         manifest = json.loads((path.parent / "manifest.json").read_text())
-        traces = np.load(path)
+        with np.load(path) as traces:
+            physics, control = traces["physics"], traces["control"]
         episodes = [json.loads(line) for line in (path.parent / "episodes.jsonl").read_text().splitlines()]
         label, seed = manifest["label"], manifest["evaluation_seed"]
         pair_key = (
@@ -121,7 +134,7 @@ def main():
             raise ValueError(f"Seed {seed} has mismatched initial conditions or code")
         for episode in episodes:
             slot = episode["slot"]
-            row = episode_metrics(traces["physics"][:, slot], traces["control"][:, slot], manifest)
+            row = episode_metrics(physics[:, slot], control[:, slot], manifest)
             row.update(
                 label=label, evaluation_seed=seed, slot=slot,
                 code_commit=manifest["code_commit"], config_sha256=manifest["config_sha256"],
