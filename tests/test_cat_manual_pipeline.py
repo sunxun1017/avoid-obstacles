@@ -145,3 +145,64 @@ def test_migration_resume_keeps_global_budget_instead_of_adding_a_new_budget(
     assert updates == [2, 1]
     assert result["completed_updates"] == 5
     assert result["resumed_from_updates"] == 2
+
+
+def test_gated_scheduler_advances_only_after_two_seed_update_600_reports(tmp_path, monkeypatch):
+    import hashlib
+
+    pipeline = pipeline_module()
+    monkeypatch.setattr(pipeline, "stages_for", lambda *_: [None, None, None])
+    root = tmp_path / "experiment"
+    protocol = dict(
+        total_updates=600, chunk_updates=350, terminal_gate_seeds=[10, 11],
+        ppo={"seed": 42},
+    )
+    pipeline.write_json(root / "protocol.json", protocol)
+    protocol_hash = hashlib.sha256((root / "protocol.json").read_bytes()).hexdigest()
+    calls = []
+
+    def child(args, log):
+        calls.append(args)
+        read = lambda name: args[args.index(name) + 1]
+        stage = int(read("--stage"))
+        out = Path(read("--output"))
+        if args[0] == "train":
+            checkpoint = out / "latest.pt"
+            checkpoint.write_bytes(f"stage={stage} chunk={out.name}".encode())
+            pipeline.write_json(out / "complete.json", dict(
+                checkpoint=str(checkpoint), completed_iterations=int(out.name.split("-")[1]),
+            ))
+        else:
+            assert "--terminal-gate" in args
+            assert read("--execution-profile") == "source_train"
+            checkpoint = Path(read("--checkpoint"))
+            assert checkpoint.parent.name == "update-0600"
+            seed = int(read("--seed"))
+            pipeline.write_json(out / "evaluation.json", dict(
+                seed=seed, training_seed=42, training_stage=stage, evaluation_stage=stage,
+                checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+                completed_updates=600, execution_profile="source_train",
+                contact_sampling="physics_substep", evaluation_code_commit="a" * 40,
+                protocol_sha256=protocol_hash,
+                terminal_v1=dict(
+                    protocol="cat_terminal_20s_v1", episodes=128,
+                    success_count=113 if stage == 0 or seed == 10 else 112,
+                ),
+            ))
+
+    output = tmp_path / "automatic"
+    result = pipeline.run_gated(root, output, run_child=child)
+    assert result["state"] == "stopped_at_gate"
+    assert result["failed_stage"] == 1
+    assert [x["success_count"] for x in result["gates"]] == [226, 225]
+    assert [(a[0], a[a.index("--stage") + 1]) for a in calls] == [
+        ("train", "0"), ("train", "0"), ("evaluate", "0"), ("evaluate", "0"),
+        ("train", "1"), ("train", "1"), ("evaluate", "1"), ("evaluate", "1"),
+    ]
+    assert "--warmstart-actor" not in calls[0]
+    assert calls[4][calls[4].index("--warmstart-actor") + 1].endswith(
+        "stage-00/chunks/update-0600/latest.pt"
+    )
+    assert "--resume" in calls[1] and "--resume" in calls[5]
+    assert (output / "stage-01/gate.json").is_file()
+    assert not (output / "stage-02").exists()

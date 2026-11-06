@@ -1,4 +1,4 @@
-"""Run one manually selected CAT stage; evaluation never advances difficulty."""
+"""Run one CAT stage manually or opt in to the update-600 curriculum gate."""
 
 # ruff: noqa: E402
 from __future__ import annotations
@@ -17,6 +17,7 @@ from pathlib import Path
 CODE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(CODE / "src"))
 from train_cat_curriculum import stages_for, write_json
+from embodied_learning.evaluation.cat_terminal_gate import gate_from_evaluations
 
 
 def now():
@@ -33,8 +34,15 @@ def run(
     smoke=False,
     run_child=None,
     source_manifest=None,
+    terminal_gate_seeds=None,
 ):
-    protocol = json.loads((root / "protocol.json").read_text())
+    protocol_path = root / "protocol.json"
+    protocol_bytes = protocol_path.read_bytes()
+    protocol = json.loads(protocol_bytes)
+    protocol_sha256 = hashlib.sha256(protocol_bytes).hexdigest()
+    gated = terminal_gate_seeds is not None
+    if gated and (protocol["total_updates"] != 600 or smoke):
+        raise ValueError("Formal gate requires 600 updates and full evaluation cohorts")
     stages = stages_for(root, protocol)
     if not 0 <= level < len(stages):
         raise ValueError("Invalid curriculum stage.")
@@ -65,7 +73,7 @@ def run(
         completed_updates=completed,
         resumed_from_updates=completed,
         stage=level,
-        progression="manual",
+        progression="terminal_20s_v1" if gated else "manual",
         initialization="resume"
         if resume
         else "actor_only"
@@ -76,6 +84,8 @@ def run(
     checkpoint, history = resume, []
 
     def child(arguments, log_path):
+        if gated and protocol_path.read_bytes() != protocol_bytes:
+            raise ValueError("Protocol changed during gated training")
         if source_manifest is not None:
             for name, digest in source_manifest.items():
                 if hashlib.sha256((CODE / name).read_bytes()).hexdigest() != digest:
@@ -139,6 +149,35 @@ def run(
                 checkpoint=str(checkpoint),
                 phase="evaluation",
             )
+            if gated:
+                write_json(output / "status.json", status)
+                if completed < 600:
+                    continue
+                reports = []
+                digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+                for seed in terminal_gate_seeds:
+                    evaluation_dir = dest / f"evaluation-seed-{seed}"
+                    child(
+                        [
+                            "evaluate", "--stage", str(level), "--checkpoint", str(checkpoint),
+                            "--output", str(evaluation_dir), "--seed", str(seed),
+                            "--execution-profile", "source_train", "--terminal-gate",
+                        ],
+                        dest / f"evaluate-seed-{seed}.log",
+                    )
+                    report = json.loads((evaluation_dir / "evaluation.json").read_text())
+                    if (
+                        report["seed"] != seed or report["training_stage"] != level
+                        or report["checkpoint_sha256"] != digest
+                        or report["protocol_sha256"] != protocol_sha256
+                        or report["training_seed"] != protocol["ppo"]["seed"]
+                    ):
+                        raise ValueError("Gate report does not match this run's checkpoint or provenance")
+                    reports.append(report)
+                gate = gate_from_evaluations(reports)
+                write_json(output / "gate.json", gate)
+                status["gate"] = gate
+                break
             evaluation_dir = dest / "evaluation"
             child(
                 [
@@ -175,7 +214,9 @@ def run(
             completed_at=now(),
             training_last_stage=level,
             next_stage=(
-                "Select explicitly and pass --warmstart-actor to a new stage session"
+                level + 1 if gated and status["gate"]["passed"] and level + 1 < len(stages)
+                else None if gated
+                else "Select explicitly and pass --warmstart-actor to a new stage session"
             ),
         )
         write_json(output / "status.json", status)
@@ -187,16 +228,88 @@ def run(
         raise
 
 
+def run_gated(root, output, *, run_child=None):
+    """Start fresh at stage 0, promoting only after the held-out terminal gate."""
+    protocol_path = root / "protocol.json"
+    protocol_bytes = protocol_path.read_bytes()
+    protocol = json.loads(protocol_bytes)
+    seeds = protocol.get("terminal_gate_seeds", [])
+    if (
+        protocol.get("total_updates") != 600
+        or type(protocol.get("chunk_updates")) is not int
+        or protocol["chunk_updates"] < 1
+        or not isinstance(seeds, list) or len(seeds) != 2
+        or any(type(seed) is not int or seed < 0 for seed in seeds)
+        or seeds[0] == seeds[1]
+    ):
+        raise ValueError("Set 600 total updates, positive chunk size and two distinct gate seeds")
+    stages = stages_for(root, protocol)
+    if not stages:
+        raise ValueError("Gated curriculum requires at least one stage")
+    if run_child is None:
+        git = ["git", "-C", str(CODE)]
+        if subprocess.check_output([*git, "status", "--porcelain"], text=True).strip():
+            raise ValueError("Gated training requires a clean committed checkout")
+        code_commit = subprocess.check_output([*git, "rev-parse", "HEAD"], text=True).strip()
+    else:
+        code_commit = None
+    output.mkdir(parents=True, exist_ok=True)
+    if any(output.iterdir()):
+        raise ValueError("Gated curriculum requires an unused output directory")
+    status = dict(
+        state="running", started_at=now(), training_seed=protocol["ppo"]["seed"],
+        evaluation_seeds=seeds, protocol_sha256=hashlib.sha256(protocol_bytes).hexdigest(),
+        code_commit=code_commit, gates=[],
+    )
+    checkpoint = None
+    try:
+        for level in range(len(stages)):
+            status["stage"] = level
+            write_json(output / "status.json", status)
+            if protocol_path.read_bytes() != protocol_bytes:
+                raise ValueError("Protocol changed between gated stages")
+            stage = run(
+                root, level, output / f"stage-{level:02d}",
+                warmstart_actor=checkpoint, run_child=run_child, terminal_gate_seeds=seeds,
+            )
+            checkpoint = Path(stage["checkpoint"])
+            gate = stage["gate"]
+            if code_commit is not None and gate["evaluation_code_commit"] != code_commit:
+                raise ValueError("Checkout changed during gated training")
+            if hashlib.sha256(checkpoint.read_bytes()).hexdigest() != gate["checkpoint_sha256"]:
+                raise ValueError("Gate checkpoint changed before promotion")
+            status["gates"].append({**gate, "checkpoint": str(checkpoint)})
+            if not gate["passed"]:
+                status.update(state="stopped_at_gate", failed_stage=level)
+                break
+        else:
+            status["state"] = "complete"
+        status["completed_at"] = now()
+        write_json(output / "status.json", status)
+        return status
+    except BaseException as error:
+        status.update(state="failed", failed_at=now(), error=str(error))
+        write_json(output / "status.json", status)
+        raise
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
-    parser.add_argument("--stage", type=int, required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--stage", type=int)
+    mode.add_argument("--auto-gate", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     initial = parser.add_mutually_exclusive_group()
     initial.add_argument("--resume", type=Path)
     initial.add_argument("--warmstart-actor", type=Path)
     parser.add_argument("--smoke", action="store_true")
     args = parser.parse_args()
+    if args.auto_gate:
+        if args.resume or args.warmstart_actor or args.smoke:
+            parser.error("--auto-gate begins at stage 0 with full evaluations")
+        result = run_gated(args.root.resolve(), args.output.resolve())
+        return 0 if result["state"] == "complete" else 1
     run(
         args.root.resolve(),
         args.stage,
@@ -208,4 +321,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
