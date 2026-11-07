@@ -18,6 +18,7 @@ sys.path.insert(0, str(CODE / "src"))
 sys.path.insert(0, str(CODE / "tools"))
 from embodied_learning.data.config import load_experiment_config
 from embodied_learning.data.field_scenes import load_scene_manifest
+from embodied_learning.evaluation.cat_obstacle_expert import EXPERT_PROFILE
 from embodied_learning.tasks.cat_curriculum import (
     require_original_task_contract,
     robot_fingerprint,
@@ -60,17 +61,20 @@ def initialize(
     from embodied_learning.tasks.cat_hurdle import parent_settings
 
     if recipe not in (
-        "foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1"
+        "foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1", EXPERT_PROFILE
     ):
         raise ValueError("Unknown curriculum recipe.")
     if type(training_seed) is not int or training_seed < 0:
         raise ValueError("Training seed must be a nonnegative integer")
     gated = terminal_gate_seeds is not None
     standing = recipe == "standing_recovery_v1"
+    expert = recipe == EXPERT_PROFILE
     if training_disturbance_profile is not None and (
-        not standing or training_disturbance_profile != UNITREE_G1_BRIDGE
+        not (standing or expert) or training_disturbance_profile != UNITREE_G1_BRIDGE
     ):
-        raise ValueError("The Unitree bridge requires the standing recovery recipe.")
+        raise ValueError("The Unitree bridge requires the standing recovery recipe or the obstacle expert recipe.")
+    if expert and (not gated or training_disturbance_profile != UNITREE_G1_BRIDGE):
+        raise ValueError("Obstacle expert requires the 600-update gate and full Unitree pushes.")
     if standing and not gated:
         raise ValueError("Standing recovery requires the 600-update terminal gate.")
     if gated:
@@ -89,8 +93,13 @@ def initialize(
             raise ValueError("The hurdle recipe requires a parent checkpoint.")
         parent_checkpoint = Path(parent_checkpoint).resolve()
         saved = parent_settings(parent_checkpoint)
+    elif expert:
+        if parent_checkpoint is None:
+            raise ValueError("The obstacle expert requires a CAT parent checkpoint.")
+        parent_checkpoint = Path(parent_checkpoint).resolve()
+        saved = torch.load(parent_checkpoint, map_location="cpu", weights_only=False)
     elif parent_checkpoint is not None:
-        raise ValueError("Parent checkpoint requires the hurdle recipe.")
+        raise ValueError("Parent checkpoint requires the hurdle or obstacle expert recipe.")
     root.mkdir(parents=True, exist_ok=True)
     if any(root.iterdir()):
         raise ValueError("Initialization requires an empty experiment directory.")
@@ -113,9 +122,9 @@ def initialize(
         root / "protocol.json",
         dict(
             experiment=root.name,
-            curriculum_profile=recipe if standing else "foundation_v1",
+            curriculum_profile=recipe if standing or expert else "foundation_v1",
             **training_disturbances,
-            progression="terminal_20s_v1" if gated else "manual",
+            progression=EXPERT_PROFILE if expert else "terminal_20s_v1" if gated else "manual",
             stage_initialization="actor_only",
             foot_radius_m=0.30,
             source_interpolation="xyz_weights_v1",
@@ -150,7 +159,27 @@ def initialize(
         from embodied_learning.tasks.cat_hurdle import configure_recipe
 
         protocol = json.loads((root / "protocol.json").read_text())
-        configure_recipe(original, protocol, parent_checkpoint, saved)
+        if expert:
+            schema = saved["field_contract"]["schema"]
+            original["task"] = schema["task"]
+            for key in (
+                "risk_guidance", "controller_pd", "standing_balance_mode",
+                "reward_smoothness_action_weight", "reward_smoothness_joint_weight",
+            ):
+                if key in schema:
+                    protocol[key] = schema[key]
+            protocol["expert_bootstrap"] = {
+                "checkpoint": str(parent_checkpoint),
+                "sha256": sha256(parent_checkpoint),
+                "experiment": saved["curriculum"]["experiment"],
+                "protocol_sha256": saved["curriculum"]["protocol_sha256"],
+                "stage": saved["curriculum"]["stage"],
+                "completed_updates": saved["completed_iterations"],
+                "training_seed": saved["ppo_config"]["seed"],
+                "parent_rfi_multiplier": schema.get("rfi_amplitude_multiplier", 1.0),
+            }
+        else:
+            configure_recipe(original, protocol, parent_checkpoint, saved)
         write_json(root / "original.yaml", original)
         write_json(root / "protocol.json", protocol)
 
@@ -227,7 +256,7 @@ def prepare(root, level=None):
         print(json.dumps({"prepared": record}), flush=True)
         del base, bank
     final_geometry_exact = stages[-1] == original
-    if protocol.get("curriculum_profile") != "standing_recovery_v1":
+    if protocol.get("curriculum_profile") not in ("standing_recovery_v1", EXPERT_PROFILE):
         assert final_geometry_exact
     write_json(
         root / "prepared.json",
@@ -243,11 +272,13 @@ def make_env(
 
     protocol = json.loads((root / "protocol.json").read_text())
     if training_disturbance_profile is not None and (
-        level != 0
-        or protocol["curriculum_profile"] != "standing_recovery_v1"
-        or protocol.get("training_disturbance_profile") != training_disturbance_profile
+        protocol.get("training_disturbance_profile") != training_disturbance_profile
+        or (
+            protocol["curriculum_profile"] != EXPERT_PROFILE
+            and (level != 0 or protocol["curriculum_profile"] != "standing_recovery_v1")
+        )
     ):
-        raise ValueError("Training disturbance profile does not match the frozen S0 protocol.")
+        raise ValueError("Training disturbance profile does not match the frozen protocol.")
     directory = root / "stages" / str(level)
     assets = json.loads((directory / "assets.json").read_text())
     settings = load_experiment_config(directory / "config.json")
@@ -324,6 +355,8 @@ def make_env(
         protocol_sha256=sha256(root / "protocol.json"),
         robot_fingerprint=robot_fingerprint(env.unwrapped.sim.mj_model),
     )
+    if "expert_bootstrap" in protocol:
+        env.curriculum_metadata["expert_bootstrap"] = protocol["expert_bootstrap"]
     if "reward_weight_warmstart" in protocol:
         env.curriculum_metadata["reward_weight_warmstart"] = protocol[
             "reward_weight_warmstart"
@@ -606,6 +639,9 @@ def evaluate(
         raise ValueError("Terminal gate evaluation requires the original training disturbances")
 
     protocol = json.loads((root / "protocol.json").read_text())
+    expert_gate = terminal_gate and protocol.get("progression") == EXPERT_PROFILE
+    if protocol.get("progression") == EXPERT_PROFILE and not expert_gate:
+        raise ValueError("Obstacle expert requires its own evaluation gate.")
     if terminal_gate:
         git = ["git", "-C", str(CODE)]
         if subprocess.check_output([*git, "status", "--porcelain"], text=True).strip():
@@ -615,7 +651,10 @@ def evaluate(
         ).strip()
     count = 32 if smoke else 128 if terminal_gate else protocol["evaluation_episodes"]
     env = make_env(
-        root, level, num_envs=count, seed=seed, execution_profile=execution_profile
+        root, level, num_envs=count, seed=seed, execution_profile=execution_profile,
+        training_disturbance_profile=(
+            protocol["training_disturbance_profile"] if expert_gate else None
+        ),
     )
     try:
         saved = torch.load(checkpoint, map_location="cpu", weights_only=False)
@@ -657,12 +696,19 @@ def evaluate(
         output.mkdir(parents=True, exist_ok=False)
         from cat_motion_probe import record_motion
 
-        contacts = capture_prohibited_contacts(env) if terminal_gate else nullcontext()
-        with evaluation_push_mode(env, disable_push), record_motion(env, output), contacts:
-            result = evaluate_cohort(
-                env, policy, episodes=count, episode_path=output / "episodes.jsonl",
-                terminal_gate=terminal_gate,
-            )
+        if expert_gate:
+            from embodied_learning.evaluation.cat_obstacle_expert import evaluate_expert
+
+            scene = next(s for s in env.cat_state.manifest.scenes if s.id == "hurdle_crouch")
+            result = evaluate_expert(env, policy, scene, episode_path=output / "episodes.jsonl")
+            result["disturbance_profile"] = protocol["training_disturbance_profile"]
+        else:
+            contacts = capture_prohibited_contacts(env) if terminal_gate else nullcontext()
+            with evaluation_push_mode(env, disable_push), record_motion(env, output), contacts:
+                result = evaluate_cohort(
+                    env, policy, episodes=count, episode_path=output / "episodes.jsonl",
+                    terminal_gate=terminal_gate,
+                )
         if terminal_gate:
             result["contact_sampling"] = "physics_substep"
             result["protocol_sha256"] = sha256(root / "protocol.json")
@@ -705,7 +751,7 @@ def main():
     parser.add_argument(
         "--recipe",
         default="foundation_v1",
-        choices=("foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1"),
+        choices=("foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1", EXPERT_PROFILE),
     )
     parser.add_argument("--parent-checkpoint", type=Path)
     parser.add_argument(

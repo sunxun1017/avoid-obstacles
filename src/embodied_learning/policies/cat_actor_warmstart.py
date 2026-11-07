@@ -8,6 +8,7 @@ import torch
 
 from embodied_learning.tasks.cat_curriculum import validate_transfer
 from embodied_learning.tasks.cat_foot_guidance import sha256
+from embodied_learning.tasks.cat_traversal import UNITREE_G1_BRIDGE
 
 
 def load_actor_warmstart(
@@ -151,6 +152,35 @@ def load_actor_warmstart(
             "protocol_sha256": curriculum["protocol_sha256"],
         }
         refined = True
+    bootstrap = curriculum.get("expert_bootstrap")
+    bootstrap_changes = {}
+    if bootstrap is not None and (
+        source["experiment"] != curriculum["experiment"]
+        or source["protocol_sha256"] != curriculum["protocol_sha256"]
+    ):
+        original_rfi = old["schema"].get("rfi_amplitude_multiplier", 1.0)
+        if (
+            curriculum["stage"] != 0
+            or bootstrap["sha256"] != sha256(checkpoint)
+            or bootstrap["experiment"] != source["experiment"]
+            or bootstrap["protocol_sha256"] != source["protocol_sha256"]
+            or bootstrap["stage"] != source["stage"]
+            or bootstrap["completed_updates"] != saved["completed_iterations"]
+            or bootstrap["training_seed"] != saved["ppo_config"]["seed"]
+            or bootstrap["parent_rfi_multiplier"] != original_rfi
+            or "rfi_amplitude_multiplier" in target["schema"]
+        ):
+            raise ValueError("Obstacle expert bootstrap does not match its pinned parent.")
+        old = copy.deepcopy(old)
+        old["schema"].pop("rfi_amplitude_multiplier", None)
+        source = {
+            **source, "stage": -1, "experiment": curriculum["experiment"],
+            "protocol_sha256": curriculum["protocol_sha256"],
+        }
+        bootstrap_changes["disturbance_profile"] = {
+            "before": {"cat_rfi_multiplier": original_rfi},
+            "after": UNITREE_G1_BRIDGE,
+        }
     changes = validate_transfer(
         old,
         target,
@@ -158,6 +188,7 @@ def load_actor_warmstart(
         curriculum,
         actor_warmstart=True,
     )
+    changes.update(bootstrap_changes)
     changes.update(navigation_changes)
     changes.update(field_changes)
     changes.update(velocity_changes)

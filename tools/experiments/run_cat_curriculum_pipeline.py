@@ -16,7 +16,9 @@ from pathlib import Path
 
 CODE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(CODE / "src"))
-from train_cat_curriculum import stages_for, write_json
+from train_cat_curriculum import prepare, stages_for, write_json
+from embodied_learning.evaluation.cat_obstacle_expert import EXPERT_PROFILE, gate_from_expert_evaluations
+from embodied_learning.tasks.cat_foot_guidance import sha256
 from embodied_learning.evaluation.cat_terminal_gate import gate_from_evaluations
 
 
@@ -41,6 +43,7 @@ def run(
     protocol = json.loads(protocol_bytes)
     protocol_sha256 = hashlib.sha256(protocol_bytes).hexdigest()
     gated = terminal_gate_seeds is not None
+    expert = protocol.get("progression") == EXPERT_PROFILE
     if gated and (protocol["total_updates"] != 600 or smoke):
         raise ValueError("Formal gate requires 600 updates and full evaluation cohorts")
     stages = stages_for(root, protocol)
@@ -73,7 +76,7 @@ def run(
         completed_updates=completed,
         resumed_from_updates=completed,
         stage=level,
-        progression="terminal_20s_v1" if gated else "manual",
+        progression=protocol.get("progression", "terminal_20s_v1") if gated else "manual",
         initialization="resume"
         if resume
         else "actor_only"
@@ -174,7 +177,8 @@ def run(
                     ):
                         raise ValueError("Gate report does not match this run's checkpoint or provenance")
                     reports.append(report)
-                gate = gate_from_evaluations(reports)
+                gate_fn = gate_from_expert_evaluations if expert else gate_from_evaluations
+                gate = gate_fn(reports)
                 write_json(output / "gate.json", gate)
                 status["gate"] = gate
                 break
@@ -228,8 +232,29 @@ def run(
         raise
 
 
+def write_expert_results(path, status):
+    columns = ("success", "collision", "fall", "invalid", "outside_corridor", "no_crossing", "exit_not_recovered")
+    table = [
+        "| Stage | Train seed | Eval seeds | Updates | " + " | ".join(columns)
+        + " | Total | Pass | Git | Checkpoint SHA-256 |",
+        "| " + " | ".join(["---"] * (len(columns) + 8)) + " |",
+    ]
+    for report in status["gates"]:
+        values = [
+            report["training_stage"], report["training_seed"],
+            ", ".join(map(str, report["evaluation_seeds"])), report["completed_updates"],
+            *(report["results"][key] for key in columns), report["episodes"],
+            "yes" if report["passed"] else "no", report["evaluation_code_commit"],
+            report["checkpoint_sha256"],
+        ]
+        table.append("| " + " | ".join(map(str, values)) + " |")
+    temp = path.with_suffix(".tmp")
+    temp.write_text("\n".join(table) + "\n")
+    temp.replace(path)
+
+
 def run_gated(root, output, *, run_child=None):
-    """Start fresh at stage 0, promoting only after the held-out terminal gate."""
+    """Start at stage 0 and promote only after a verified update-600 gate."""
     protocol_path = root / "protocol.json"
     protocol_bytes = protocol_path.read_bytes()
     protocol = json.loads(protocol_bytes)
@@ -261,13 +286,23 @@ def run_gated(root, output, *, run_child=None):
         evaluation_seeds=seeds, protocol_sha256=hashlib.sha256(protocol_bytes).hexdigest(),
         code_commit=code_commit, gates=[],
     )
+    expert = protocol.get("progression") == EXPERT_PROFILE
     checkpoint = None
+    if expert:
+        parent = protocol["expert_bootstrap"]
+        checkpoint = Path(parent["checkpoint"])
+        if sha256(checkpoint) != parent["sha256"]:
+            raise ValueError("Obstacle expert parent checkpoint changed")
+        status["expert_bootstrap"] = parent
+        write_expert_results(output / "results.md", status)
     try:
         for level in range(len(stages)):
             status["stage"] = level
             write_json(output / "status.json", status)
             if protocol_path.read_bytes() != protocol_bytes:
                 raise ValueError("Protocol changed between gated stages")
+            if expert and not (root / "stages" / str(level) / "assets.json").exists():
+                prepare(root, level)
             stage = run(
                 root, level, output / f"stage-{level:02d}",
                 warmstart_actor=checkpoint, run_child=run_child, terminal_gate_seeds=seeds,
@@ -279,6 +314,8 @@ def run_gated(root, output, *, run_child=None):
             if hashlib.sha256(checkpoint.read_bytes()).hexdigest() != gate["checkpoint_sha256"]:
                 raise ValueError("Gate checkpoint changed before promotion")
             status["gates"].append({**gate, "checkpoint": str(checkpoint)})
+            if expert:
+                write_expert_results(output / "results.md", status)
             if not gate["passed"]:
                 status.update(state="stopped_at_gate", failed_stage=level)
                 break
