@@ -99,3 +99,35 @@ class CatUnitreeHandoffActor:
         )
         self.standing.predict(observations)
         return self.navigation.predict(observations)
+
+
+class UnitreeGoalCommands:
+    """Recenter in an empty scene with the same official velocity Actor and gains."""
+
+    start_distance_m = 0.10
+    stop_distance_m = 0.04
+    min_speed_m_s = 0.12
+    max_speed_m_s = 0.30
+    gain_s_inv = 2.0
+    gait_period_steps = 30  # 0.60 s at the official 50 Hz control rate.
+
+    def __init__(self, slots, device):
+        self.recentering = torch.zeros(slots, dtype=torch.bool, device=device)
+
+    def update(self, reset, active, body_error, linear, angular, supported, step):
+        distance = body_error.norm(dim=-1)
+        start = (
+            (distance > self.start_distance_m)
+            & supported
+            & (linear < StandHandoff.recovery_linear_m_s)
+            & (angular < StandHandoff.angular_rad_s)
+        )
+        keep = self.recentering & (distance > self.stop_distance_m)
+        self.recentering.copy_(active & ~reset & (start | keep))
+
+        speed = (self.gain_s_inv * distance).clamp(self.min_speed_m_s, self.max_speed_m_s)
+        velocity = body_error * (speed / distance.clamp_min(1e-6))[:, None]
+        phase = ((step + 1) % self.gait_period_steps) * (2 * torch.pi / self.gait_period_steps)
+        zero_yaw = torch.zeros_like(velocity[:, :1])
+        features = torch.cat((velocity, zero_yaw, phase.sin()[:, None], phase.cos()[:, None]), dim=1)
+        return torch.where(self.recentering[:, None], features, 0.0)

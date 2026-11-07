@@ -55,3 +55,26 @@ def test_large_displacement_releases_standing_without_waiting():
     assert not handoff.standing[0]
     assert handoff.transitioning[0]
     torch.testing.assert_close(handoff.weight, torch.tensor([.9]))
+
+
+def test_unitree_goal_commands_stand_through_impulse_then_recenter_with_hysteresis():
+    from embodied_learning.policies.cat_stand_handoff import UnitreeGoalCommands
+
+    correction = UnitreeGoalCommands(2, "cpu")
+    no = torch.tensor([False, False])
+    yes = torch.tensor([True, True])
+    zero = torch.zeros(2)
+    step = torch.tensor([8, 8])
+    error = torch.tensor([[.20, 0.], [0., -.20]])
+    command = correction.update(no, yes, error, torch.tensor([.55, .05]), zero, yes, step)
+    assert command[0].eq(0).all()
+    torch.testing.assert_close(command[1, :3], torch.tensor([0., -.3, 0.]))
+    assert command[1, 3:].norm() > .99
+    error[1, 1] = -.06
+    command = correction.update(no, yes, error, zero, zero, yes, step)
+    torch.testing.assert_close(command[1, :3], torch.tensor([0., -.12, 0.]))
+    error[1, 1] = -.03
+    command = correction.update(no, yes, error, zero, zero, yes, step)
+    assert command[1].eq(0).all()
+    command = correction.update(yes, yes, error, zero, zero, yes, step)
+    assert command.eq(0).all()
