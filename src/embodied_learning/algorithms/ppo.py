@@ -34,6 +34,7 @@ class PpoConfig:
     seed: int = 42
     optimization_profile: str = "rsl_v1"
     source_unroll_steps: int | None = None
+    source_standing_consistency_weight: float = 0.0
 
     def __post_init__(self) -> None:
         if self.optimization_profile not in ("rsl_v1", "brax_0_12_3_v1"):
@@ -47,6 +48,14 @@ class PpoConfig:
             raise ValueError(
                 "Source unroll steps must divide the collected rollout."
             )
+        weight = self.source_standing_consistency_weight
+        if (
+            type(weight) not in (int, float)
+            or not math.isfinite(weight)
+            or weight < 0
+            or (weight and self.optimization_profile != "brax_0_12_3_v1")
+        ):
+            raise ValueError("Standing noise consistency requires a finite source PPO weight.")
         for name in (
             "iterations",
             "rollout_steps",
@@ -145,6 +154,10 @@ class PpoConfig:
                 use_clipped_value_loss=False,
             )
             result["algorithm"]["source_unroll_steps"] = self.source_unroll_steps
+            if self.source_standing_consistency_weight:
+                result["algorithm"]["source_standing_consistency_weight"] = (
+                    self.source_standing_consistency_weight
+                )
         return result
 
 
@@ -225,6 +238,7 @@ def train_specialist(
         actual.setdefault("gamma", 0.99)
         actual.setdefault("optimization_profile", "rsl_v1")
         actual.setdefault("source_unroll_steps", None)
+        actual.setdefault("source_standing_consistency_weight", 0.0)
         if actual["critic_hidden_dims"] is not None:
             actual["critic_hidden_dims"] = tuple(actual["critic_hidden_dims"])
         if expected != actual or restored["training_scenes"] != training_scenes:
@@ -271,6 +285,7 @@ def train_specialist(
         old.setdefault("gamma", 0.99)
         old.setdefault("optimization_profile", "rsl_v1")
         old.setdefault("source_unroll_steps", None)
+        old.setdefault("source_standing_consistency_weight", 0.0)
         comparable_old, comparable_new = old.copy(), serial_config.copy()
         for key in ("iterations", "save_interval"):
             comparable_old.pop(key)

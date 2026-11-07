@@ -145,3 +145,24 @@ def build_cat_observations(
         {"actor": torch.nan_to_num(actor), "critic": torch.nan_to_num(critic)},
         batch_size=[len(actor)],
     )
+
+
+
+def standing_noise_pairs(observations: TensorDict) -> tuple[torch.Tensor, TensorDict]:
+    """Pair actor sensor readings with clean readings of the same CAT state.
+
+    The critic provides true proprioception, root speed and contact for
+    selecting training samples. Actor commands, history and fields are kept.
+    """
+    actor, critic = observations["actor"], observations["critic"]
+    if actor.ndim != 2 or actor.shape[1] != 162 or critic.shape != (len(actor), 250):
+        raise ValueError("Standing consistency requires CAT 162/250 observations.")
+    stationary = (critic[:, 77:79].norm(dim=-1) < 0.01) & (
+        critic[:, 85:88].norm(dim=-1) < 0.20
+    )
+    stationary &= (critic[:, 0:3].norm(dim=-1) < 1.0) & (
+        critic[:, 217:219] > 0.5
+    ).all(dim=-1)
+    clean = observations[stationary].clone()
+    clean["actor"][:, :52] = clean["critic"][:, :52]
+    return stationary, clean

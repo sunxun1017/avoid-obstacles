@@ -96,8 +96,11 @@ def source_gae(
 class SourcePPO(PPO):
     """Trajectory minibatches and the pinned Brax loss/gradient semantics."""
 
-    def __init__(self, *args, source_unroll_steps=None, **kwargs):
+    def __init__(
+        self, *args, source_unroll_steps=None, source_standing_consistency_weight=0.0, **kwargs
+    ):
         super().__init__(*args, **kwargs)
+        self.source_standing_consistency_weight = source_standing_consistency_weight
         if (
             self.actor.is_recurrent
             or self.critic.is_recurrent
@@ -191,6 +194,18 @@ class SourcePPO(PPO):
         bootstrap = torch.stack(next_observations, dim=0).reshape(rounds * worlds)
         return length, rounds * worlds, data, bootstrap
 
+    def _standing_consistency(self, observations, noisy_logits):
+        from embodied_learning.tasks.cat_observation import standing_noise_pairs
+
+        mask, clean = standing_noise_pairs(observations)
+        if not len(clean):
+            return noisy_logits.new_zeros(()), mask.float().mean()
+        with torch.no_grad():
+            clean_logits = self.actor.mlp(self.actor.get_latent(clean))
+            clean_action = self.actor.distribution.deterministic_output(clean_logits).tanh()
+        noisy_action = self.actor.distribution.deterministic_output(noisy_logits[mask]).tanh()
+        return F.mse_loss(noisy_action, clean_action), mask.float().mean()
+
     def update(self):
         st = self.storage
         if st.step != st.num_transitions_per_env:
@@ -198,6 +213,8 @@ class SourcePPO(PPO):
         length, count, data, bootstrap_observations = self._trajectory_batches()
         width = count // self.num_mini_batches
         sums = dict(value=0.0, surrogate=0.0, entropy=0.0, global_grad_norm=0.0)
+        consistency_sum = fraction_sum = 0.0
+        consistency_weight = self.source_standing_consistency_weight
         self.last_batch_shapes = []
         parameters = list(chain(self.actor.parameters(), self.critic.parameters()))
         for _ in range(self.num_learning_epochs):
@@ -248,6 +265,11 @@ class SourcePPO(PPO):
                 value_loss = 0.25 * (targets - values).square().mean()
                 entropy = self.actor.output_entropy.mean()
                 loss = policy_loss + value_loss - self.entropy_coef * entropy
+                if consistency_weight:
+                    consistency, selected_fraction = self._standing_consistency(observations, logits)
+                    loss = loss + consistency_weight * consistency
+                    consistency_sum += float(consistency.detach())
+                    fraction_sum += float(selected_fraction)
                 self.optimizer.zero_grad()
                 loss.backward()
                 # Brax clips the combined actor + critic gradient tree.
@@ -262,4 +284,7 @@ class SourcePPO(PPO):
                 self.last_batch_shapes.append((length, width))
         st.clear()
         updates = self.num_learning_epochs * self.num_mini_batches
+        if consistency_weight:
+            sums["standing_noise_consistency"] = consistency_sum
+            sums["standing_noise_fraction"] = fraction_sum
         return {key: value / updates for key, value in sums.items()}
