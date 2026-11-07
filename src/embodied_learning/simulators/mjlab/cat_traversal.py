@@ -11,6 +11,7 @@ import torch
 from mjlab.actuator import BuiltinMotorActuatorCfg
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnv
+from mjlab.envs.mdp.events import push_by_setting_velocity
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import (
     ObservationGroupCfg,
@@ -38,7 +39,11 @@ from embodied_learning.simulators.mjlab.field_traversal import (
     _reset_field,
 )
 from embodied_learning.tasks.cat_reward import CatRewardInputs
-from embodied_learning.tasks.cat_traversal import CatTaskState
+from embodied_learning.tasks.cat_traversal import (
+    UNITREE_G1_BRIDGE,
+    UNITREE_PUSH_VELOCITY_RANGE,
+    CatTaskState,
+)
 
 
 def native_model_identity(model) -> str:
@@ -392,7 +397,19 @@ def make_cat_env(
     rfi_amplitude_multiplier=1.0,
     phase_pushes=None,
     training_rfi_multiplier=None,
+    training_disturbance_profile=None,
 ):
+    unitree_bridge = training_disturbance_profile == UNITREE_G1_BRIDGE
+    if training_disturbance_profile is not None and (
+        not unitree_bridge
+        or execution_profile != "source_train"
+        or phase_pushes is not None
+        or training_rfi_multiplier is not None
+        or rfi_amplitude_multiplier != 1.0
+        or not all(options.get(key) for key in ("random_pd", "random_rfi", "push"))
+        or options.get("noise_level") != 1.0
+    ):
+        raise ValueError("Unitree bridge requires its own training disturbance profile.")
     if training_rfi_multiplier is not None and (
         execution_profile != "source_train" or rfi_amplitude_multiplier != 1.0
     ):
@@ -427,12 +444,13 @@ def make_cat_env(
         recovery_options=recovery_options,
         execution_profile=execution_profile,
         risk_guidance=risk_guidance,
+        unitree_bridge=unitree_bridge,
     )
     cfg = build_cat_cfg(  # 生成环境配置对象，并存入cfg中
         num_envs=num_envs,
         seed=seed,
         random_pd=state.options["random_pd"],
-        random_rfi=state.options["random_rfi"],
+        random_rfi=state.options["random_rfi"] and not unitree_bridge,
         rfi_amplitude_multiplier=(
             rfi_amplitude_multiplier if training_rfi_multiplier is None else training_rfi_multiplier
         ),
@@ -593,7 +611,14 @@ def make_cat_env(
 
         def step(self, actions):
             state.advance_before_physics(actions)
-            if state.options["push"]:
+            if unitree_bridge:
+                tick = self.episode_length_buf + 1
+                ids = torch.nonzero(tick == state.push_interval, as_tuple=True)[0]
+                if len(ids):
+                    push_by_setting_velocity(self, ids, UNITREE_PUSH_VELOCITY_RANGE)
+                    # In this profile the buffer holds each slot's next deadline.
+                    state.push_interval[ids] += state.sample_push_interval(len(ids))
+            elif state.options["push"]:
                 push = ((self.episode_length_buf + 1) % state.push_interval) == 0
                 if push.any():
                     ids = torch.nonzero(push, as_tuple=True)[0]

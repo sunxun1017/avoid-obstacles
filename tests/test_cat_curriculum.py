@@ -325,3 +325,33 @@ def test_scene_transition_keeps_optimizer_steps_and_global_iterations(tmp_path):
     } == {3}
     assert after["curriculum_transition"]["parent_completed_iterations"] == 2
     assert after["parameter_delta"] > 0
+
+
+def test_unitree_bridge_is_training_only_and_has_no_additional_phase_pushes(tmp_path):
+    import json
+
+    from train_cat_curriculum import initialize, stages_for
+
+    root = tmp_path / "bridge"
+    initialize(
+        root,
+        recipe="standing_recovery_v1",
+        training_seed=20261120,
+        terminal_gate_seeds=(20261130, 20261131),
+        training_disturbance_profile="unitree_g1_bridge_v1",
+    )
+    protocol = json.loads((root / "protocol.json").read_text())
+    assert protocol["training_disturbance_profile"] == "unitree_g1_bridge_v1"
+    assert "training_push_curriculum" not in protocol
+    assert protocol["total_updates"] == 600 and protocol["training_envs"] == 4096
+    assert protocol["evaluation_profile"] == "source_train"
+    assert protocol["terminal_gate_seeds"] == [20261130, 20261131]
+    (stage,) = stages_for(root, protocol)
+    assert all(stage["task"][key] for key in ("random_pd", "random_rfi", "push"))
+    with pytest.raises(ValueError, match="requires the standing recovery recipe"):
+        initialize(
+            tmp_path / "foundation",
+            recipe="foundation_v1",
+            terminal_gate_seeds=(20261130, 20261131),
+            training_disturbance_profile="unitree_g1_bridge_v1",
+        )

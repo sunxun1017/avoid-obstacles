@@ -56,6 +56,7 @@ def build_cat_observations(
     sdf_delayed,
     command_delayed,
     noise_level=1.0,
+    joint_pos_noise=0.03,
     consume_noise_draws=False,
     phase_features=None,
 ):
@@ -124,7 +125,7 @@ def build_cat_observations(
         [
             noisy(gyro, 0.2),
             noisy(gravity, 0.05),
-            (noisy(joint_pos, 0.03) - default_joints)[:, OBS_INDICES],
+            (noisy(joint_pos, joint_pos_noise) - default_joints)[:, OBS_INDICES],
             noisy(joint_vel, 1.5)[:, OBS_INDICES],
             last_actions,
             targets[:, :12],

@@ -29,6 +29,7 @@ from embodied_learning.tasks.cat_foot_guidance import (
     prepare_foot_cache,
     sha256,
 )
+from embodied_learning.tasks.cat_traversal import UNITREE_G1_BRIDGE
 from embodied_learning.tasks.field_assets import load_field_cache, prepare_fields
 
 
@@ -53,6 +54,7 @@ def config(protocol, updates):
 def initialize(
     root, *, recipe="foundation_v1", parent_checkpoint=None,
     training_seed=42, terminal_gate_seeds=None,
+    training_disturbance_profile=None,
 ):
     """Create a new, reviewable protocol; never rewrite an existing run."""
     from embodied_learning.tasks.cat_hurdle import parent_settings
@@ -65,6 +67,10 @@ def initialize(
         raise ValueError("Training seed must be a nonnegative integer")
     gated = terminal_gate_seeds is not None
     standing = recipe == "standing_recovery_v1"
+    if training_disturbance_profile is not None and (
+        not standing or training_disturbance_profile != UNITREE_G1_BRIDGE
+    ):
+        raise ValueError("The Unitree bridge requires the standing recovery recipe.")
     if standing and not gated:
         raise ValueError("Standing recovery requires the 600-update terminal gate.")
     if gated:
@@ -97,13 +103,18 @@ def initialize(
             command_deadband_m_s=0.01,
             standing_stability="goal_double_support_v1",
         )
+    training_disturbances = {}
+    if training_disturbance_profile is not None:
+        training_disturbances["training_disturbance_profile"] = training_disturbance_profile
+    elif standing:
+        training_disturbances["training_push_curriculum"] = "s0_phase_push_v1"
     write_json(root / "original.yaml", original)
     write_json(
         root / "protocol.json",
         dict(
             experiment=root.name,
             curriculum_profile=recipe if standing else "foundation_v1",
-            **({"training_push_curriculum": "s0_phase_push_v1"} if standing else {}),
+            **training_disturbances,
             progression="terminal_20s_v1" if gated else "manual",
             stage_initialization="actor_only",
             foot_radius_m=0.30,
@@ -226,11 +237,17 @@ def prepare(root, level=None):
 
 def make_env(
     root, level, *, num_envs, seed, execution_profile="source_train",
-    phase_pushes=None, training_rfi_multiplier=None,
+    phase_pushes=None, training_rfi_multiplier=None, training_disturbance_profile=None,
 ):
     from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
 
     protocol = json.loads((root / "protocol.json").read_text())
+    if training_disturbance_profile is not None and (
+        level != 0
+        or protocol["curriculum_profile"] != "standing_recovery_v1"
+        or protocol.get("training_disturbance_profile") != training_disturbance_profile
+    ):
+        raise ValueError("Training disturbance profile does not match the frozen S0 protocol.")
     directory = root / "stages" / str(level)
     assets = json.loads((directory / "assets.json").read_text())
     settings = load_experiment_config(directory / "config.json")
@@ -276,6 +293,7 @@ def make_env(
         execution_profile=execution_profile,
         rfi_amplitude_multiplier=protocol.get("rfi_amplitude_multiplier", 1.0),
         training_rfi_multiplier=training_rfi_multiplier,
+        training_disturbance_profile=training_disturbance_profile,
     )
     env.schema["foot_guidance_experiment"] = bank.experiment_schema
     slip_mode = protocol.get("standing_slip_mode", "phase_mask_v1")
@@ -414,6 +432,7 @@ def train(
             )
         completed = parent["completed_iterations"]
     rfi_multiplier = training_rfi_multiplier(protocol, completed, updates)
+    disturbance = protocol.get("training_disturbance_profile")
     num_envs = 32 if smoke else protocol["training_envs"]
     phase_pushes = None
     if (push_version := protocol.get("training_push_curriculum")) is not None:
@@ -431,14 +450,17 @@ def train(
         seed=protocol["ppo"]["seed"],
         phase_pushes=phase_pushes,
         training_rfi_multiplier=rfi_multiplier,
+        training_disturbance_profile=disturbance,
     )
     cfg = config(protocol, updates)
     expected = contract(env, cfg)
     try:
-        rfi_record = (
+        training_record = (
             {"training_rfi_amplitude_multiplier": rfi_multiplier}
             if rfi_multiplier is not None else {}
         )
+        if disturbance is not None:
+            training_record["training_disturbance_profile"] = disturbance
         before = (
             torch.load(resume, map_location="cpu", weights_only=False)
             if resume
@@ -459,7 +481,7 @@ def train(
                 num_envs=env.num_envs,
                 contract=expected.to_dict(),
                 metadata=env.curriculum_metadata,
-                **rfi_record,
+                **training_record,
             ),
         )
         checkpoint = train_specialist(
@@ -533,7 +555,7 @@ def train(
                 ),
                 strict_reload_passed=True,
                 field_routing_passed=True,
-                **rfi_record,
+                **training_record,
                 **(
                     {
                         "phase_pushes": dict(zip(
@@ -694,14 +716,19 @@ def main():
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--training-seed", type=int)
     parser.add_argument("--terminal-gate-seeds", nargs=2, type=int)
+    parser.add_argument("--training-disturbance-profile", choices=(UNITREE_G1_BRIDGE,))
     parser.add_argument("--seed", type=int, default=20261020)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--disable-push", action="store_true")
     parser.add_argument("--terminal-gate", action="store_true")
     args = parser.parse_args()
     torch.set_num_threads(4)
-    if args.command != "init" and (args.training_seed is not None or args.terminal_gate_seeds is not None):
-        parser.error("Training and terminal gate seeds apply only to initialization")
+    if args.command != "init" and any(
+        value is not None for value in (
+            args.training_seed, args.terminal_gate_seeds, args.training_disturbance_profile,
+        )
+    ):
+        parser.error("Training protocol options apply only to initialization")
     if args.terminal_gate and args.command != "evaluate":
         parser.error("--terminal-gate applies only to evaluation")
     root = args.root.resolve()
@@ -726,6 +753,7 @@ def main():
             root, recipe=args.recipe, parent_checkpoint=args.parent_checkpoint,
             training_seed=42 if args.training_seed is None else args.training_seed,
             terminal_gate_seeds=args.terminal_gate_seeds,
+            training_disturbance_profile=args.training_disturbance_profile,
         )
     elif args.command == "prepare":
         prepare(root, args.stage)

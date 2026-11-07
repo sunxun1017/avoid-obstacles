@@ -193,6 +193,18 @@ def test_observation_noise_is_bounded_and_critic_is_clean():
         assert (delta[:, begin:end] <= bound + 1e-6).all()
     torch.testing.assert_close(noisy["actor"][:, 52:], clean["actor"][:, 52:])
     torch.testing.assert_close(noisy["critic"], clean["critic"])
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(1931)
+        source = build_cat_observations(**payload)
+        torch.manual_seed(1931)
+        bridge = build_cat_observations(**payload, joint_pos_noise=0.01)
+    torch.testing.assert_close(bridge["actor"][:, :6], source["actor"][:, :6])
+    torch.testing.assert_close(bridge["actor"][:, 29:], source["actor"][:, 29:])
+    torch.testing.assert_close(bridge["critic"], source["critic"])
+    q = clean["actor"][:, 6:29]
+    torch.testing.assert_close(
+        bridge["actor"][:, 6:29] - q, (source["actor"][:, 6:29] - q) / 3
+    )
 
 
 def test_invalid_pose_terminates_without_querying_nan():

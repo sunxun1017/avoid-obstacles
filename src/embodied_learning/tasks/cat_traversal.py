@@ -29,6 +29,17 @@ from embodied_learning.tasks.cat_reward import (
 )
 
 
+UNITREE_G1_BRIDGE = "unitree_g1_bridge_v1"
+UNITREE_PUSH_VELOCITY_RANGE = {
+    "x": (-0.50, 0.50),
+    "y": (-0.50, 0.50),
+    "z": (-0.40, 0.40),
+    "roll": (-0.52, 0.52),
+    "pitch": (-0.52, 0.52),
+    "yaw": (-0.78, 0.78),
+}
+
+
 class CatTaskState:
     # Reporting only: these thresholds do not change rewards or termination.
     metric_definitions = {
@@ -60,6 +71,7 @@ class CatTaskState:
         recovery_options=None,
         execution_profile="source_train",
         risk_guidance=None,
+        unitree_bridge=False,
     ):
         if bank.source_profile != {"version": "cat_source_v1"}:
             raise ValueError("Source task requires source-profile cache.")
@@ -83,6 +95,7 @@ class CatTaskState:
             )
         self.risk_alpha = self.risk_alpha_delayed = None
         self.execution_profile = execution_profile
+        self.unitree_bridge = unitree_bridge
         if task_profile == "cat_source_v1" and recovery_options:
             raise ValueError("Recovery options require the research task profile.")
         self.task_profile = task_profile
@@ -305,11 +318,15 @@ class CatTaskState:
         self.ever_collision[env_ids] = False
         self.settled_steps[env_ids] = 0
         self.min_goal_distance[env_ids] = math.inf
-        self.push_interval[env_ids] = torch.round(
-            (5 + 5 * torch.rand(n, device=env_ids.device)) / 0.02
-        ).long()
+        self.push_interval[env_ids] = self.sample_push_interval(n)
         self.generation += 1
         self._key = None
+
+    def sample_push_interval(self, count):
+        random = torch.rand(count, device=self.push_interval.device)
+        if self.unitree_bridge:
+            return torch.ceil((5 + random) / 0.02).long()
+        return torch.round((5 + 5 * random) / 0.02).long()
 
     @staticmethod
     def classify(*, up_z, head_z, self_contact, sdf, invalid, steps, threshold):
@@ -862,6 +879,7 @@ class CatTaskState:
             sdf_delayed=delayed_sdf,
             command_delayed=delayed_command,
             noise_level=self.options["noise_level"],
+            joint_pos_noise=0.01 if self.unitree_bridge else 0.03,
         )
         if self.recovery is not None:
             delta = torch.cat(
