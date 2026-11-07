@@ -60,6 +60,40 @@ def test_foundation_starts_empty_then_isolated_bars_and_keeps_final_original():
         curriculum.stage_settings(original, profile="typo")
 
 
+def test_standing_recovery_recipe_starts_at_goal_and_uses_a_single_full_gate(tmp_path):
+    import json
+
+    from train_cat_curriculum import initialize, stages_for
+
+    root = tmp_path / "stand"
+    initialize(
+        root,
+        recipe="standing_recovery_v1",
+        training_seed=20261120,
+        terminal_gate_seeds=(20261130, 20261131),
+    )
+    protocol = json.loads((root / "protocol.json").read_text())
+    assert protocol["curriculum_profile"] == "standing_recovery_v1"
+    assert protocol["training_push_curriculum"] == "s0_phase_push_v1"
+    assert protocol["total_updates"] == 600
+    assert protocol["terminal_gate_seeds"] == [20261130, 20261131]
+    assert protocol["evaluation_profile"] == "source_train"
+    assert protocol.get("rfi_amplitude_multiplier", 1.0) == 1.0
+    (stage,) = stages_for(root, protocol)
+    scene = next(s for s in stage["scenes"] if s["id"] == "hurdle_crouch")
+    assert scene["starts"] == scene["goals"] == [[0.5, 0.0, 0.8]]
+    assert scene["boxes"] == []
+    task = stage["task"]
+    assert all(task[k] == 0 for k in ("ground", "lateral", "overhead"))
+    assert task["push"] is True
+    assert task["standing_stability"] == "goal_double_support_v1"
+    assert task["arrival_control"] == "root_planar_blend_v2"
+    assert task["command_deadband_m_s"] == 0.01
+
+    with pytest.raises(ValueError, match="Standing recovery requires"):
+        initialize(tmp_path / "ungated", recipe="standing_recovery_v1")
+
+
 def test_actor_stage_warmstart_keeps_actor_and_normalizer_but_fresh_critic_optimizer(
     tmp_path,
 ):

@@ -42,10 +42,14 @@ def stage_settings(original, *, profile="legacy_combination_v1"):
         stages.append(cfg)
     if profile == "legacy_combination_v1":
         return stages
-    if profile != "foundation_v1":
+    if profile not in ("foundation_v1", "standing_recovery_v1"):
         raise ValueError(f"Unknown curriculum profile: {profile}")
+    standing = profile == "standing_recovery_v1"
     foundations = []
-    for height, depth in ((0.0, 0.0), (0.04, 0.08), (0.08, 0.16)):
+    dimensions = ((0.0, 0.0), (0.04, 0.08), (0.08, 0.16))
+    if standing:
+        dimensions = dimensions[:1]
+    for height, depth in dimensions:
         cfg = copy.deepcopy(original)
         target = next(s for s in cfg["scenes"] if s["id"] == "hurdle_crouch")
         target["boxes"] = (
@@ -59,13 +63,13 @@ def stage_settings(original, *, profile="legacy_combination_v1"):
             ]
         )
         length = 0.8 if height else 0.5
-        target["starts"] = [[-length, 0.0, 0.8]]
+        target["starts"] = [[length if standing else -length, 0.0, 0.8]]
         target["goals"] = [[length, 0.0, 0.8]]
         # Source train_batch's empty task disables field reward coefficients.
         # Isolated hurdles activate only the ground terms.
         cfg["task"].update(ground=1.0 if height else 0.0, lateral=0.0, overhead=0.0)
         foundations.append(cfg)
-    return foundations + stages
+    return foundations if standing else foundations + stages
 
 
 def validate_transfer(

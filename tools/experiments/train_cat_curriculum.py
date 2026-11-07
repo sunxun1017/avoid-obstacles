@@ -57,13 +57,18 @@ def initialize(
     """Create a new, reviewable protocol; never rewrite an existing run."""
     from embodied_learning.tasks.cat_hurdle import parent_settings
 
-    if recipe not in ("foundation_v1", "feetgf_progress_stage1_v1"):
+    if recipe not in (
+        "foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1"
+    ):
         raise ValueError("Unknown curriculum recipe.")
     if type(training_seed) is not int or training_seed < 0:
         raise ValueError("Training seed must be a nonnegative integer")
     gated = terminal_gate_seeds is not None
+    standing = recipe == "standing_recovery_v1"
+    if standing and not gated:
+        raise ValueError("Standing recovery requires the 600-update terminal gate.")
     if gated:
-        if recipe != "foundation_v1":
+        if recipe == "feetgf_progress_stage1_v1":
             raise ValueError("Automatic gate initialization requires the from-scratch recipe")
         gate_seeds = tuple(terminal_gate_seeds)
         if (
@@ -86,12 +91,19 @@ def initialize(
     original = load_experiment_config(
         CODE / "configs/experiments/g1_cat_source.yaml"
     )
+    if standing:
+        original["task"].update(
+            arrival_control="root_planar_blend_v2",
+            command_deadband_m_s=0.01,
+            standing_stability="goal_double_support_v1",
+        )
     write_json(root / "original.yaml", original)
     write_json(
         root / "protocol.json",
         dict(
             experiment=root.name,
-            curriculum_profile="foundation_v1",
+            curriculum_profile=recipe if standing else "foundation_v1",
+            **({"training_push_curriculum": "s0_phase_push_v1"} if standing else {}),
             progression="terminal_20s_v1" if gated else "manual",
             stage_initialization="actor_only",
             foot_radius_m=0.30,
@@ -203,9 +215,12 @@ def prepare(root, level=None):
         prepared.append(record)
         print(json.dumps({"prepared": record}), flush=True)
         del base, bank
-    assert stages[-1] == original
+    final_geometry_exact = stages[-1] == original
+    if protocol.get("curriculum_profile") != "standing_recovery_v1":
+        assert final_geometry_exact
     write_json(
-        root / "prepared.json", dict(stages=prepared, final_geometry_exact=True)
+        root / "prepared.json",
+        dict(stages=prepared, final_geometry_exact=final_geometry_exact),
     )
 
 
@@ -633,7 +648,7 @@ def main():
     parser.add_argument(
         "--recipe",
         default="foundation_v1",
-        choices=("foundation_v1", "feetgf_progress_stage1_v1"),
+        choices=("foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1"),
     )
     parser.add_argument("--parent-checkpoint", type=Path)
     parser.add_argument(
