@@ -94,6 +94,26 @@ def test_standing_recovery_recipe_starts_at_goal_and_uses_a_single_full_gate(tmp
         initialize(tmp_path / "ungated", recipe="standing_recovery_v1")
 
 
+def test_standing_rfi_ramp_uses_the_absolute_update_and_keeps_full_late_training():
+    from train_cat_curriculum import training_rfi_multiplier
+
+    protocol = {
+        "curriculum_profile": "standing_recovery_v1",
+        "training_rfi_curriculum": "standing_rfi_ramp_v1",
+    }
+    assert training_rfi_multiplier({}, 0, 50) is None
+    for update, multiplier in enumerate((.10, .25, .50, .75, 1.0, 1.0)):
+        assert training_rfi_multiplier(protocol, update * 50, 50) == multiplier
+    assert training_rfi_multiplier(protocol, 199, 1) == .75
+    assert training_rfi_multiplier(protocol, 200, 400) == 1.0
+    with pytest.raises(ValueError, match="one amplitude"):
+        training_rfi_multiplier(protocol, 49, 2)
+    with pytest.raises(ValueError, match="original full amplitude"):
+        training_rfi_multiplier({**protocol, "rfi_amplitude_multiplier": .5}, 0, 50)
+    with pytest.raises(ValueError, match="standing recovery"):
+        training_rfi_multiplier({**protocol, "curriculum_profile": "foundation_v1"}, 0, 50)
+
+
 def test_actor_stage_warmstart_keeps_actor_and_normalizer_but_fresh_critic_optimizer(
     tmp_path,
 ):

@@ -271,6 +271,29 @@ def test_rfi_attenuation_survives_repeated_and_partial_resets():
         )
 
 
+def test_training_rfi_ramp_updates_the_first_and_later_reset_draws():
+    from train_cat_curriculum import apply_training_rfi_multiplier
+
+    action = make_action(1.0)
+    state = SimpleNamespace(_key=(0, 0))
+    manager = SimpleNamespace(get_term={"joint_pos": action}.__getitem__)
+    env = SimpleNamespace(unwrapped=SimpleNamespace(action_manager=manager, cat_state=state))
+    original = make_action(1.0)
+    for candidate in (action, original):
+        torch.manual_seed(9)
+        candidate.reset()
+    apply_training_rfi_multiplier(env, .25)
+    assert state._key is None
+    for ids in (None, torch.tensor([0, 2])):
+        torch.testing.assert_close(action.controller.rfi_scale, original.controller.rfi_scale * .25)
+        torch.testing.assert_close(action.controller.kp_scale, original.controller.kp_scale)
+        torch.testing.assert_close(action.controller.kd_scale, original.controller.kd_scale)
+        for candidate in (action, original):
+            torch.manual_seed(13)
+            candidate.reset(ids)
+    torch.testing.assert_close(action.controller.rfi_scale, original.controller.rfi_scale * .25)
+
+
 @pytest.mark.parametrize("value", [-1.0, 1.1, float("nan"), True])
 def test_invalid_rfi_attenuation_is_rejected(value):
     with pytest.raises(ValueError, match="RFI"):

@@ -366,6 +366,39 @@ def contract(env, cfg):
     return result
 
 
+def training_rfi_multiplier(protocol, completed, updates):
+    profile = protocol.get("training_rfi_curriculum")
+    if profile is None:
+        return None
+    if (
+        profile != "standing_rfi_ramp_v1"
+        or protocol.get("curriculum_profile") != "standing_recovery_v1"
+    ):
+        raise ValueError("Training RFI ramp requires the standing recovery recipe.")
+    if protocol.get("rfi_amplitude_multiplier", 1.0) != 1.0:
+        raise ValueError("Training RFI ramp requires original full amplitude for evaluation.")
+    if completed < 0 or updates < 1:
+        raise ValueError("RFI ramp requires a valid training update range.")
+    scales = (0.10, 0.25, 0.50, 0.75, 1.0)
+    first = min(completed // 50, len(scales) - 1)
+    last = min((completed + updates - 1) // 50, len(scales) - 1)
+    if first != last:
+        raise ValueError("Each RFI ramp training chunk must use one amplitude.")
+    return scales[first]
+
+
+def apply_training_rfi_multiplier(env, multiplier):
+    native = env.unwrapped
+    action = native.action_manager.get_term("joint_pos")
+    if not action.cfg.random_rfi or action.cfg.rfi_amplitude_multiplier != 1.0:
+        raise ValueError("Training RFI ramp requires the original RFI action configuration.")
+    # The environment has already sampled its first reset. Scale that draw,
+    # then use the same multiplier in subsequent resets in this training chunk.
+    action.controller.rfi_scale.mul_(multiplier)
+    action.cfg.rfi_amplitude_multiplier = multiplier
+    native.cat_state._key = None
+
+
 def train(
     root, level, updates, output, resume=None, *, warmstart_actor=None, smoke=False
 ):
@@ -379,6 +412,7 @@ def train(
         raise ValueError("Resume and Actor warmstart are mutually exclusive.")
     if resume is None and warmstart_actor is None and level != 0:
         raise ValueError("Fresh initialization must begin at the easiest stage.")
+    completed = 0
     if resume is not None:
         parent = torch.load(resume, map_location="cpu", weights_only=False)
         if parent["curriculum"]["stage"] != level:
@@ -386,6 +420,8 @@ def train(
                 "Resume must stay in the same stage; "
                 "use --warmstart-actor to change stage."
             )
+        completed = parent["completed_iterations"]
+    rfi_multiplier = training_rfi_multiplier(protocol, completed, updates)
     num_envs = 32 if smoke else protocol["training_envs"]
     phase_pushes = None
     if (push_version := protocol.get("training_push_curriculum")) is not None:
@@ -406,6 +442,10 @@ def train(
     cfg = config(protocol, updates)
     expected = contract(env, cfg)
     try:
+        rfi_record = {}
+        if rfi_multiplier is not None:
+            apply_training_rfi_multiplier(env, rfi_multiplier)
+            rfi_record["training_rfi_amplitude_multiplier"] = rfi_multiplier
         before = (
             torch.load(resume, map_location="cpu", weights_only=False)
             if resume
@@ -426,6 +466,7 @@ def train(
                 num_envs=env.num_envs,
                 contract=expected.to_dict(),
                 metadata=env.curriculum_metadata,
+                **rfi_record,
             ),
         )
         checkpoint = train_specialist(
@@ -499,6 +540,7 @@ def train(
                 ),
                 strict_reload_passed=True,
                 field_routing_passed=True,
+                **rfi_record,
                 **(
                     {
                         "phase_pushes": dict(zip(
