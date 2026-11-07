@@ -271,32 +271,6 @@ def test_rfi_attenuation_survives_repeated_and_partial_resets():
         )
 
 
-def test_training_rfi_ramp_updates_the_first_and_later_reset_draws():
-    from train_cat_curriculum import apply_training_rfi_multiplier
-
-    action = make_action(1.0)
-    original = make_action(1.0)
-    for candidate in (action, original):
-        torch.manual_seed(9)
-        candidate.reset()
-    critic = torch.zeros(3, 250)
-    critic[:, -29:] = action.controller.rfi_scale
-    state = SimpleNamespace(_key=(0, 0), observations=lambda: {"critic": critic})
-    manager = SimpleNamespace(get_term={"joint_pos": action}.__getitem__)
-    env = SimpleNamespace(unwrapped=SimpleNamespace(action_manager=manager, cat_state=state))
-    apply_training_rfi_multiplier(env, .25)
-    assert state._key == (0, 0)
-    torch.testing.assert_close(critic[:, -29:], original.controller.rfi_scale * .25)
-    for ids in (None, torch.tensor([0, 2])):
-        torch.testing.assert_close(action.controller.rfi_scale, original.controller.rfi_scale * .25)
-        torch.testing.assert_close(action.controller.kp_scale, original.controller.kp_scale)
-        torch.testing.assert_close(action.controller.kd_scale, original.controller.kd_scale)
-        for candidate in (action, original):
-            torch.manual_seed(13)
-            candidate.reset(ids)
-    torch.testing.assert_close(action.controller.rfi_scale, original.controller.rfi_scale * .25)
-
-
 @pytest.mark.parametrize("value", [-1.0, 1.1, float("nan"), True])
 def test_invalid_rfi_attenuation_is_rejected(value):
     with pytest.raises(ValueError, match="RFI"):
@@ -423,7 +397,7 @@ def test_native_factory_contract_tracks_rfi_attenuation(tmp_path):
     bank = load_field_cache(
         tmp_path / "manifest.json", manifest, device="cuda:0", source_profile=profile
     )
-    for multiplier in [1.0, 0.375]:
+    for multiplier, training in ((1.0, None), (0.375, None), (1.0, 0.10)):
         env = make_cat_env(
             manifest,
             bank,
@@ -433,16 +407,24 @@ def test_native_factory_contract_tracks_rfi_attenuation(tmp_path):
             seed=42,
             options={},
             rfi_amplitude_multiplier=multiplier,
+            training_rfi_multiplier=training,
         )
         try:
             if multiplier == 1:
                 assert "rfi_amplitude_multiplier" not in env.schema
             else:
                 assert env.schema["rfi_amplitude_multiplier"] == 0.375
-            env.reset()
             c = env.unwrapped.cat_controller
-            ratio = c.rfi_scale / c.limits
-            assert float(ratio.max()) <= 0.15 * multiplier + 1e-6
+            amplitude = training if training is not None else multiplier
+            for reset in (False, True):
+                if reset:
+                    env.reset()
+                ratio = c.rfi_scale / c.limits
+                assert float(ratio.min()) >= 0.05 * amplitude - 1e-6
+                assert float(ratio.max()) <= 0.15 * amplitude + 1e-6
+                torch.testing.assert_close(
+                    env.get_observations()["critic"][:, -29:], c.rfi_scale
+                )
         finally:
             env.close()
 

@@ -391,7 +391,12 @@ def make_cat_env(
     execution_profile="source_train",
     rfi_amplitude_multiplier=1.0,
     phase_pushes=None,
+    training_rfi_multiplier=None,
 ):
+    if training_rfi_multiplier is not None and (
+        execution_profile != "source_train" or rfi_amplitude_multiplier != 1.0
+    ):
+        raise ValueError("Training RFI schedule requires the original source profile.")
     if (
         task_profile == "cat_recovery_v1"  # """ 任务配置类型 """
         and online_sensor is not None
@@ -428,7 +433,9 @@ def make_cat_env(
         seed=seed,
         random_pd=state.options["random_pd"],
         random_rfi=state.options["random_rfi"],
-        rfi_amplitude_multiplier=rfi_amplitude_multiplier,
+        rfi_amplitude_multiplier=(
+            rfi_amplitude_multiplier if training_rfi_multiplier is None else training_rfi_multiplier
+        ),
     )
     cfg.commands = {}
     cfg.curriculum = {}
@@ -554,6 +561,8 @@ def make_cat_env(
             super().__init__(cfg=cfg, device=device)
 
         def load_managers(self):
+            # Describe the frozen evaluation interface. The training-only
+            # amplitude is already present in the action manager's config.
             self.cat_rfi_amplitude_multiplier = rfi_amplitude_multiplier
             if task_profile == "cat_recovery_v1":
                 from embodied_learning.simulators.mjlab.cat_geometry import (

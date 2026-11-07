@@ -224,7 +224,10 @@ def prepare(root, level=None):
     )
 
 
-def make_env(root, level, *, num_envs, seed, execution_profile="source_train", phase_pushes=None):
+def make_env(
+    root, level, *, num_envs, seed, execution_profile="source_train",
+    phase_pushes=None, training_rfi_multiplier=None,
+):
     from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
 
     protocol = json.loads((root / "protocol.json").read_text())
@@ -272,6 +275,7 @@ def make_env(root, level, *, num_envs, seed, execution_profile="source_train", p
         options=settings["task"],
         execution_profile=execution_profile,
         rfi_amplitude_multiplier=protocol.get("rfi_amplitude_multiplier", 1.0),
+        training_rfi_multiplier=training_rfi_multiplier,
     )
     env.schema["foot_guidance_experiment"] = bank.experiment_schema
     slip_mode = protocol.get("standing_slip_mode", "phase_mask_v1")
@@ -387,21 +391,6 @@ def training_rfi_multiplier(protocol, completed, updates):
     return scales[first]
 
 
-def apply_training_rfi_multiplier(env, multiplier):
-    native = env.unwrapped
-    action = native.action_manager.get_term("joint_pos")
-    if not action.cfg.random_rfi or action.cfg.rfi_amplitude_multiplier != 1.0:
-        raise ValueError("Training RFI ramp requires the original RFI action configuration.")
-    # The environment has already sampled its first reset. Scale that draw,
-    # then use the same multiplier in subsequent resets in this training chunk.
-    rfi_scale = action.controller.rfi_scale
-    rfi_scale.mul_(multiplier)
-    action.cfg.rfi_amplitude_multiplier = multiplier
-    # Update the cached first observation without consuming new sensor draws.
-    critic = native.cat_state.observations()["critic"]
-    critic[:, -rfi_scale.shape[1]:].copy_(rfi_scale)
-
-
 def train(
     root, level, updates, output, resume=None, *, warmstart_actor=None, smoke=False
 ):
@@ -441,14 +430,15 @@ def train(
         num_envs=num_envs,
         seed=protocol["ppo"]["seed"],
         phase_pushes=phase_pushes,
+        training_rfi_multiplier=rfi_multiplier,
     )
     cfg = config(protocol, updates)
     expected = contract(env, cfg)
     try:
-        rfi_record = {}
-        if rfi_multiplier is not None:
-            apply_training_rfi_multiplier(env, rfi_multiplier)
-            rfi_record["training_rfi_amplitude_multiplier"] = rfi_multiplier
+        rfi_record = (
+            {"training_rfi_amplitude_multiplier": rfi_multiplier}
+            if rfi_multiplier is not None else {}
+        )
         before = (
             torch.load(resume, map_location="cpu", weights_only=False)
             if resume
