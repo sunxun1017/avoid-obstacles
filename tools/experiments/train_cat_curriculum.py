@@ -394,9 +394,12 @@ def apply_training_rfi_multiplier(env, multiplier):
         raise ValueError("Training RFI ramp requires the original RFI action configuration.")
     # The environment has already sampled its first reset. Scale that draw,
     # then use the same multiplier in subsequent resets in this training chunk.
-    action.controller.rfi_scale.mul_(multiplier)
+    rfi_scale = action.controller.rfi_scale
+    rfi_scale.mul_(multiplier)
     action.cfg.rfi_amplitude_multiplier = multiplier
-    native.cat_state._key = None
+    # Update the cached first observation without consuming new sensor draws.
+    critic = native.cat_state.observations()["critic"]
+    critic[:, -rfi_scale.shape[1]:].copy_(rfi_scale)
 
 
 def train(

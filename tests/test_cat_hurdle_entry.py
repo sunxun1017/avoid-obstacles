@@ -275,15 +275,18 @@ def test_training_rfi_ramp_updates_the_first_and_later_reset_draws():
     from train_cat_curriculum import apply_training_rfi_multiplier
 
     action = make_action(1.0)
-    state = SimpleNamespace(_key=(0, 0))
-    manager = SimpleNamespace(get_term={"joint_pos": action}.__getitem__)
-    env = SimpleNamespace(unwrapped=SimpleNamespace(action_manager=manager, cat_state=state))
     original = make_action(1.0)
     for candidate in (action, original):
         torch.manual_seed(9)
         candidate.reset()
+    critic = torch.zeros(3, 250)
+    critic[:, -29:] = action.controller.rfi_scale
+    state = SimpleNamespace(_key=(0, 0), observations=lambda: {"critic": critic})
+    manager = SimpleNamespace(get_term={"joint_pos": action}.__getitem__)
+    env = SimpleNamespace(unwrapped=SimpleNamespace(action_manager=manager, cat_state=state))
     apply_training_rfi_multiplier(env, .25)
-    assert state._key is None
+    assert state._key == (0, 0)
+    torch.testing.assert_close(critic[:, -29:], original.controller.rfi_scale * .25)
     for ids in (None, torch.tensor([0, 2])):
         torch.testing.assert_close(action.controller.rfi_scale, original.controller.rfi_scale * .25)
         torch.testing.assert_close(action.controller.kp_scale, original.controller.kp_scale)
