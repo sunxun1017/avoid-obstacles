@@ -161,7 +161,9 @@ def initialize(
         protocol = json.loads((root / "protocol.json").read_text())
         if expert:
             schema = saved["field_contract"]["schema"]
-            original["task"] = schema["task"]
+            from embodied_learning.tasks.cat_overhead import POSTURE_VERSION
+
+            original["task"] = {**schema["task"], "posture_reward": POSTURE_VERSION}
             for key in (
                 "risk_guidance", "controller_pd", "standing_balance_mode",
                 "reward_smoothness_action_weight", "reward_smoothness_joint_weight",

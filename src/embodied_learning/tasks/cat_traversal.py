@@ -137,10 +137,26 @@ class CatTaskState:
                 "training_initialization",
                 "stop_transition",
                 "standing_stability",
+                "posture_reward",
             }
         ):
             raise ValueError("Unknown source task option.")
         self.options = {**defaults, **options}
+        from embodied_learning.tasks.cat_overhead import (
+            POSTURE_VERSION,
+            OverheadClearance,
+        )
+
+        posture = self.options.get("posture_reward")
+        if posture not in (None, POSTURE_VERSION):
+            raise ValueError("Unknown posture reward profile.")
+        if posture and getattr(bank, "deployment", False):
+            raise ValueError(
+                "Overhead posture reward requires offline scene geometry."
+            )
+        self.overhead_clearance = (
+            OverheadClearance(manifest, device) if posture else None
+        )
         self.standing_stability = self.options.get("standing_stability")
         if self.standing_stability is not None and (
             self.standing_stability != "goal_double_support_v1"
@@ -678,9 +694,21 @@ class CatTaskState:
             if self.feet_progress is not None
             else None
         )
+        ducking_allowance = None
+        if self.overhead_clearance is not None:
+            ducking_allowance = self.overhead_clearance.allowance(
+                root,
+                query_positions[:, 0],
+                torch.where(invalid[:, None], 0.0, command[:, 1:3]),
+                self.scene_ids,
+            )
+            # A bad physics slot must terminate, not abort the whole batch or
+            # gain an exemption from its finite placeholder query position.
+            ducking_allowance = torch.where(invalid, 0.0, ducking_allowance)
         self.terms = cat_reward_terms(
             x,
             parameters=params,
+            ducking_allowance=ducking_allowance,
             diagnostics=diagnostics,
             feet_progress_gate=progress_gate,
             contact_force_rate=(

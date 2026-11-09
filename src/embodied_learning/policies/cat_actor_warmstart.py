@@ -173,6 +173,15 @@ def load_actor_warmstart(
             raise ValueError("Obstacle expert bootstrap does not match its pinned parent.")
         old = copy.deepcopy(old)
         old["schema"].pop("rfi_amplitude_multiplier", None)
+        from embodied_learning.tasks.cat_overhead import POSTURE_VERSION
+
+        before_posture = old["schema"].get("task", {}).get("posture_reward")
+        after_posture = target["schema"].get("task", {}).get("posture_reward")
+        if before_posture is None and after_posture == POSTURE_VERSION:
+            old["schema"].setdefault("task", {})["posture_reward"] = after_posture
+            bootstrap_changes["task.posture_reward"] = {
+                "before": None, "after": after_posture,
+            }
         source = {
             **source, "stage": -1, "experiment": curriculum["experiment"],
             "protocol_sha256": curriculum["protocol_sha256"],

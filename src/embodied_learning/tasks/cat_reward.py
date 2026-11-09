@@ -125,6 +125,7 @@ def cat_reward_terms(
     risk_alpha: Tensor | None = None,
     standing_contact_slip: bool = False,
     standing_balance_free: bool = False,
+    ducking_allowance: Tensor | None = None,
 ) -> dict[str, Tensor]:
     b = x.root_vel.shape[0]
     if risk_alpha is not None and (
@@ -190,11 +191,28 @@ def cat_reward_terms(
     lower = p.soft_lower.to(x.joint_pos)
     upper = p.soft_upper.to(x.joint_pos)
     pitch = x.torso_rpy[:, 1].clamp(-math.pi, 0).abs()
+    # None preserves archived source rewards. New expert recipes supply a
+    # geometry-derived permission, independent of the robot's head height.
+    if ducking_allowance is None:
+        forward_weight = (x.head_pos[:, 2] > p.chest_height + 0.1).to(x.root_vel)
+    else:
+        if (
+            ducking_allowance.shape != (b,)
+            or ducking_allowance.dtype != x.root_vel.dtype
+            or ducking_allowance.device != x.root_vel.device
+            or not torch.isfinite(ducking_allowance).all()
+            or (ducking_allowance < 0).any()
+            or (ducking_allowance > 1).any()
+        ):
+            raise ValueError(
+                "Ducking allowance must be matching [B] values in [0,1]."
+            )
+        forward_weight = 1 - ducking_allowance
     ori = (
         x.pelvis_rpy[:, 0].abs()
         + x.torso_rpy[:, 0].abs()
         + pitch
-        + (x.head_pos[:, 2] > p.chest_height + 0.1) * x.torso_rpy[:, 1].abs()
+        + forward_weight * x.torso_rpy[:, 1].abs()
     )
     cmd = x.cmd_vel[:, :2]
     norm = cmd.norm(dim=-1, keepdim=True)
