@@ -55,3 +55,37 @@ class S0PhasePushCurriculum:
         cap = .20 + .25 * fraction
         magnitude = .10 + (cap - .10) * torch.rand(len(slots), device=slots.device)
         return magnitude[:, None] * self.direction[slots]
+
+
+class TraversalPhasePush:
+    """Move the first full-strength Unitree push to an obstacle phase.
+
+    Returns one union of phase/timer slots. The caller reschedules the timer
+    from the actual push tick, so a targeted push never doubles the impulse.
+    Empty scenes and missed phases fall back to the unchanged timer.
+    """
+
+    version = "traversal_phase_push_v1"
+    phase_names = ("approach", "crossing", "landing")
+
+    def __init__(self, num_envs, device):
+        self.phase = torch.arange(num_envs, device=device) % 4
+        self.used = torch.zeros(num_envs, device=device, dtype=torch.bool)
+        self.counts = torch.zeros(3, device=device, dtype=torch.long)
+
+    def reset(self, slots):
+        self.used[slots] = False
+
+    def select(self, tick, deadline, feet_x, feet_contact, front, back):
+        leading, trailing = feet_x.amax(1), feet_x.amin(1)
+        approach = (leading >= front - .25) & (leading < front)
+        crossing = ((feet_x >= front[:, None]) & (feet_x <= back[:, None]) & (feet_contact < .5)).any(1)
+        landing = (trailing > back) & (trailing < back + .35) & feet_contact.bool().any(1)
+        phases = torch.stack((approach, crossing, landing), 1)
+        phase_due = (phases & (self.phase[:, None] == torch.arange(3, device=tick.device))).any(1)
+        phase_due &= ~self.used & (tick >= 25) & torch.isfinite(front)
+        scheduled = tick >= deadline
+        selected = phase_due | scheduled
+        self.used |= selected
+        self.counts += (phase_due[:, None] & (self.phase[:, None] == torch.arange(3, device=tick.device))).sum(0)
+        return torch.nonzero(selected, as_tuple=True)[0]

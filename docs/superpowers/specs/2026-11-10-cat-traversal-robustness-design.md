@@ -1,0 +1,13 @@
+# CAT traversal robustness v2
+
+User approved all four recommendations in the preceding analysis. Implement together; no new long training run is requested in this turn.
+
+Use an explicit `traversal_robustness=obstacle_clearance_v1` task contract and `cat_obstacle_expert_v2` recipe. Legacy recipes, checkpoints, evaluation thresholds, torque weights, PD, and overhead_clearance_v1 remain unchanged. Actor dimensions stay 162/250/12. Only pinned actor bootstrap may opt into the new contract, with changes recorded; full resume remains strict.
+
+1. Accumulate native prohibited obstacle and monitored self contacts at every physics substep, before reward and termination. No ground contact prohibition. Terminate actual contact without the old 1-second grace and set terminal reward to zero (existing nonnegative return convention). Preserve pre-reset reporting.
+2. Cover native foot collision geometry, including toes/heels, with the existing collision-envelope geometry. Add obstacle-conditioned swing clearance cost for ground-connected bars <=0.35 m, top +0.03 m, within a 0.12 m horizontal approach band, retaining it for each trailing foot until its full envelope clears. Flat-ground 0.07 m term stays. Never impose high stepping on flat ground or treat conservative cover overlap as physical contact.
+3. Add nine stages: isolated 4cm/8cm/10cm at 16cm depth, 10cm at 24cm depth, 12cm at 24cm depth, ceiling alone, ceiling plus 8/10/12cm at 24cm depth. First 4cm retains 8cm depth. Roof underside1.20m and gap0.70m fixed. Each training stage samples current target5/8, flat1/8, isolated8cm1/8, roof1/8. Evaluation samples target only from the same manifest/model. All field reward groups enabled in v2 so anchors receive their appropriate geometric signals.
+4. Soft corridor correction starts at |y|0.22m, reaches its scale at0.32m, only from0.3m before obstacles to0.3m beyond. Cap lateral correction0.25m/s and expose it through existing command observations. Add normalized boundary cost without hard locking the body to y=0.
+5. Training first push is phase targeted for three quarters of slots (approach, crossing, landing); quarter retains standard5-6s timer. Retain full Unitree6D velocity ranges; no extra simultaneous push; fallback at original deadline if phase not reached. Subsequent pushes retain original intervals. Evaluation uses unchanged timer. Record phase counts.
+
+Tradeoffs: native substep sensing costs compute; strict terminal contacts change return distribution; local cover clearance is conservative. These are testable implementation choices, not demonstrated success gains. Keep task parameter identity in the versioned contract.

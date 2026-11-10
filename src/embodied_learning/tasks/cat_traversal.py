@@ -138,6 +138,7 @@ class CatTaskState:
                 "stop_transition",
                 "standing_stability",
                 "posture_reward",
+                "traversal_robustness",
             }
         ):
             raise ValueError("Unknown source task option.")
@@ -157,6 +158,16 @@ class CatTaskState:
         self.overhead_clearance = (
             OverheadClearance(manifest, device) if posture else None
         )
+        from embodied_learning.tasks.cat_traversal_safety import (
+            TRAVERSAL_VERSION, TraversalSafety,
+        )
+
+        robustness = self.options.get("traversal_robustness")
+        if robustness not in (None, TRAVERSAL_VERSION):
+            raise ValueError("Unknown traversal robustness profile.")
+        if robustness and (self.recovery is not None or getattr(bank, "deployment", False)):
+            raise ValueError("Traversal robustness requires offline source geometry.")
+        self.traversal_safety = TraversalSafety(manifest, device) if robustness else None
         self.standing_stability = self.options.get("standing_stability")
         if self.standing_stability is not None and (
             self.standing_stability != "goal_double_support_v1"
@@ -302,6 +313,8 @@ class CatTaskState:
         self.saved_reward_diagnostics = {}
         self.last_metrics = {}
         self.scales = SOURCE_SCALES.copy()
+        if self.traversal_safety is not None:
+            self.scales.update(obstacle_foot_clearance=-2.0, corridor_boundary=-2.0)
         if self.standing_stability is not None:
             self.scales["standing_stability"] = 2.0
         # Explicit experiment: prioritize following the requested velocity,
@@ -439,6 +452,9 @@ class CatTaskState:
                 0.0,
                 command,
             )
+        corridor_cost = None
+        if self.traversal_safety is not None:
+            command, corridor_cost = self.traversal_safety.corridor(command, root, self.scene_ids)
         if self.stop_transition:
             command = self.gait.filter_command(
                 command,
@@ -456,7 +472,7 @@ class CatTaskState:
             bf[:, [0, 3, 4, 5, 6]],
             deadband=self.command_deadband,
         )
-        if self.arrival_control:
+        if self.arrival_control or self.traversal_safety is not None:
             initial_command = command.clone()
         if self.recovery is None:
             old_phase = self.gait.phase.clone()
@@ -573,7 +589,7 @@ class CatTaskState:
             bf[ids] = sample.sdf_gradient[ids]
             delayed_gf, delayed_bf, delayed_sdf = gf, bf, sample.sdf
             delayed_command = command
-        if self.arrival_control:
+        if self.arrival_control or self.traversal_safety is not None:
             # Match the Actor's desired speed to the command used by rewards.
             # Delayed point SDF/BF/GF observations retain their existing semantics.
             delayed_command = command
@@ -737,6 +753,15 @@ class CatTaskState:
                 payload["gyro"],
                 x.feet_contact,
             )
+        if self.traversal_safety is not None:
+            centers, radii, groups = payload["foot_cover"]
+            cover_invalid = ~torch.isfinite(centers).all((1, 2))
+            invalid |= cover_invalid
+            centers = torch.where(cover_invalid[:, None, None], 0.0, centers)
+            self.terms["obstacle_foot_clearance"] = self.traversal_safety.foot_clearance_cost(
+                centers, radii, groups, self.gait.gait_mask, self.scene_ids,
+            )
+            self.terms["corridor_boundary"] = corridor_cost
         if self.recovery is None:
             self._reward = aggregate_cat_reward(self.terms, self.scales, dt=0.02)
         flags = self.classify(
@@ -748,6 +773,14 @@ class CatTaskState:
             steps=steps,
             threshold=self.options["term_collision_threshold"],
         )
+        if self.traversal_safety is not None:
+            flags["collision"] |= (
+                payload["physical_collision"] | payload["self_contact"]
+            ) & (steps > 0) & ~self.initial
+            # Failures lose the current positive reward; do not silently clip a
+            # huge negative contact penalty into the ordinary shaping signal.
+            failed = flags["collision"] | flags["fall"] | invalid
+            self._reward = torch.where(failed, 0.0, self._reward)
         if getattr(self.bank, "deployment", False):
             # Partial measured occupancy cannot certify physical collision.
             # Keep native collision reporting separate from deployment fields.

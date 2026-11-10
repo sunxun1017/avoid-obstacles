@@ -20,6 +20,8 @@ from embodied_learning.data.config import load_experiment_config
 from embodied_learning.data.field_scenes import load_scene_manifest
 from embodied_learning.evaluation.cat_obstacle_expert import EXPERT_PROFILE
 from embodied_learning.tasks.cat_curriculum import (
+    ROBUST_EXPERT_PROFILE,
+    ANCHOR_SCENES,
     require_original_task_contract,
     robot_fingerprint,
     stage_settings,
@@ -61,14 +63,14 @@ def initialize(
     from embodied_learning.tasks.cat_hurdle import parent_settings
 
     if recipe not in (
-        "foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1", EXPERT_PROFILE
+        "foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1", EXPERT_PROFILE, ROBUST_EXPERT_PROFILE
     ):
         raise ValueError("Unknown curriculum recipe.")
     if type(training_seed) is not int or training_seed < 0:
         raise ValueError("Training seed must be a nonnegative integer")
     gated = terminal_gate_seeds is not None
     standing = recipe == "standing_recovery_v1"
-    expert = recipe == EXPERT_PROFILE
+    expert = recipe in (EXPERT_PROFILE, ROBUST_EXPERT_PROFILE)
     if training_disturbance_profile is not None and (
         not (standing or expert) or training_disturbance_profile != UNITREE_G1_BRIDGE
     ):
@@ -164,6 +166,12 @@ def initialize(
             from embodied_learning.tasks.cat_overhead import POSTURE_VERSION
 
             original["task"] = {**schema["task"], "posture_reward": POSTURE_VERSION}
+            if recipe == ROBUST_EXPERT_PROFILE:
+                from embodied_learning.tasks.cat_traversal_safety import TRAVERSAL_VERSION
+                from embodied_learning.tasks.cat_phase_push_curriculum import TraversalPhasePush
+                original["task"]["traversal_robustness"] = TRAVERSAL_VERSION
+                protocol["training_obstacle_push"] = TraversalPhasePush.version
+                protocol["training_scene_mix"] = {"hurdle_crouch": 5, **dict.fromkeys(ANCHOR_SCENES, 1)}
             for key in (
                 "risk_guidance", "controller_pd", "standing_balance_mode",
                 "reward_smoothness_action_weight", "reward_smoothness_joint_weight",
@@ -258,7 +266,7 @@ def prepare(root, level=None):
         print(json.dumps({"prepared": record}), flush=True)
         del base, bank
     final_geometry_exact = stages[-1] == original
-    if protocol.get("curriculum_profile") not in ("standing_recovery_v1", EXPERT_PROFILE):
+    if protocol.get("curriculum_profile") not in ("standing_recovery_v1", EXPERT_PROFILE, ROBUST_EXPERT_PROFILE):
         assert final_geometry_exact
     write_json(
         root / "prepared.json",
@@ -266,9 +274,19 @@ def prepare(root, level=None):
     )
 
 
+def scene_selection(protocol, *, training):
+    if protocol.get("curriculum_profile") != ROBUST_EXPERT_PROFILE or not training:
+        return ["hurdle_crouch"]
+    expected = {"hurdle_crouch": 5, **dict.fromkeys(ANCHOR_SCENES, 1)}
+    if protocol.get("training_scene_mix") != expected:
+        raise ValueError("Invalid v2 training scene mixture.")
+    return [name for name, count in expected.items() for _ in range(count)]
+
+
 def make_env(
     root, level, *, num_envs, seed, execution_profile="source_train",
     phase_pushes=None, training_rfi_multiplier=None, training_disturbance_profile=None,
+    training=False,
 ):
     from embodied_learning.simulators.mjlab.cat_traversal import make_cat_env
 
@@ -276,7 +294,7 @@ def make_env(
     if training_disturbance_profile is not None and (
         protocol.get("training_disturbance_profile") != training_disturbance_profile
         or (
-            protocol["curriculum_profile"] != EXPERT_PROFILE
+            protocol["curriculum_profile"] not in (EXPERT_PROFILE, ROBUST_EXPERT_PROFILE)
             and (level != 0 or protocol["curriculum_profile"] != "standing_recovery_v1")
         )
     ):
@@ -318,7 +336,8 @@ def make_env(
         phase_pushes=phase_pushes,
         foot_contact_force=protocol.get("foot_contact_force"),
         risk_guidance=protocol.get("risk_guidance"),
-        scene_ids=["hurdle_crouch"],
+        scene_ids=scene_selection(protocol, training=training),
+        obstacle_phase_push=protocol.get("training_obstacle_push") if training else None,
         num_envs=num_envs,
         device="cuda:0",
         seed=seed,
@@ -486,6 +505,7 @@ def train(
         phase_pushes=phase_pushes,
         training_rfi_multiplier=rfi_multiplier,
         training_disturbance_profile=disturbance,
+        training=True,
     )
     cfg = config(protocol, updates)
     expected = contract(env, cfg)
@@ -496,6 +516,9 @@ def train(
         )
         if disturbance is not None:
             training_record["training_disturbance_profile"] = disturbance
+        if protocol.get("curriculum_profile") == ROBUST_EXPERT_PROFILE:
+            training_record["training_scene_mix"] = protocol["training_scene_mix"]
+            training_record["training_obstacle_push"] = protocol["training_obstacle_push"]
         before = (
             torch.load(resume, map_location="cpu", weights_only=False)
             if resume
@@ -604,6 +627,12 @@ def train(
                 **(
                     {"near_goal_resets": int(phase_pushes.near_goal_reset_count)}
                     if phase_pushes is not None and phase_pushes.near_goal_starts else {}
+                ),
+                **(
+                    {"obstacle_phase_pushes": dict(zip(
+                        env.unwrapped.cat_obstacle_pushes.phase_names,
+                        env.unwrapped.cat_obstacle_pushes.counts.tolist(), strict=True,
+                    ))} if env.unwrapped.cat_obstacle_pushes is not None else {}
                 ),
                 completed_at=datetime.now(timezone.utc).isoformat(),
             ),
@@ -753,7 +782,7 @@ def main():
     parser.add_argument(
         "--recipe",
         default="foundation_v1",
-        choices=("foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1", EXPERT_PROFILE),
+        choices=("foundation_v1", "standing_recovery_v1", "feetgf_progress_stage1_v1", EXPERT_PROFILE, ROBUST_EXPERT_PROFILE),
     )
     parser.add_argument("--parent-checkpoint", type=Path)
     parser.add_argument(

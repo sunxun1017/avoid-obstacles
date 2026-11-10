@@ -182,6 +182,25 @@ def load_actor_warmstart(
             bootstrap_changes["task.posture_reward"] = {
                 "before": None, "after": after_posture,
             }
+        from embodied_learning.tasks.cat_traversal_safety import TRAVERSAL_VERSION
+        from embodied_learning.tasks.cat_curriculum import ANCHOR_SCENES
+
+        before_robustness = old["schema"].get("task", {}).get("traversal_robustness")
+        after_robustness = target["schema"].get("task", {}).get("traversal_robustness")
+        if before_robustness is None and after_robustness == TRAVERSAL_VERSION:
+            names = ["wall_detour", "passage", "hurdle_crouch"]
+            mixed = [2] * 5 + [3, 4, 5]
+            if (old["schema"].get("scene_names") != names
+                    or target["schema"].get("scene_names") != names + list(ANCHOR_SCENES)
+                    or saved["training_scenes"] != [2] or training_scenes != mixed):
+                raise ValueError("V2 bootstrap requires the declared anchor scene mixture.")
+            old["schema"]["task"]["traversal_robustness"] = after_robustness
+            old["schema"]["scene_names"] = names + list(ANCHOR_SCENES)
+            bootstrap_changes.update({
+                "task.traversal_robustness": {"before": None, "after": after_robustness},
+                "scene_names": {"before": names, "after": names + list(ANCHOR_SCENES)},
+                "training_scenes": {"before": [2], "after": mixed},
+            })
         source = {
             **source, "stage": -1, "experiment": curriculum["experiment"],
             "protocol_sha256": curriculum["protocol_sha256"],
@@ -218,7 +237,7 @@ def load_actor_warmstart(
             "before": None,
             "after": "root_displacement_0p5s_v1",
         }
-    if saved["training_scenes"] != training_scenes:
+    if saved["training_scenes"] != training_scenes and "training_scenes" not in bootstrap_changes:
         raise ValueError("Actor warmstart training scene selection changed.")
     actor = saved.get("actor_state_dict")
     if (

@@ -10,6 +10,9 @@ import numpy as np
 
 from embodied_learning.evaluation.cat_obstacle_expert import EXPERT_PROFILE
 
+ROBUST_EXPERT_PROFILE = "cat_obstacle_expert_v2"
+ANCHOR_SCENES = ("anchor_flat", "anchor_hurdle", "anchor_ceiling")
+
 # Full bar height/depth, beam underside, free horizontal gap, all in meters.
 LEVELS = (
     (0.08, 0.16, 1.40, 0.85),
@@ -28,6 +31,8 @@ def stage_settings(original, *, profile="legacy_combination_v1"):
     ]
     if scene["boxes"] != expected:
         raise ValueError("Curriculum requires the verified original geometry.")
+    if profile == ROBUST_EXPERT_PROFILE:
+        return robust_expert_stages(original)
     stages = []
     for i, (height, depth, underside, gap) in enumerate(LEVELS):
         cfg = copy.deepcopy(original)
@@ -83,6 +88,33 @@ def stage_settings(original, *, profile="legacy_combination_v1"):
             target["goals"] = [[1.85, 0.0, 0.8]]
         return stages
     return foundations if standing else foundations + stages
+
+
+def robust_expert_stages(original):
+    """Smaller geometry increments plus permanent rehearsal scenes."""
+    from embodied_learning.tasks.cat_overhead import POSTURE_VERSION
+    from embodied_learning.tasks.cat_traversal_safety import TRAVERSAL_VERSION
+
+    def bar(height, depth):
+        return dict(center=[round(.4 + depth / 2, 8), 0., height / 2],
+                    half_size=[depth / 2, .5, height / 2])
+
+    roof = dict(center=[-.55, 0., 1.32], half_size=[.25, .9, .12])
+    layouts = [[bar(h, d)] for h, d in ((.04,.08), (.08,.16), (.10,.16), (.10,.24), (.12,.24))]
+    layouts += [[roof]] + [[roof, bar(h, .24)] for h in (.08,.10,.12)]
+    result = []
+    for boxes in layouts:
+        cfg = copy.deepcopy(original)
+        main = next(s for s in cfg["scenes"] if s["id"] == "hurdle_crouch")
+        main.update(boxes=copy.deepcopy(boxes), starts=[[-1.5,-.12,.8],[-1.5,.12,.8]], goals=[[1.85,0.,.8]])
+        for name, anchor_boxes in zip(ANCHOR_SCENES, ([], [bar(.08,.16)], [roof]), strict=True):
+            anchor = copy.deepcopy(main)
+            anchor.update(id=name, boxes=copy.deepcopy(anchor_boxes))
+            cfg["scenes"].append(anchor)
+        cfg["task"].update(ground=1., lateral=1., overhead=1.,
+                           posture_reward=POSTURE_VERSION, traversal_robustness=TRAVERSAL_VERSION)
+        result.append(cfg)
+    return result
 
 
 def validate_transfer(

@@ -97,11 +97,15 @@ def evaluate_expert(env, policy, scene, *, episode_path):
     robot = native.scene["robot"].data
     origins = native.scene.env_origins
     obs = env.get_observations()
+    first_contacts = {}
     with torch.inference_mode(), capture_prohibited_contacts(env):
         for step in range(1, native.max_episode_length + 1):
             push_due = native.episode_length_buf + 1 == env.cat_state.push_interval
             obs, _, done, extras = env.step(policy.predict(obs))
             outcomes = extras["field_outcomes"]
+            for slot, pairs in extras.get("contact_geom_pairs", {}).items():
+                if progress.result[slot] == "" and slot not in first_contacts:
+                    first_contacts[slot] = {"step": step, "geom_pairs": pairs}
             position = robot.root_link_pos_w - origins
             vx = robot.root_link_lin_vel_w[:, 0]
             tilt = (-robot.projected_gravity_b[:, 2]).clamp(-1, 1).acos()
@@ -116,6 +120,8 @@ def evaluate_expert(env, policy, scene, *, episode_path):
                 break
     progress.finish(np.ones(env.num_envs, dtype=bool), step)
     records = progress.records()
+    for slot, contact in first_contacts.items():
+        records[slot]["first_obstacle_contact"] = contact
     episode_path.write_text("".join(json.dumps(r, allow_nan=False) + "\n" for r in records))
     results = Counter(r["result"] for r in records)
     return {

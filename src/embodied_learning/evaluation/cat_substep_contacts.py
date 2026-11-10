@@ -10,6 +10,16 @@ import torch
 def capture_prohibited_contacts(env):
     """Add substep contacts to the existing pre-reset policy transition flags."""
     native = env.unwrapped
+    if getattr(native, "cat_substep_contacts", None) is not None:
+        # v2 already accumulates before termination and exports pre-reset flags.
+        capture = native.cat_substep_contacts
+        before = capture.record_details
+        capture.record_details = True
+        try:
+            yield
+        finally:
+            capture.record_details = before
+        return
     sensors = tuple(native.scene[name] for name in (
         *native.cat_obstacle_contacts, "cat_feet_self", "cat_left_foot_shin", "cat_right_foot_shin",
     ))

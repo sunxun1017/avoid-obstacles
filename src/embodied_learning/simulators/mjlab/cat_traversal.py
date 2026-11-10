@@ -230,6 +230,10 @@ def read_cat_reward_inputs(env, state):
     physical = torch.zeros(len(positions), device=env.device, dtype=torch.bool)
     for n in env.cat_obstacle_contacts:
         physical |= env.scene[n].data.found.flatten(1).any(1)
+    capture = getattr(env, "cat_substep_contacts", None)
+    if capture is not None:
+        physical |= capture.obstacle
+        self_contact |= capture.prohibited & ~capture.obstacle
     legs = [robot.body_names.index(n) for n in CAT_LEG_BODIES]
     global_root = robot.indexing.root_body_id
     com = env.sim.data.subtree_com[:, global_root] - env.scene.env_origins
@@ -284,6 +288,17 @@ def read_cat_reward_inputs(env, state):
     )
     if env.cat_collision_envelope is not None:
         payload["body_envelope"] = _read_body_envelope(env, state)
+    if state.traversal_safety is not None:
+        envelope = env.cat_foot_envelope
+        pos = env.sim.data.geom_xpos
+        centers = envelope.world_centers(
+            pos, env.sim.data.geom_xmat.reshape(*pos.shape[:2], 3, 3),
+            env.scene.env_origins.to(pos),
+        )
+        mask = (envelope.groups == 3) | (envelope.groups == 4)
+        payload["foot_cover"] = (
+            centers[:, mask], envelope.radii[mask], envelope.groups[mask] - 3,
+        )
     return payload
 
 
@@ -372,6 +387,9 @@ def _source_reset(env, env_ids):
             roots[:, 3:7] = roots.new_tensor([1., 0., 0., 0.])
             roots[:, 7:] = 0
             robot.write_root_state_to_sim(roots, env_ids=slots)
+    obstacle_pushes = getattr(env, "cat_obstacle_pushes", None)
+    if obstacle_pushes is not None:
+        obstacle_pushes.reset(env_ids)
     state.reset(env_ids)
     if env.cat_sensor_config is not None:
         env.cat_state.bank.reset(env_ids, env.cat_state.scene_ids)
@@ -396,6 +414,7 @@ def make_cat_env(
     execution_profile="source_train",
     rfi_amplitude_multiplier=1.0,
     phase_pushes=None,
+    obstacle_phase_push=None,
     training_rfi_multiplier=None,
     training_disturbance_profile=None,
 ):
@@ -410,6 +429,12 @@ def make_cat_env(
         or options.get("noise_level") != 1.0
     ):
         raise ValueError("Unitree bridge requires its own training disturbance profile.")
+    if obstacle_phase_push is not None:
+        from embodied_learning.tasks.cat_phase_push_curriculum import TraversalPhasePush
+        from embodied_learning.tasks.cat_traversal_safety import TRAVERSAL_VERSION
+        if (obstacle_phase_push != TraversalPhasePush.version or not unitree_bridge
+                or options.get("traversal_robustness") != TRAVERSAL_VERSION):
+            raise ValueError("Obstacle phase pushes require v2 Unitree training.")
     if training_rfi_multiplier is not None and (
         execution_profile != "source_train" or rfi_amplitude_multiplier != 1.0
     ):
@@ -568,20 +593,31 @@ def make_cat_env(
             self.cat_sensor_reader = None
             self.cat_sensor_schedule = None
             self.cat_phase_pushes = phase_pushes
+            self.cat_obstacle_pushes = (
+                TraversalPhasePush(num_envs, device) if obstacle_phase_push else None
+            )
             self.cat_baseline_identity = baseline_identity
             self.cat_force_baseline_identity = (
                 native_model_identity(force_baseline)
                 if force_baseline is not None
                 else None
             )
+            self.cat_substep_contacts = None
+            self.cat_foot_envelope = None
             self.cat_collision_envelope = None
             self.cat_collision_query = None
             super().__init__(cfg=cfg, device=device)
+            if state.traversal_safety is not None:
+                from embodied_learning.tasks.cat_substep_contacts import SubstepContacts
+                self.cat_substep_contacts = SubstepContacts(self)
 
         def load_managers(self):
             # Describe the frozen evaluation interface. The training-only
             # amplitude is already present in the action manager's config.
             self.cat_rfi_amplitude_multiplier = rfi_amplitude_multiplier
+            if state.traversal_safety is not None:
+                from embodied_learning.simulators.mjlab.cat_geometry import CollisionEnvelope
+                self.cat_foot_envelope = CollisionEnvelope.from_model(self.sim.mj_model, device)
             if task_profile == "cat_recovery_v1":
                 from embodied_learning.simulators.mjlab.cat_geometry import (
                     BoxEnvelopeQuery,
@@ -605,6 +641,8 @@ def make_cat_env(
             super().load_managers()
 
         def close(self):
+            if self.cat_substep_contacts is not None:
+                self.cat_substep_contacts.close()
             if self.cat_sensor_schedule is not None:
                 self.cat_sensor_schedule.close()
             super().close()
@@ -613,11 +651,25 @@ def make_cat_env(
             state.advance_before_physics(actions)
             if unitree_bridge:
                 tick = self.episode_length_buf + 1
-                ids = torch.nonzero(tick == state.push_interval, as_tuple=True)[0]
+                if self.cat_obstacle_pushes is None:
+                    ids = torch.nonzero(tick == state.push_interval, as_tuple=True)[0]
+                else:
+                    robot = self.scene["robot"]
+                    site = [robot.site_names.index(name) for name in G1_BODY_SCHEMA[3:5]]
+                    feet_x = robot.data.site_pose_w[:, site, 0] - self.scene.env_origins[:, None, 0]
+                    contact = torch.stack([
+                        self.scene[name].data.found.flatten(1).any(1)
+                        for name in ("cat_left_ground", "cat_right_ground")
+                    ], 1)
+                    geometry = state.traversal_safety
+                    ids = self.cat_obstacle_pushes.select(
+                        tick, state.push_interval, feet_x, contact,
+                        geometry.push_front[state.scene_ids], geometry.push_back[state.scene_ids],
+                    )
                 if len(ids):
                     push_by_setting_velocity(self, ids, UNITREE_PUSH_VELOCITY_RANGE)
                     # In this profile the buffer holds each slot's next deadline.
-                    state.push_interval[ids] += state.sample_push_interval(len(ids))
+                    state.push_interval[ids] = tick[ids] + state.sample_push_interval(len(ids))
             elif state.options["push"]:
                 push = ((self.episode_length_buf + 1) % state.push_interval) == 0
                 if push.any():
@@ -652,7 +704,13 @@ def make_cat_env(
                         ).clone()
                         root[:, 7:9] += self.cat_phase_pushes.impulse(ids, self.common_step_counter)
                         robot.write_root_state_to_sim(root, env_ids=ids)
-            return super().step(actions)
+            if self.cat_substep_contacts is None:
+                return super().step(actions)
+            self.cat_substep_contacts.begin()
+            try:
+                return super().step(actions)
+            finally:
+                self.cat_substep_contacts.active = False
 
     native = CatNativeEnv()
     if force_baseline is not None:
@@ -757,6 +815,12 @@ class CatEnv(RslRlVecEnvWrapper):
         result = super().step(torch.tanh(actions))
         state = self.cat_state
         result[3]["field_outcomes"] = state.saved_outcomes
+        capture = getattr(getattr(self, "env", None), "cat_substep_contacts", None)
+        if capture is not None:
+            result[3]["contact_sensor_names"] = capture.names
+            result[3]["contact_sensor_hits"] = capture.hits.clone()
+            if capture.record_details:
+                result[3]["contact_geom_pairs"] = {k: sorted(v) for k, v in capture.pairs.items()}
         result[3]["cat_metrics"] = state.last_metrics
         result[3]["cat_metric_definitions"] = state.metric_definitions
         log = result[3].setdefault("log", {})
