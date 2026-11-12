@@ -49,7 +49,7 @@ class VoxelPotentialField:
     still provide distance and outward guidance, but no goal distance.
     """
 
-    sdf: Tensor
+    sdf: Tensor # signed distance field, float32/64, +inf outside known free space
     geodesic: Tensor
     sdf_gradient: Tensor
     geodesic_gradient: Tensor

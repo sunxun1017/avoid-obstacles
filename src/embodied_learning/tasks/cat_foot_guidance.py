@@ -28,20 +28,29 @@ def rebuild_guidance(
     field: VoxelPotentialField,
     goal: tuple[float, float, float],
     *,
-    influence_radius: float,
+    influence_radius: float,    # meters, how far to project the foot guidance along the obstacle surface
 ) -> torch.Tensor:
     if not math.isfinite(influence_radius) or influence_radius <= 0:
         raise ValueError("Guidance radius must be positive and finite.")
     if field.sdf.device.type != "cpu":
         raise ValueError("Build guidance caches on CPU before simulation.")
-    sdf = field.sdf.numpy()
-    bf = field.sdf_gradient.numpy()
-    bnorm = np.linalg.norm(bf, axis=-1, keepdims=True)
+    sdf = field.sdf.numpy() # points in space relative to the nearest obstacle surface
+    bf = field.sdf_gradient.numpy() # sdf gradient: which way is "up" from the surface, normalized to unit length
+    bnorm = np.linalg.norm(bf, axis=-1, keepdims=True)  # norm of the sdf gradient
     unit = np.zeros_like(bf)
-    valid = bnorm[..., 0] > 1e-9
-    unit[valid] = bf[valid] / bnorm[valid]
-    g = -field.geodesic_gradient.numpy()
-    tangent = g - (g * unit).sum(-1, keepdims=True) * unit
+    valid = bnorm[..., 0] > 1e-9 # the divisor is non-zero
+    unit[valid] = bf[valid] / bnorm[valid]  # unit
+    g = -field.geodesic_gradient.numpy()    # The direction closest to the target
+    """
+    because unit is unit vector, thus g * unit = g projection on unit or the length of
+    g on the unit direction, according to draw, the vector points the g direction, thus
+    perpendicular to vector unit
+    """
+    tangent = g - (g * unit).sum(-1, keepdims=True) * unit  # Remove the component perpendicular to the obstacle surface from the target-guiding direction g, leaving only the direction along the obstacle surface.
+    """
+    when sdf is 0, fraction = 0, weight = 1, mixed = tangent
+    when sdf is more than influence_radius, fraction = 1, weight = 0, mixed =
+    """
     fraction = np.clip(np.maximum(sdf, 0) / (influence_radius + 1e-9), 0, 1)
     weight = (1 - fraction * fraction * (3 - 2 * fraction))[..., None]
     mixed = (1 - weight) * g + weight * tangent
