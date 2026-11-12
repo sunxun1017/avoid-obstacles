@@ -84,6 +84,8 @@ scenes:
       - [1.5, 0.0, 0.8]
       - [1.5, -0.3, 0.8]
 task:
+  # Author reset randomization applies only to source_train; playback stays fixed.
+  training_initialization: author_random_v1
   # 预设观测噪声的倍率；0 关闭，1 使用源版幅度
   noise_level: 1.0
   # 随机化 P/D 增益倍率
