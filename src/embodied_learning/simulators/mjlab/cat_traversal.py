@@ -299,6 +299,10 @@ def read_cat_reward_inputs(env, state):
         payload["foot_cover"] = (
             centers[:, mask], envelope.radii[mask], envelope.groups[mask] - 3,
         )
+    if getattr(env, "cat_dynamic", None) is not None:
+        payload["dynamic"], payload["joint_geometry"] = env.cat_dynamic.payload(
+            payload["root_position"], nav,
+        )
     return payload
 
 
@@ -391,6 +395,8 @@ def _source_reset(env, env_ids):
     if obstacle_pushes is not None:
         obstacle_pushes.reset(env_ids)
     state.reset(env_ids)
+    if getattr(env, "cat_dynamic", None) is not None:
+        env.cat_dynamic.reset(env_ids)
     if env.cat_sensor_config is not None:
         env.cat_state.bank.reset(env_ids, env.cat_state.scene_ids)
         if env.cat_sensor_schedule is not None:
@@ -417,6 +423,7 @@ def make_cat_env(
     obstacle_phase_push=None,
     training_rfi_multiplier=None,
     training_disturbance_profile=None,
+    joint_config=None,
 ):
     unitree_bridge = training_disturbance_profile == UNITREE_G1_BRIDGE
     if training_disturbance_profile is not None and (
@@ -458,7 +465,13 @@ def make_cat_env(
         raise ValueError("Unknown source scene.")
     # 保存了环境运行所需要的任务信息，
     # 也就是把前面的整合到一个class中。
-    state = CatTaskState(
+    state_class, state_extra = CatTaskState, {}
+    if joint_config is not None:
+        from embodied_learning.tasks.cat_dynamic_state import JointTaskState
+        if task_profile != "cat_source_v1" or online_sensor is not None:
+            raise ValueError("Joint expert requires the offline CAT source controller.")
+        state_class, state_extra = JointTaskState, dict(joint_config=joint_config)
+    state = state_class(
         manifest,
         bank,
         tuple(names.index(n) for n in scene_ids),
@@ -470,6 +483,7 @@ def make_cat_env(
         execution_profile=execution_profile,
         risk_guidance=risk_guidance,
         unitree_bridge=unitree_bridge,
+        **state_extra,
     )
     cfg = build_cat_cfg(  # 生成环境配置对象，并存入cfg中
         num_envs=num_envs,
@@ -496,10 +510,13 @@ def make_cat_env(
     cfg.rewards = {"source": RewardTermCfg(func=_source_reward, weight=1.0)}
     cfg.terminations = {
         n: TerminationTermCfg(
-            func=_source_done, params={"name": n}, time_out=n == "timeout"
+            func=_source_done, params={"name": n}, time_out=n == "timeout" and joint_config is None
         )
         for n in ("fall", "collision", "invalid", "timeout")
     }
+    if joint_config is not None:
+        for name in ("outside_corridor", "complete"):
+            cfg.terminations[name] = TerminationTermCfg(func=_source_done, params={"name": name})
     sensors = []
 
     def contact(name, primary, secondary):
@@ -552,6 +569,18 @@ def make_cat_env(
                 ContactMatch(mode="subtree", pattern="pelvis", entity="robot"),
                 ContactMatch(mode="body", pattern="box", entity=entity),
             )
+    if joint_config is not None:
+        from embodied_learning.simulators.mjlab.cat_dynamic import RADII, sphere_spec
+        for i, radius in enumerate(RADII):
+            entity = f"obstacle_dynamic_{i}"
+            cfg.scene.entities[entity] = EntityCfg(
+                spec_fn=lambda radius=radius: sphere_spec(radius),
+                init_state=EntityCfg.InitialStateCfg(pos=(0., 0., -100.)),
+            )
+            name = f"cat_dynamic_{i}"
+            obstacle_contacts.append(name)
+            contact(name, ContactMatch(mode="subtree", pattern="pelvis", entity="robot"),
+                    ContactMatch(mode="body", pattern="ball", entity=entity))
     cfg.scene.sensors = tuple(sensors)
     force_baseline = None
     if foot_contact_force is not None:
@@ -606,6 +635,7 @@ def make_cat_env(
             self.cat_foot_envelope = None
             self.cat_collision_envelope = None
             self.cat_collision_query = None
+            self.cat_dynamic = None
             super().__init__(cfg=cfg, device=device)
             if state.traversal_safety is not None:
                 from embodied_learning.tasks.cat_substep_contacts import SubstepContacts
@@ -615,6 +645,9 @@ def make_cat_env(
             # Describe the frozen evaluation interface. The training-only
             # amplitude is already present in the action manager's config.
             self.cat_rfi_amplitude_multiplier = rfi_amplitude_multiplier
+            if joint_config is not None:
+                from embodied_learning.simulators.mjlab.cat_dynamic import DynamicSphereRuntime
+                self.cat_dynamic = DynamicSphereRuntime(self, joint_config)
             if state.traversal_safety is not None:
                 from embodied_learning.simulators.mjlab.cat_geometry import CollisionEnvelope
                 self.cat_foot_envelope = CollisionEnvelope.from_model(self.sim.mj_model, device)
@@ -641,6 +674,8 @@ def make_cat_env(
             super().load_managers()
 
         def close(self):
+            if self.cat_dynamic is not None:
+                self.cat_dynamic.close()
             if self.cat_substep_contacts is not None:
                 self.cat_substep_contacts.close()
             if self.cat_sensor_schedule is not None:
@@ -649,6 +684,8 @@ def make_cat_env(
 
         def step(self, actions):
             state.advance_before_physics(actions)
+            if self.cat_dynamic is not None:
+                self.cat_dynamic.begin()
             if unitree_bridge:
                 tick = self.episode_length_buf + 1
                 if self.cat_obstacle_pushes is None:
@@ -667,6 +704,15 @@ def make_cat_env(
                         geometry.push_front[state.scene_ids], geometry.push_back[state.scene_ids],
                     )
                 if len(ids):
+                    if self.cat_dynamic is not None:
+                        # Dynamic pushes are introduced only in S4. Static
+                        # rehearsal retains the original disturbance process.
+                        moving = self.cat_dynamic.episode_dynamic[ids]
+                        keep = ~moving
+                        if joint_config["stage"] == 4:
+                            keep |= moving & (torch.rand(len(ids), device=device) < .2)
+                        state.push_interval[ids] = tick[ids] + state.sample_push_interval(len(ids))
+                        ids = ids[keep]
                     push_by_setting_velocity(self, ids, UNITREE_PUSH_VELOCITY_RANGE)
                     # In this profile the buffer holds each slot's next deadline.
                     state.push_interval[ids] = tick[ids] + state.sample_push_interval(len(ids))
@@ -711,6 +757,8 @@ def make_cat_env(
                 return super().step(actions)
             finally:
                 self.cat_substep_contacts.active = False
+                if self.cat_dynamic is not None:
+                    self.cat_dynamic.active = False
 
     native = CatNativeEnv()
     if force_baseline is not None:
@@ -724,6 +772,12 @@ def make_cat_env(
             native.close()
             raise
     env = CatEnv(native)
+    if joint_config is not None:
+        from embodied_learning.tasks.cat_dynamic import JOINT_VERSION
+        env.schema.update(task_profile=JOINT_VERSION,
+                          observation="cat_joint_actor191_critic279_v1",
+                          joint=dict(joint_config),
+                          dynamic_envelope=native.cat_dynamic.envelope.schema())
     if force_baseline is not None:
         env.schema["robot_model_identity"] = native.cat_force_baseline_identity
     return env
